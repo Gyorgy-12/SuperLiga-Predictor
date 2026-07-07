@@ -37,3 +37,5 @@ export default {
     ctx.waitUntil(syncLive(env, { force: false, cron: true }).catch(error => console.error('scheduled sync failed', error)));
   }
 };
+
+export { UpdateCoordinator } from "./durable/update-coordinator.js";

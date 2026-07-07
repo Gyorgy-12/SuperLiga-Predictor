@@ -6,9 +6,9 @@ workers_dev = true
 [vars]
 ENVIRONMENT = "dev"
 APP_ID = "superliga_2026_27"
-FIREBASE_PROJECT_ID = "wc-2026-guesses"
-LIVE_SCORE_BASE_URL = ""
-SOFASCORE_BASE_URL = ""
+FIREBASE_PROJECT_ID = "spuerliga-predictor"
+LIVE_SCORE_BASE_URL = "https://prod-public-api.livescore.com/v1/api/app"
+SOFASCORE_BASE_URL = "https://www.sofascore.com/api/v1"
 LIVE_WRITE_TO_FIRESTORE = "false"
 FINAL_WRITE_TO_FIRESTORE = "true"
 EDGE_CACHE_SECONDS = "20"
