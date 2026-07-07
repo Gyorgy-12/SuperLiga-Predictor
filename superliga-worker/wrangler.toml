@@ -1,0 +1,53 @@
+name = "superliga-predictor-worker"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "dev"
+APP_ID = "superliga_2026_27"
+FIREBASE_PROJECT_ID = "wc-2026-guesses"
+LIVE_SCORE_APP_BASE_URL = "https://prod-public-api.livescore.com/v1/api/app"
+LIVE_SCORE_WEB_URL = "https://www.livescore.com/en/football/romania/liga-1/"
+SOFASCORE_BASE_URL = "https://www.sofascore.com/api/v1"
+SOFASCORE_TOURNAMENT_ID = "152"
+FIXTURE_SOURCE_URL = "https://lpf.ro/etape-liga-1/{round}"
+ODDS_SOURCE_URL = ""
+ODDSPEDIA_SOURCE_URL = ""
+TRANSFERMARKT_MARKET_VALUES_URL = "https://www.transfermarkt.com/superliga/marktwerteverein/wettbewerb/RO1"
+CLUBELO_COUNTRY_URL = "https://clubelo.com/ROM"
+LIVE_WRITE_TO_FIRESTORE = "false"
+FINAL_WRITE_TO_FIRESTORE = "true"
+FIXTURE_WRITE_TO_FIRESTORE = "true"
+ODDS_WRITE_TO_FIRESTORE = "true"
+RATINGS_WRITE_TO_FIRESTORE = "true"
+EDGE_CACHE_SECONDS = "20"
+RESULTS_CACHE_SECONDS = "90"
+LIVE_CACHE_SECONDS = "20"
+ODDS_CACHE_SECONDS = "300"
+RATINGS_CACHE_SECONDS = "3600"
+
+BOOTSTRAP_CACHE_SECONDS = "20"
+BOOTSTRAP_LIVE_TIMEOUT_MS = "850"
+FIXTURES_CACHE_SECONDS = "900"
+COMMUNITY_CACHE_SECONDS = "1800"
+COORDINATOR_NAME = "superliga-main"
+COORDINATOR_ALARM_HOUR_UTC = "2"
+COORDINATOR_ALARM_MINUTE_UTC = "20"
+RATINGS_REFRESH_MIN_MS = "518400000"
+
+[triggers]
+crons = ["*/15 * * * *", "20 2 * * *", "0 7 * * 3"]
+
+[[durable_objects.bindings]]
+name = "UPDATE_COORDINATOR"
+class_name = "UpdateCoordinator"
+
+[[migrations]]
+tag = "v1-update-coordinator"
+new_sqlite_classes = ["UpdateCoordinator"]
+
+# Set these with `wrangler secret put ...`, do NOT commit secrets:
+# FIREBASE_CLIENT_EMAIL
+# FIREBASE_PRIVATE_KEY
+# ADMIN_SECRET

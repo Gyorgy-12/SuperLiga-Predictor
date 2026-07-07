@@ -1,0 +1,1904 @@
+/* desktop/tablet/mobile responsive tuning and visual calibration */
+
+   Mobile marad SofaScore-szerű kompakt, de nagyobb kijelzőn nem marad
+   720px-es "telefoncsík": a tartalom, sorok, betűk, kártyák arányosan nőnek. */
+@media (min-width: 768px) and (orientation: portrait), (min-width: 900px) {
+  :root{
+    --page-max:min(92vw, 980px);
+    --logo:clamp(28px,3.2vw,38px);
+    --row-h:clamp(52px,5vw,64px);
+    --card-r:clamp(16px,1.8vw,22px);
+    --pp:clamp(18px,2.4vw,30px);
+    --cp:clamp(18px,2.15vw,28px);
+    --fz-xs:clamp(11px,.95vw,13px);
+    --fz-sm:clamp(12px,1.05vw,15px);
+    --fz-md:clamp(14px,1.2vw,17px);
+    --fz-lg:clamp(17px,1.5vw,22px);
+    --fz-title:clamp(18px,1.7vw,24px);
+    --fz-ht:clamp(18px,1.7vw,24px);
+    --fz-sz:clamp(34px,3vw,46px);
+  }
+  .hdr{
+    height:clamp(118px,10.5vw,154px);
+    padding-top:clamp(18px,1.8vw,26px);
+    align-items:flex-start;
+  }
+  .top.shrunken .hdr{height:clamp(78px,7vw,98px);padding-top:clamp(10px,1vw,14px)}
+  .li-box{width:clamp(54px,5vw,68px);height:clamp(54px,5vw,68px)}
+  .top.shrunken .li-box{width:clamp(40px,3.8vw,50px);height:clamp(40px,3.8vw,50px)}
+  .hdr-back{width:clamp(32px,3vw,40px);height:clamp(32px,3vw,40px);font-size:clamp(24px,2.2vw,30px)}
+  .hdr-icon{width:clamp(30px,2.7vw,36px);height:clamp(30px,2.7vw,36px);font-size:clamp(20px,1.8vw,24px)}
+  .tabs{height:clamp(52px,4.7vw,66px);gap:clamp(34px,4vw,58px)}
+  .tab{font-size:clamp(15px,1.25vw,18px);padding-bottom:clamp(12px,1.1vw,16px)}
+  .top.shrunken .tabs{height:clamp(44px,4vw,54px)}
+  .top.shrunken .tab{font-size:clamp(13px,1.1vw,16px);padding-bottom:clamp(8px,.8vw,12px)}
+  .ctrl-inner,.kc-inner{padding-top:clamp(10px,1vw,14px);padding-bottom:clamp(10px,1vw,14px)}
+  .pill{font-size:clamp(13px,1.05vw,15px);padding:clamp(7px,.75vw,10px) clamp(18px,1.5vw,24px)}
+  .view-btn{width:clamp(44px,3.6vw,54px);height:clamp(36px,3vw,44px)}
+  .main{padding-top:clamp(18px,1.8vw,28px);padding-bottom:90px}
+  .card{margin-bottom:clamp(14px,1.4vw,22px)}
+  .short{grid-template-columns:34px minmax(0,1fr) 54px 68px 68px;column-gap:14px}
+  .full{grid-template-columns:34px minmax(0,1fr) repeat(4,48px) 78px 64px;column-gap:10px}
+  .formv{grid-template-columns:34px minmax(0,1fr) 220px 64px;column-gap:14px}
+  .thead{min-height:24px;margin-bottom:4px}
+  .tc{gap:14px}
+  .fb{width:34px;height:28px;font-size:11px}
+  .zone.zl::before{left:calc(0px - var(--cp));width:16px;border-left-width:3px;border-top-width:3px;border-bottom-width:3px}
+  .zlabel{padding-left:28px;padding-top:12px;padding-bottom:7px}
+  .rules-row{padding:16px 18px;border-radius:14px}
+  .match-row{grid-template-columns:82px 1px 1fr 48px 42px;min-height:72px}
+  .mr-team .crest{--cs:28px}
+  .round-comp .rc-logo{width:24px;height:24px}
+  .stat-kpi{padding:18px;border-radius:14px}
+  .ov-season-logo{width:62px;height:62px;border-radius:14px}
+  .ov-poty-img{width:88px;height:88px}
+  .ov-pitch{padding:clamp(16px,1.6vw,24px) clamp(12px,1.2vw,18px);border-radius:16px}
+  .ov-row{gap:clamp(10px,1.2vw,18px);margin-bottom:clamp(10px,1vw,16px)}
+  .ov-player{width:clamp(86px,8vw,112px);gap:5px}
+  .ov-player-wrap{width:clamp(58px,5.4vw,74px);height:clamp(58px,5.4vw,74px)}
+  .ov-crest-badge{width:clamp(22px,2vw,28px);height:clamp(22px,2vw,28px)}
+  .ov-player-name{font-size:clamp(11px,.95vw,13px)}
+  .ov-rating-badge{font-size:clamp(10px,.9vw,12px);padding:2px 6px}
+  .ko-inner,.baraj-wrap,.baraj-foot{max-width:var(--page-max)}
+  .bmatch{width:clamp(230px,24vw,300px);padding:clamp(14px,1.3vw,20px)}
+  .bteam{font-size:clamp(13px,1.05vw,15px)}
+  .bteam .crest{--cs:clamp(38px,3.3vw,48px)}
+  .bscore{font-size:clamp(26px,2.2vw,34px)}
+  .btrophy{font-size:clamp(62px,5.5vw,86px)}
+}
+
+@media (min-width: 1180px) {
+  :root{
+    --page-max:min(88vw, 1120px);
+    --logo:40px;
+    --row-h:68px;
+    --cp:30px;
+    --pp:32px;
+    --fz-xs:13px;
+    --fz-sm:15px;
+    --fz-md:17px;
+    --fz-lg:22px;
+    --fz-title:25px;
+    --fz-ht:25px;
+    --fz-sz:48px;
+  }
+  .hdr{height:164px;padding-top:28px}
+  .tabs{height:68px;gap:64px}
+  .tab{font-size:18px}
+  .short{grid-template-columns:38px minmax(0,1fr) 62px 78px 78px;column-gap:16px}
+  .full{grid-template-columns:38px minmax(0,1fr) repeat(4,56px) 90px 74px;column-gap:12px}
+  .formv{grid-template-columns:38px minmax(0,1fr) 250px 74px;column-gap:16px}
+}
+
+
+.wc-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 var(--pp) var(--pp)}.wc-info{background:#111a20;border:1px solid var(--line);border-radius:8px;padding:13px 14px;min-height:76px}.wc-info b{display:block;color:var(--text);font-size:22px;line-height:1;margin-bottom:7px}.wc-info span{color:var(--muted);font-size:12px;font-weight:650;line-height:1.35}.wc-note{color:var(--muted);font-size:13px;font-weight:650;line-height:1.55;padding:0 var(--pp) var(--pp)}.wc-chip-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 var(--pp) var(--pp)}.wc-team-chip{display:flex;align-items:center;gap:10px;background:#111a20;border:1px solid var(--line);border-radius:8px;padding:10px}.wc-team-chip span{font-size:13px;font-weight:760;color:#dce6eb}.ko-stage{padding:0 var(--pp) 12px}.ko-stage h3{font-size:14px;margin:0 0 8px;color:var(--text);font-weight:850}.ko-list{display:grid;gap:7px}.ko-slot{background:#111a20;border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:#dce6eb;font-size:13px;font-weight:760;display:flex;align-items:center;justify-content:space-between}.ko-slot span{color:var(--muted);font-size:11px}.match-empty{color:var(--muted)}@media(max-width:520px){.wc-info-grid,.wc-chip-grid{grid-template-columns:1fr}}
+.wc-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 var(--pp) var(--pp)}
+.wc-info{background:#111a20;border:1px solid var(--line);border-radius:8px;padding:13px 14px;min-height:76px}.wc-info b{display:block;color:var(--text);font-size:22px;line-height:1;margin-bottom:7px}.wc-info span{color:var(--muted);font-size:12px;font-weight:650;line-height:1.35}
+.wc-note{color:var(--muted);font-size:13px;font-weight:650;line-height:1.55;padding:0 var(--pp) var(--pp)}.wc-chip-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 var(--pp) var(--pp)}.wc-team-chip{display:flex;align-items:center;gap:10px;background:#111a20;border:1px solid var(--line);border-radius:8px;padding:10px}.wc-team-chip span{font-size:13px;font-weight:760;color:#dce6eb}
+.wc-stat-list{padding:0 var(--pp) var(--pp);display:grid;gap:8px}.wc-stat-row{display:grid;grid-template-columns:32px minmax(0,1fr) 70px;align-items:center;gap:10px;background:#111a20;border:1px solid var(--line);border-radius:8px;padding:9px 10px}.wc-stat-rank{color:var(--muted);font-weight:800}.wc-stat-main{min-width:0}.wc-stat-name{color:#e8edf0;font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wc-stat-sub{color:var(--muted);font-size:11px;font-weight:650;margin-top:2px}.wc-stat-val{text-align:right;color:#e8edf0;font-weight:900}.ko-stage{padding:0 var(--pp) 12px}.ko-stage h3{font-size:14px;margin:0 0 8px;color:var(--text);font-weight:850}.ko-list{display:grid;gap:7px}.ko-slot{background:#111a20;border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:#dce6eb;font-size:13px;font-weight:760;display:flex;align-items:center;justify-content:space-between}.ko-slot span{color:var(--muted);font-size:11px}.match-empty{color:var(--muted)}
+@media(max-width:520px){.wc-info-grid,.wc-chip-grid{grid-template-columns:1fr}}
+
+.match-row{cursor:pointer;transition:background .15s ease}
+.match-row:hover{background:rgba(255,255,255,.025)}
+.match-row.predicted{background:rgba(39,201,106,.045)}
+.match-row.predicted:hover{background:rgba(39,201,106,.075)}
+.match-row.result-exact{background:rgba(39,201,106,.07)!important}
+.match-row.result-exact:hover{background:rgba(39,201,106,.11)!important}
+.match-row.result-diff{background:rgba(255,230,102,.055)!important}
+.match-row.result-diff:hover{background:rgba(255,230,102,.09)!important}
+.match-row.result-outcome{background:rgba(245,149,0,.055)!important}
+.match-row.result-outcome:hover{background:rgba(245,149,0,.09)!important}
+.match-row.result-miss{background:rgba(240,64,80,.045)!important}
+.match-row.result-miss:hover{background:rgba(240,64,80,.07)!important}
+.mr-live-state.diff{color:#f5d500}
+.mr-live-state.outcome{color:#f59500}
+.match-row.locked{cursor:pointer;opacity:.9}
+.match-row.live-locked{box-shadow:inset 0 0 0 1px rgba(240,194,117,.35);background:rgba(240,194,117,.035)}
+.match-row.result-correct{box-shadow:inset 0 0 0 2px rgba(40,209,108,.78);background:rgba(40,209,108,.085)}
+.match-row.result-wrong{box-shadow:inset 0 0 0 2px rgba(240,64,80,.72);background:rgba(240,64,80,.075)}
+.match-row.result-correct:hover{background:rgba(40,209,108,.11)}
+.match-row.result-wrong:hover{background:rgba(240,64,80,.105)}
+.match-row.locked .mr-bell{opacity:.22}
+.mr-live-state{font-size:clamp(8px,2.05vw,10px);font-weight:950;line-height:1.2;color:#f0c275;white-space:nowrap;display:block}
+.mr-live-state.ok{color:var(--green)}
+.mr-live-state.bad{color:var(--red)}
+.mr-live-state.neutral{color:#9eadb6}
+.mr-live-state.open{color:#27c96a}
+.mr-score-wrap{display:grid;grid-template-columns:auto minmax(clamp(34px,5vw,56px),auto);align-items:center;justify-content:end;gap:clamp(5px,.85vw,10px)}
+.mr-score-lines{display:flex;flex-direction:column;gap:inherit;min-width:clamp(34px,5vw,56px)}
+.mr-clock{display:inline-flex;align-items:center;justify-content:center;min-width:clamp(28px,2.35vw,42px);padding:clamp(3px,.3vw,5px) clamp(7px,.7vw,11px);border-radius:999px;background:rgba(255,90,104,.16);border:1px solid rgba(255,90,104,.32);color:#ff7b87;font-size:clamp(17px,calc(0.25vw + 14px),19px);font-weight:950;line-height:1;white-space:nowrap}
+.mr-score-pair{display:grid;grid-template-columns:minmax(14px,1fr) minmax(14px,1fr);align-items:center;gap:clamp(6px,.8vw,11px)}
+.mr-score-pair .mr-actual{text-align:center}
+.mr-score-pair .win{text-align:center}
+.mr-actual{color:#ff6470;font-weight:950}
+.mr-score-pair span,.mr-actual,.mr-scores .win{font-size:inherit;line-height:1.04;font-weight:950}
+.mr-tip{font-size:clamp(8px,2vw,9.5px);font-weight:800;color:#27c96a;margin-top:2px}
+.tip-sheet{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+.tip-head{padding:0 clamp(14px,3.6vw,18px) clamp(8px,2vw,10px);display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted);font-size:var(--fz-xs);font-weight:800}
+.tip-match{margin:0 clamp(12px,3.2vw,16px);background:#111a20;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:clamp(12px,3.2vw,16px)}
+.tip-teams{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:clamp(8px,2.2vw,12px)}
+.tip-team{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;color:#e8edf0;font-size:var(--fz-sm);font-weight:850;text-align:center}
+.tip-team .crest{--cs:clamp(34px,8.5vw,44px)}
+.tip-team span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tip-score{display:flex;align-items:center;gap:clamp(5px,1.5vw,8px)}
+.tip-score input,.tip-real-cell{width:clamp(44px,12vw,58px);height:clamp(42px,11vw,54px);border:1px solid #33424d;border-radius:10px;background:#081014;color:#f2f6f8;text-align:center;font-size:clamp(20px,5.2vw,28px);font-weight:900;font-variant-numeric:tabular-nums;outline:0}
+.tip-score input:focus{border-color:#27c96a;box-shadow:0 0 0 2px rgba(39,201,106,.18)}
+.tip-dash{color:#697984;font-weight:900;font-size:clamp(18px,4.8vw,24px)}
+.tip-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:clamp(12px,3.2vw,16px) clamp(12px,3.2vw,16px) 0}
+.tip-btn{border:0;border-radius:10px;padding:clamp(10px,2.8vw,13px);font-size:var(--fz-sm);font-weight:900;cursor:pointer;background:#2b3943;color:#dbe5ea}
+.tip-btn.save{background:#27c96a;color:#06120b}
+.tip-btn.clear{background:#131c22;color:#aebbc3;border:1px solid rgba(255,255,255,.06)}
+.tip-msg{min-height:18px;margin:8px clamp(12px,3.2vw,16px) 0;color:#f59500;font-size:var(--fz-xs);font-weight:800;text-align:center}
+.stat-match-list .wc-stat-row{grid-template-columns:32px minmax(0,1fr) 86px}
+
+
+.ctrl-bar,.kc-bar{top:var(--top-h,148px);z-index:990;transition:top .08s linear}
+.ko-bracket{padding:0 var(--pp) var(--pp);overflow-x:auto;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(190px,1fr);gap:12px;align-items:start}
+.ko-col{display:grid;gap:10px;min-width:190px}
+.ko-col h3{font-size:13px;color:var(--muted2);font-weight:900;margin:0 0 2px;text-transform:none}
+.ko-card{background:#111a20;border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden;cursor:pointer;transition:background .15s,border-color .15s}
+.ko-card:hover{background:#15212a;border-color:#2b3b46}
+.ko-card.predicted{border-color:rgba(39,201,106,.45);background:rgba(39,201,106,.055)}
+.ko-card.locked{cursor:default;opacity:.72}
+.ko-meta{display:flex;justify-content:space-between;gap:8px;padding:7px 9px;color:var(--muted);font-size:10px;font-weight:850;border-bottom:1px solid rgba(255,255,255,.05)}
+.ko-team{display:grid;grid-template-columns:22px minmax(0,1fr) 28px;align-items:center;gap:7px;padding:7px 9px 9px;color:#cbd6dc;font-size:12px;font-weight:750;min-height:38px}
+.ko-team .crest{--cs:22px}.ko-team.win{color:#f3f8fa;font-weight:900}.ko-team.dim{opacity:.5}.ko-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ko-score{text-align:right;font-weight:900;color:#e8edf0;font-variant-numeric:tabular-nums}.ko-placeholder{color:#6f7f89;font-style:italic}.ko-help{margin:0 var(--pp) var(--pp);color:var(--muted);font-size:12px;font-weight:650;line-height:1.5}.tip-btn:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:560px){.ko-bracket{grid-auto-columns:minmax(174px,86vw)}}
+
+#mCtrl .ctrl-inner{overflow-x:auto;scrollbar-width:none}#mCtrl .ctrl-inner::-webkit-scrollbar{display:none}#mCtrl .ctrl-inner .pill{flex:0 0 auto}.ctrl-bar,.kc-bar,.ctrl-inner,.kc-inner,.view-wrap,.sel-wrap{overflow:visible}.drop{z-index:20000}
+
+.ko-bracket{padding:0 var(--pp) var(--pp);overflow-x:auto;display:block}
+.ko-stage-wrap{min-width:1040px;display:grid;grid-template-columns:minmax(0,1fr) 190px minmax(0,1fr);gap:14px;align-items:start}
+.ko-side{display:grid;grid-template-columns:repeat(4,minmax(165px,1fr));gap:10px;align-items:start}
+.ko-right{direction:rtl}.ko-right .ko-col{direction:ltr}
+.ko-col{display:grid;gap:9px;min-width:0}.ko-col h3{text-align:center;font-size:12px;color:var(--muted2);font-weight:900;margin:0 0 2px}
+.ko-col.depth-1{padding-top:34px}.ko-col.depth-2{padding-top:92px}.ko-col.depth-3{padding-top:178px}
+.ko-final-col{display:grid;gap:10px;padding-top:252px;align-content:start}.ko-final-col h3{text-align:center;font-size:13px;color:#e8edf0;font-weight:950;margin:0}.ko-cup{height:48px;display:grid;place-items:center;color:#f1c95a;font-size:34px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
+.ko-card{position:relative}.ko-left .ko-card::after,.ko-right .ko-card::after{content:"";position:absolute;top:50%;width:10px;height:1px;background:rgba(255,255,255,.14)}.ko-left .ko-card::after{right:-10px}.ko-right .ko-card::after{left:-10px}
+.ko-final-col .ko-card::before,.ko-final-col .ko-card::after{content:"";position:absolute;top:50%;width:14px;height:1px;background:rgba(255,255,255,.16)}.ko-final-col .ko-card::before{left:-14px}.ko-final-col .ko-card::after{right:-14px}
+@media(max-width:560px){.ko-stage-wrap{min-width:980px;grid-template-columns:minmax(0,1fr) 176px minmax(0,1fr)}.ko-side{grid-template-columns:repeat(4,158px)}.ko-final-col{padding-top:246px}}
+
+
+.ko-right{direction:ltr!important}.ko-right .ko-col{direction:ltr!important}
+.ko-stage-wrap{min-width:1100px;grid-template-columns:minmax(0,1fr) 210px minmax(0,1fr)}
+.ko-side{grid-template-columns:repeat(4,minmax(160px,1fr))}
+.ko-final-col{padding-top:218px}.ko-final-col .ko-card+.ko-mid-title{margin-top:18px}
+.ko-mid-title{text-align:center;font-size:12px;color:var(--muted2);font-weight:950;margin:10px 0 0}.ko-lock-note{margin:0 var(--pp) var(--pp);background:#181207;border:1px solid rgba(245,149,0,.22);border-radius:10px;color:#f0c275;font-size:12px;font-weight:750;line-height:1.45;padding:10px 12px}
+@media(max-width:560px){.ko-stage-wrap{min-width:1040px;grid-template-columns:minmax(0,1fr) 190px minmax(0,1fr)}.ko-side{grid-template-columns:repeat(4,154px)}.ko-final-col{padding-top:210px}}
+
+
+.ko-stage-wrap{min-width:1840px!important;grid-template-columns:minmax(0,1fr) 240px minmax(0,1fr)!important;gap:64px!important;align-items:start!important}
+.ko-side{grid-template-columns:repeat(4,230px)!important;gap:42px!important;align-items:start!important}
+.ko-col{position:relative!important;display:grid!important;grid-template-rows:repeat(17,58px)!important;row-gap:12px!important;gap:12px!important;min-width:230px!important;padding-top:30px!important}
+.ko-col h3{position:absolute!important;top:0!important;left:0!important;right:0!important;text-align:center!important;font-size:12px!important;color:var(--muted2)!important;font-weight:950!important;margin:0!important}
+.ko-card{height:100%!important;min-height:0!important;align-self:stretch!important}
+.ko-card .ko-meta{min-height:28px}.ko-team{min-height:42px}
+.ko-final-col{position:relative!important;display:grid!important;grid-template-rows:repeat(17,58px)!important;row-gap:12px!important;gap:12px!important;min-width:240px!important;padding-top:30px!important;align-content:start!important}
+.ko-final-col .ko-cup{position:absolute!important;top:0!important;left:0!important;right:0!important;height:38px!important;font-size:30px!important}.ko-final-col h3{position:absolute!important;top:38px!important;left:0!important;right:0!important;text-align:center!important;margin:0!important}.ko-mid-title{align-self:end!important;text-align:center!important;margin:0!important;font-size:12px!important;color:var(--muted2)!important;font-weight:950!important}
+.ko-final-col .ko-card::before,.ko-final-col .ko-card::after{top:50%!important}
+@media(max-width:560px){.ko-stage-wrap{min-width:1780px!important;grid-template-columns:minmax(0,1fr) 230px minmax(0,1fr)!important;gap:54px!important}.ko-side{grid-template-columns:repeat(4,220px)!important;gap:34px!important}.ko-col{min-width:220px!important;grid-template-rows:repeat(17,56px)!important}.ko-final-col{min-width:230px!important;grid-template-rows:repeat(17,56px)!important}}
+
+
+.ko-stage-wrap{min-width:3020px!important;grid-template-columns:1120px 360px 1120px!important;gap:210px!important}
+.ko-side{grid-template-columns:repeat(4,250px)!important;gap:56px!important}
+.ko-col{min-width:250px!important;grid-template-rows:repeat(17,62px)!important;row-gap:16px!important;gap:16px!important}
+.ko-final-col{min-width:360px!important;grid-template-rows:repeat(17,62px)!important;row-gap:16px!important;gap:16px!important;padding-top:34px!important}
+.ko-card .ko-meta{min-height:30px}.ko-team{min-height:45px}.ko-final-col .ko-card{max-width:300px;margin-left:auto;margin-right:auto;width:100%}
+.ko-left .ko-card::after{right:-56px;width:56px}.ko-right .ko-card::after{left:-56px;width:56px}.ko-final-col .ko-card::before{left:-105px;width:105px}.ko-final-col .ko-card::after{right:-105px;width:105px}
+@media(max-width:560px){.ko-stage-wrap{min-width:2860px!important;grid-template-columns:1040px 340px 1040px!important;gap:170px!important}.ko-side{grid-template-columns:repeat(4,235px)!important;gap:45px!important}.ko-col{min-width:235px!important;grid-template-rows:repeat(17,60px)!important;row-gap:15px!important}.ko-final-col{min-width:340px!important;grid-template-rows:repeat(17,60px)!important;row-gap:15px!important}.ko-left .ko-card::after{right:-45px;width:45px}.ko-right .ko-card::after{left:-45px;width:45px}.ko-final-col .ko-card::before{left:-85px;width:85px}.ko-final-col .ko-card::after{right:-85px;width:85px}}
+
+
+.tip-sheet{width:min(680px,100vw)!important;max-height:88vh!important;padding-bottom:calc(30px + env(safe-area-inset-bottom,0px))!important}
+.tip-sheet .sheet-title{font-size:clamp(17px,4vw,23px)!important;padding-top:clamp(14px,3.4vw,20px)!important}
+.tip-head{padding:0 clamp(18px,4.4vw,26px) clamp(12px,3vw,16px)!important;font-size:clamp(12px,2.8vw,15px)!important;color:#b6c3ca!important}
+.tip-time-pill{display:inline-flex;align-items:center;gap:6px;background:#0c151a;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:5px 9px;color:#e8edf0;font-weight:950}
+.tip-your-tip-banner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(4px,1vw,7px);margin:0 clamp(18px,4.4vw,26px) clamp(14px,3.4vw,18px);padding:clamp(12px,2.6vw,18px) clamp(16px,4vw,24px);border-radius:14px;text-align:center;background:linear-gradient(90deg,rgba(56,242,162,.14),rgba(56,242,162,.05));border:1px solid rgba(56,242,162,.32)}
+.tip-your-tip-label{color:#dce6eb;font-size:clamp(12px,2.8vw,15px);font-weight:850}
+.tip-your-tip-score{color:#38f2a2;font-size:clamp(24px,6.5vw,34px);font-weight:950;font-variant-numeric:tabular-nums;line-height:1}
+.tip-your-tip-banner.grade-exact{background:linear-gradient(90deg,rgba(40,209,108,.18),rgba(40,209,108,.06));border-color:rgba(40,209,108,.4)}
+.tip-your-tip-banner.grade-exact .tip-your-tip-score{color:#38f2a2}
+.tip-your-tip-banner.grade-diff{background:linear-gradient(90deg,rgba(255,224,102,.2),rgba(255,224,102,.07));border-color:rgba(255,224,102,.42)}
+.tip-your-tip-banner.grade-diff .tip-your-tip-score{color:#ffe666}
+.tip-your-tip-banner.grade-outcome{background:linear-gradient(90deg,rgba(245,149,0,.18),rgba(245,149,0,.06));border-color:rgba(245,149,0,.4)}
+.tip-your-tip-banner.grade-outcome .tip-your-tip-score{color:#ffa940}
+.tip-your-tip-banner.grade-miss{background:linear-gradient(90deg,rgba(240,64,80,.18),rgba(240,64,80,.06));border-color:rgba(240,64,80,.4)}
+.tip-your-tip-banner.grade-miss .tip-your-tip-score{color:#ff7b87}
+.tip-live-clock{display:inline-flex;align-items:center;justify-content:center;margin-left:auto;margin-right:8px;min-width:clamp(42px,4.4vw,62px);padding:clamp(5px,.62vw,8px) clamp(10px,1vw,14px);border-radius:999px;background:rgba(255,90,104,.2);border:1px solid rgba(255,90,104,.42);color:#ff7b87;font-size:clamp(14px,1.05vw,18px);font-weight:950;line-height:1;white-space:nowrap;box-shadow:0 0 0 1px rgba(255,255,255,.025)}
+.sheet-verdict.actual-result{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.sheet-verdict.actual-result .tip-live-clock{margin-left:auto;margin-right:0;min-width:clamp(36px,3.2vw,52px);padding:clamp(3px,.42vw,6px) clamp(8px,.8vw,12px);font-size:clamp(12px,.9vw,16px)}
+.tip-match{margin:0 clamp(16px,4vw,24px)!important;padding:clamp(16px,4vw,24px)!important;border-radius:15px!important}
+.tip-team{font-size:clamp(14px,3.4vw,18px)!important;gap:9px!important}.tip-team .crest{--cs:clamp(44px,11vw,62px)!important}
+.tip-score input,.tip-real-cell{width:clamp(58px,14vw,78px)!important;height:clamp(56px,13vw,72px)!important;font-size:clamp(27px,6.8vw,40px)!important;border-radius:13px!important}.tip-dash{font-size:clamp(26px,6vw,36px)!important}
+.tip-prob-card{margin:clamp(12px,3.2vw,18px) clamp(16px,4vw,24px) 0;background:#0e171d;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:clamp(12px,3.2vw,18px)}
+.tip-prob-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#e8edf0;font-size:clamp(14px,3vw,17px);font-weight:950}.tip-prob-title span:last-child{color:var(--muted);font-size:clamp(11px,2.4vw,13px);font-weight:800}
+.tip-prob-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(120px,1.8fr) 56px 52px;align-items:center;gap:10px;margin-top:8px;color:#dce6eb;font-size:clamp(12px,2.6vw,14px);font-weight:850}.tip-prob-row:first-of-type{margin-top:0}
+.tip-score-wrap{display:flex;flex-direction:column;align-items:center;gap:clamp(4px,.7vw,6px)}
+.tip-your-guess-label{color:#f2f6f8;font-size:clamp(10px,2.4vw,12px);font-weight:850;text-align:center;letter-spacing:.01em}
+.tip-score.tip-score-real{position:relative}
+.tip-real-cell{display:flex;align-items:center;justify-content:center;color:#ff7b87;position:relative}
+.tip-below-score{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:clamp(8px,1.1vw,12px);padding-bottom:clamp(14px,4vw,22px)}
+.tip-below-score .tip-live-clock{margin:0;position:static;margin-top:clamp(-20px,-2.2vw,-12px);margin-bottom:clamp(6px,1.4vw,14px);font-size:clamp(13px,.95vw,16px)}
+.tip-below-score .goal-scorers{margin-top:0;width:100%;display:flex;flex-direction:column;gap:6px;padding:0 clamp(2px,1vw,10px)}
+.goal-scorer-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);column-gap:clamp(40px,10vw,90px);align-items:center;width:100%}
+.goal-scorers-col{display:flex;align-items:center;gap:clamp(4px,1.2vw,7px);font-size:clamp(11px,3.2vw,15px);font-weight:750;color:#c7d2d9;min-width:0;width:100%}
+.goal-scorer-row .goal-scorers-col:first-child{flex-direction:row;text-align:right;justify-content:flex-end}
+.goal-scorer-row .goal-scorers-col:last-child{flex-direction:row;text-align:left;justify-content:flex-start}
+.goal-scorer-row .goal-scorers-col:first-child .goal-scorer-ball{order:2}
+.goal-scorer-row .goal-scorers-col:first-child .goal-scorer-name{order:1}
+.goal-scorer-row .goal-scorers-col:first-child .goal-scorer-og{order:0}
+.goal-scorer-row .goal-scorers-col:last-child .goal-scorer-ball{order:0}
+.goal-scorer-row .goal-scorers-col:last-child .goal-scorer-name{order:1}
+.goal-scorers{margin-top:6px;display:flex;flex-direction:column;gap:3px}
+.goal-scorer-min{flex:0 0 auto;color:#ff9aa3;font-weight:950;font-variant-numeric:tabular-nums;font-size:clamp(11px,3.2vw,15px);text-align:center;width:3.6em;min-width:3.6em}
+.goal-scorer-ball{opacity:.8;flex:0 0 1.4em;text-align:center}
+.goal-scorer-name{flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.goal-scorer-og,.goal-scorer-pen{flex:0 0 auto;font-size:.85em;font-weight:800;margin-left:.25em}
+.goal-scorer-og{color:#9eadb6}
+.goal-scorer-pen{color:#ffd166}
+.red-card-mark{display:inline-flex;align-items:center;justify-content:center;width:.78em;height:1.05em;border-radius:.16em;background:#ff4d65;box-shadow:0 0 0 1px rgba(255,255,255,.16),0 0 12px rgba(255,77,101,.22);flex:0 0 auto}
+.yellow-card-mark{display:inline-flex;align-items:center;justify-content:center;width:.85em;height:1.1em;background:#f5c842;border-radius:2px;margin-right:4px;flex-shrink:0;vertical-align:middle}
+.yellow-red-card-mark{display:inline-flex;align-items:center;justify-content:center;width:1.3em;height:1.1em;background:linear-gradient(90deg,#f5c842 50%,#e03040 50%);border-radius:2px;margin-right:4px;flex-shrink:0;vertical-align:middle}
+.yellow-card-row{opacity:.85}.yellow-red-row{opacity:.95}
+.tip-prob-row:not(.tip-prob-row-actual){margin-left:10px;margin-right:10px}
+.tip-prob-row.tip-prob-row-actual{position:relative;box-sizing:border-box;border-radius:8px;padding:7px 18px 7px 20px;margin-left:-10px;margin-right:-10px;background:linear-gradient(90deg,rgba(40,209,108,.22),rgba(40,209,108,.05));box-shadow:inset 4px 0 0 #28d16c,0 0 0 1px rgba(40,209,108,.25),0 0 14px rgba(40,209,108,.25)}
+.tip-prob-row.tip-prob-row-actual .tip-prob-odd{color:#28d16c;font-weight:950;text-align:right}
+.tip-prob-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tip-prob-track{height:9px;background:#17232b;border-radius:999px;overflow:hidden}.tip-prob-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#27c96a,#78cfff)}.tip-prob-pct{text-align:right;color:#f2f6f8;font-variant-numeric:tabular-nums}.tip-prob-odd{text-align:right;color:#f0c275;font-variant-numeric:tabular-nums;font-weight:950}
+.tip-prob-note{margin-top:10px;color:var(--muted);font-size:clamp(11px,2.4vw,13px);font-weight:650;line-height:1.45}
+.odds-status{color:#c8d2d8;font-size:clamp(11px,2.7vw,13px);font-weight:750;line-height:1.45;padding:2px 0}.odds-key-row{display:flex;gap:8px;margin-top:10px}.odds-key-row input{min-width:0;flex:1;border:1px solid #2a363f;border-radius:9px;background:#090f12;color:#e8edf0;font-size:12px;font-weight:700;padding:10px 11px;outline:none}.odds-key-row input:focus{border-color:rgba(39,201,106,.6)}.odds-key-row button,.odds-refresh{border:0;border-radius:9px;background:var(--green);color:#06110a;font-size:12px;font-weight:900;padding:10px 12px;cursor:pointer}.odds-refresh{margin-top:10px;background:#17232b;color:#e8edf0;border:1px solid rgba(255,255,255,.08)}.odds-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;color:var(--muted);font-size:10.5px;font-weight:750}.odds-meta button{border:0;background:transparent;color:#f0c275;font:inherit;cursor:pointer}
+.model-pill{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.10);background:#0b1419;color:#dce6eb;border-radius:999px;padding:clamp(5px,1.45vw,8px) clamp(8px,2.2vw,12px);font-size:clamp(10px,2.45vw,13px);font-weight:950;white-space:nowrap;line-height:1;box-shadow:inset 0 0 0 1px rgba(255,255,255,.025)}.tip-team-meta{display:flex;align-items:center;justify-content:center;gap:clamp(5px,1.5vw,8px);flex-wrap:wrap;margin-top:clamp(2px,.7vw,4px);max-width:100%}.tip-team-meta .model-pill{margin-right:0;background:#101a20;color:#dce6eb;border-color:rgba(255,255,255,.12);font-size:clamp(10.5px,2.65vw,13.5px);padding:clamp(5px,1.5vw,8px) clamp(8px,2.3vw,13px)}
+.tip-actions{margin:clamp(14px,3.6vw,20px) clamp(16px,4vw,24px) 0!important}.tip-btn{padding:clamp(11px,1.3vw,14px)!important;font-size:clamp(13px,1.15vw,15px)!important}
+@media(max-width:520px){.tip-prob-row{grid-template-columns:minmax(72px,1fr) minmax(86px,1.25fr) 48px 44px;gap:7px}.tip-prob-card{margin-left:12px;margin-right:12px}.tip-match{margin-left:12px!important;margin-right:12px!important}.goal-scorer-row{column-gap:clamp(10px,3vw,18px)!important}.goal-scorers-col{font-size:clamp(9.5px,2.8vw,13px)!important}.goal-scorer-min{font-size:clamp(9.5px,2.8vw,13px)!important}.tip-below-score .goal-scorers{padding:0 clamp(4px,2vw,12px)!important}}
+
+
+.penalty-box{margin:clamp(12px,3.2vw,18px) clamp(16px,4vw,24px) 0;background:#111a20;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:clamp(12px,3.2vw,18px)}
+.penalty-title{display:flex;justify-content:space-between;gap:10px;color:#e8edf0;font-size:clamp(13px,3vw,16px);font-weight:950;margin-bottom:8px}.penalty-title span:last-child{color:var(--muted);font-size:clamp(10px,2.4vw,12px);font-weight:800}
+.penalty-grid{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}.pen-team{font-size:clamp(11px,2.7vw,13px);font-weight:850;color:#dce6eb;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pen-inputs{display:flex;align-items:center;gap:7px}.pen-inputs input{width:clamp(42px,10vw,56px);height:clamp(38px,9vw,50px);border:1px solid #33424d;border-radius:10px;background:#081014;color:#f2f6f8;text-align:center;font-size:clamp(18px,4.8vw,26px);font-weight:900;outline:0}.pen-note{margin-top:9px;color:var(--muted);font-size:clamp(10px,2.4vw,12px);font-weight:650;line-height:1.45}
+
+
+@media(max-width:520px){.tip-team-meta{gap:4px}.tip-team-meta .model-pill{font-size:10px;padding:5px 7px}.tip-teams{gap:6px!important}}
+
+
+/* â”€â”€ STATISZTIKÁK MOBIL FINOMHANGOLÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.stat-game-name{
+  display:flex;
+  align-items:center;
+  gap:clamp(4px,1.1vw,6px);
+  min-width:0;
+  max-width:100%;
+}
+.stat-game-name .crest{
+  flex:0 0 var(--cs);
+  --cs:16px !important;
+}
+.stat-game-text{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+@media (max-width:520px){
+  .card:has(.wc-stat-list){
+    padding:clamp(10px,2.7vw,13px);
+  }
+  .wc-stat-list{
+    padding:0 clamp(2px,.8vw,4px) clamp(6px,1.6vw,8px);
+    gap:clamp(6px,1.7vw,8px);
+  }
+  .wc-stat-row{
+    grid-template-columns:clamp(23px,6vw,28px) minmax(0,1fr) clamp(42px,11vw,54px);
+    gap:clamp(5px,1.4vw,7px);
+    padding:clamp(8px,2.1vw,10px) clamp(8px,2.1vw,10px);
+    border-radius:9px;
+    min-width:0;
+  }
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(23px,6vw,28px) minmax(0,1fr) clamp(36px,9.5vw,46px);
+  }
+  .wc-stat-main{min-width:0;overflow:hidden}
+  .wc-stat-rank{
+    font-size:clamp(14px,3.75vw,18px);
+    line-height:1;
+  }
+  .wc-stat-name{
+    font-size:clamp(11px,2.9vw,13px);
+    line-height:1.15;
+    letter-spacing:-.025em;
+  }
+  .stat-match-list .wc-stat-name{
+    font-size:clamp(10.2px,2.72vw,12.2px);
+  }
+  .wc-stat-sub{
+    font-size:clamp(8.8px,2.35vw,10.5px);
+    line-height:1.2;
+    margin-top:clamp(2px,.7vw,3px);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .wc-stat-val{
+    font-size:clamp(15px,4vw,19px);
+    line-height:1;
+  }
+  .stat-match-list .wc-stat-val{
+    font-size:clamp(14px,3.75vw,18px);
+  }
+  .stat-game-name{
+    gap:clamp(3px,.9vw,5px);
+  }
+  .stat-game-name .crest{
+    --cs:clamp(14px,3.8vw,17px) !important;
+  }
+}
+@media (max-width:360px){
+  .wc-stat-row{grid-template-columns:22px minmax(0,1fr) 38px;padding:7px 7px;gap:4px}
+  .stat-match-list .wc-stat-row{grid-template-columns:22px minmax(0,1fr) 34px}
+  .wc-stat-name{font-size:10.5px;letter-spacing:-.035em}
+  .stat-match-list .wc-stat-name{font-size:9.8px}
+  .wc-stat-sub{font-size:8.2px}
+  .wc-stat-val{font-size:14px}
+  .stat-game-name .crest{--cs:13px !important}
+}
+
+
+
+/* â”€â”€ STATISZTIKA KÁRTYÁK â€“ RESZPONZÍV NAGYOBBÍTÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.card:has(.stat-kpi-row),
+.card:has(.stat-phase-grid),
+.card:has(.wc-stat-list),
+.export-card{
+  padding:clamp(14px,3.4vw,22px);
+}
+.card:has(.stat-kpi-row) .card-title,
+.card:has(.stat-phase-grid) .card-title,
+.card:has(.wc-stat-list) .card-title,
+.export-card .card-title{
+  font-size:clamp(17px,4.25vw,23px);
+  line-height:1.18;
+  margin-bottom:clamp(12px,3vw,18px);
+}
+.stat-kpi-row{
+  gap:clamp(10px,2.8vw,16px);
+  margin-bottom:clamp(15px,3.6vw,22px);
+}
+.stat-kpi{
+  padding:clamp(13px,3.4vw,20px) clamp(9px,2.5vw,15px);
+  border-radius:clamp(12px,3vw,16px);
+  min-height:clamp(76px,18vw,104px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+.stat-kpi-val{
+  font-size:clamp(24px,6.4vw,34px);
+  line-height:1;
+}
+.stat-kpi-lbl{
+  font-size:clamp(10px,2.65vw,13px);
+  line-height:1.2;
+  margin-top:clamp(5px,1.3vw,8px);
+}
+.stat-section-title{
+  font-size:clamp(13px,3.25vw,16px);
+  margin:clamp(13px,3.2vw,20px) 0 clamp(7px,1.8vw,10px);
+}
+.stat-result-labels{
+  font-size:clamp(12px,3vw,15px);
+  line-height:1.25;
+}
+.stat-bar-track{
+  height:clamp(9px,2.25vw,13px);
+}
+.stat-bar-row{
+  margin-bottom:clamp(11px,2.8vw,16px);
+}
+.stat-phase-grid{
+  gap:clamp(11px,2.8vw,17px);
+}
+.stat-phase-card{
+  padding:clamp(13px,3.25vw,20px);
+  border-radius:clamp(12px,3vw,16px);
+}
+.stat-phase-name{
+  font-size:clamp(15px,3.7vw,19px);
+  line-height:1.18;
+}
+.stat-phase-row,
+.stat-mini-legend{
+  font-size:clamp(10.5px,2.7vw,13px);
+  line-height:1.25;
+}
+.stat-mini-bars{
+  height:clamp(8px,2vw,12px);
+}
+.wc-stat-list{
+  gap:clamp(10px,2.7vw,16px);
+}
+.wc-stat-row{
+  grid-template-columns:clamp(30px,7.4vw,40px) minmax(0,1fr) clamp(64px,15vw,86px);
+  gap:clamp(9px,2.4vw,14px);
+  padding:clamp(13px,3.35vw,20px) clamp(13px,3.35vw,20px);
+  border-radius:clamp(11px,2.9vw,16px);
+  min-height:clamp(70px,17.5vw,94px);
+}
+.stat-match-list .wc-stat-row{
+  grid-template-columns:clamp(30px,7.4vw,40px) minmax(0,1fr) clamp(58px,14vw,80px);
+}
+.wc-stat-rank{
+  font-size:clamp(20px,5.2vw,27px);
+  line-height:1;
+}
+.wc-stat-name{
+  font-size:clamp(14px,3.65vw,18px);
+  line-height:1.16;
+  letter-spacing:-.018em;
+}
+.stat-match-list .wc-stat-name{
+  font-size:clamp(13px,3.35vw,16px);
+}
+.wc-stat-sub{
+  font-size:clamp(10.8px,2.8vw,13.2px);
+  line-height:1.28;
+  margin-top:clamp(4px,1.15vw,7px);
+}
+.wc-stat-val{
+  font-size:clamp(20px,5.1vw,28px);
+  line-height:1;
+}
+.stat-match-list .wc-stat-val{
+  font-size:clamp(17px,4.45vw,23px);
+  white-space:nowrap;
+}
+.stat-game-name{
+  gap:clamp(5px,1.4vw,8px);
+}
+.stat-game-name .crest{
+  --cs:clamp(18px,4.7vw,24px) !important;
+}
+.export-copy{
+  font-size:clamp(13px,3.15vw,16px);
+  line-height:1.58;
+}
+.export-btn{
+  font-size:clamp(14px,3.3vw,17px);
+  padding:clamp(14px,3.5vw,19px) clamp(14px,3.5vw,20px);
+  border-radius:clamp(12px,3vw,16px);
+}
+.export-hint{
+  font-size:clamp(10.5px,2.55vw,13px);
+}
+
+@media(max-width:520px){
+  .card:has(.stat-kpi-row),
+  .card:has(.stat-phase-grid),
+  .card:has(.wc-stat-list),
+  .export-card{
+    padding:clamp(13px,3.4vw,17px) !important;
+  }
+  .card:has(.stat-kpi-row) .card-title,
+  .card:has(.stat-phase-grid) .card-title,
+  .card:has(.wc-stat-list) .card-title,
+  .export-card .card-title{
+    font-size:clamp(17px,4.55vw,21px) !important;
+  }
+  .stat-kpi-row{
+    gap:clamp(8px,2.2vw,11px);
+  }
+  .stat-kpi{
+    min-height:clamp(70px,18.5vw,88px);
+    padding:clamp(12px,3.2vw,15px) clamp(7px,2vw,10px) !important;
+  }
+  .stat-kpi-val{
+    font-size:clamp(23px,6.2vw,30px) !important;
+  }
+  .stat-kpi-lbl{
+    font-size:clamp(9.5px,2.55vw,11.5px) !important;
+  }
+  .stat-phase-card{
+    padding:clamp(12px,3.2vw,16px) !important;
+  }
+  .wc-stat-list{
+    padding:0 clamp(3px,.9vw,5px) clamp(7px,1.8vw,10px) !important;
+    gap:clamp(9px,2.45vw,12px) !important;
+  }
+  .wc-stat-row{
+    grid-template-columns:clamp(28px,7.5vw,35px) minmax(0,1fr) clamp(54px,14.5vw,68px) !important;
+    min-height:clamp(64px,17vw,78px);
+    padding:clamp(11px,3vw,14px) clamp(10px,2.7vw,13px) !important;
+    gap:clamp(7px,1.9vw,10px) !important;
+    border-radius:clamp(10px,2.7vw,13px) !important;
+  }
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(28px,7.5vw,35px) minmax(0,1fr) clamp(54px,14.5vw,66px) !important;
+  }
+  .wc-stat-rank{
+    font-size:clamp(19px,5.1vw,24px) !important;
+  }
+  .wc-stat-name{
+    font-size:clamp(13px,3.45vw,16px) !important;
+    line-height:1.14 !important;
+  }
+  .stat-match-list .wc-stat-name{
+    font-size:clamp(12px,3.2vw,14.5px) !important;
+  }
+  .wc-stat-sub{
+    font-size:clamp(10px,2.65vw,12px) !important;
+    margin-top:clamp(3px,.9vw,5px) !important;
+  }
+  .wc-stat-val{
+    font-size:clamp(19px,5vw,24px) !important;
+  }
+  .stat-match-list .wc-stat-val{
+    font-size:clamp(16px,4.25vw,20px) !important;
+    letter-spacing:-.02em;
+  }
+  .stat-game-name .crest{
+    --cs:clamp(17px,4.55vw,21px) !important;
+  }
+}
+
+@media(max-width:360px){
+  .card:has(.stat-kpi-row),
+  .card:has(.stat-phase-grid),
+  .card:has(.wc-stat-list),
+  .export-card{
+    padding:11px !important;
+  }
+  .stat-kpi-row{gap:6px}
+  .stat-kpi{min-height:66px;padding:10px 6px!important}
+  .stat-kpi-val{font-size:22px!important}
+  .stat-kpi-lbl{font-size:9px!important}
+  .wc-stat-row{
+    grid-template-columns:27px minmax(0,1fr) 50px !important;
+    min-height:60px;
+    padding:10px 9px !important;
+    gap:6px !important;
+  }
+  .stat-match-list .wc-stat-row{grid-template-columns:27px minmax(0,1fr) 52px !important}
+  .wc-stat-rank{font-size:18px!important}
+  .wc-stat-name{font-size:12.3px!important;letter-spacing:-.03em!important}
+  .stat-match-list .wc-stat-name{font-size:11.2px!important}
+  .wc-stat-sub{font-size:9.2px!important}
+  .wc-stat-val{font-size:18px!important}
+  .stat-match-list .wc-stat-val{font-size:15px!important}
+  .stat-game-name .crest{--cs:16px !important}
+}
+
+@media(min-width:768px){
+  .card:has(.stat-kpi-row),
+  .card:has(.stat-phase-grid),
+  .card:has(.wc-stat-list),
+  .export-card{
+    padding:clamp(24px,2.3vw,32px);
+  }
+  .wc-stat-row{
+    grid-template-columns:clamp(42px,3.5vw,56px) minmax(0,1fr) clamp(90px,8vw,118px);
+    min-height:clamp(84px,7vw,104px);
+  }
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(42px,3.5vw,56px) minmax(0,1fr) clamp(84px,7vw,104px);
+  }
+  .stat-game-name .crest{--cs:clamp(24px,2.1vw,30px) !important}
+}
+
+
+
+
+/* â”€â”€ STATISZTIKA LISTÁK â€“ KÖZEPES MÉRETŰ ELEMEK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.stat-match-list .wc-stat-row{
+  min-height:clamp(70px,18.5vw,88px) !important;
+  padding:clamp(12px,3.25vw,16px) clamp(11px,3vw,15px) !important;
+  grid-template-columns:clamp(29px,7.7vw,36px) minmax(0,1fr) clamp(56px,14.8vw,70px) !important;
+}
+.stat-match-list .wc-stat-rank{
+  font-size:clamp(20px,5.3vw,25px) !important;
+  font-weight:900 !important;
+}
+.stat-match-list .wc-stat-name{
+  font-size:clamp(13.2px,3.52vw,16px) !important;
+  line-height:1.14 !important;
+  font-weight:900 !important;
+  letter-spacing:-.025em !important;
+}
+.stat-match-list .wc-stat-sub{
+  font-size:clamp(10.2px,2.7vw,12.3px) !important;
+  margin-top:clamp(3px,.95vw,5px) !important;
+  font-weight:800 !important;
+}
+.stat-match-list .wc-stat-val{
+  font-size:clamp(19px,5.1vw,24px) !important;
+  font-weight:950 !important;
+  letter-spacing:-.02em !important;
+}
+.stat-match-list .stat-game-name{
+  gap:clamp(5px,1.45vw,8px) !important;
+}
+.stat-match-list .stat-game-name .crest{
+  --cs:clamp(19px,5.05vw,24px) !important;
+}
+
+@media(max-width:520px){
+  .card:has(.stat-match-list){
+    padding:clamp(12px,3.25vw,16px) !important;
+  }
+  .card:has(.stat-match-list) .card-title{
+    font-size:clamp(17px,4.55vw,21px) !important;
+    margin-bottom:clamp(10px,2.8vw,14px) !important;
+  }
+  .stat-match-list{
+    gap:clamp(8px,2.25vw,11px) !important;
+  }
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(29px,7.7vw,35px) minmax(0,1fr) clamp(56px,14.8vw,68px) !important;
+    min-height:clamp(68px,18vw,82px) !important;
+    padding:clamp(12px,3.25vw,15px) clamp(10px,2.7vw,13px) !important;
+    gap:clamp(7px,1.9vw,10px) !important;
+    border-radius:clamp(11px,2.9vw,14px) !important;
+  }
+  .stat-match-list .wc-stat-rank{font-size:clamp(20px,5.3vw,25px) !important}
+  .stat-match-list .wc-stat-name{font-size:clamp(13px,3.45vw,15.5px) !important}
+  .stat-match-list .wc-stat-sub{font-size:clamp(10px,2.65vw,12px) !important}
+  .stat-match-list .wc-stat-val{font-size:clamp(19px,5.05vw,24px) !important}
+  .stat-match-list .stat-game-name{gap:clamp(5px,1.4vw,8px) !important}
+  .stat-match-list .stat-game-name .crest{--cs:clamp(19px,5.05vw,24px) !important}
+}
+
+@media(max-width:360px){
+  .card:has(.stat-match-list){padding:11px !important}
+  .stat-match-list{gap:8px !important}
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:27px minmax(0,1fr) 52px !important;
+    min-height:64px !important;
+    padding:11px 9px !important;
+    gap:6px !important;
+  }
+  .stat-match-list .wc-stat-rank{font-size:18.5px !important}
+  .stat-match-list .wc-stat-name{font-size:12px !important;letter-spacing:-.04em !important}
+  .stat-match-list .wc-stat-sub{font-size:9.4px !important}
+  .stat-match-list .wc-stat-val{font-size:18px !important}
+  .stat-match-list .stat-game-name{gap:4.5px !important}
+  .stat-match-list .stat-game-name .crest{--cs:17.5px !important}
+}
+
+@media(min-width:768px){
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(44px,3.7vw,58px) minmax(0,1fr) clamp(88px,7.4vw,110px) !important;
+    min-height:clamp(88px,7.1vw,108px) !important;
+  }
+  .stat-match-list .stat-game-name .crest{--cs:clamp(26px,2.25vw,34px) !important}
+}
+
+
+
+/* â”€â”€ FINOM + PÁR SZÁZALÉKOS TÁBLÁZAT / MECCSKÁRTYA BUMP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (max-width: 520px){
+  /* Tabellák: csak egy leheletnyi nagyítás, ne boruljon a layout */
+  .standings .row{height:clamp(42px,10.1vw,55px)}
+  .standings .thead{font-size:clamp(8.6px,2.08vw,10.7px);min-height:clamp(17px,4vw,22px)}
+  .standings .rank,
+  .standings .num{font-size:clamp(11.8px,2.92vw,14px);font-weight:760}
+  .standings .tname{font-size:clamp(11.8px,2.92vw,14px);font-weight:760}
+  .standings .tc{gap:clamp(8px,2.15vw,11px)}
+  .standings .tc .crest{--cs:clamp(21px,5.35vw,27px)}
+  .short{grid-template-columns:clamp(20px,5vw,26px) minmax(0,1fr) clamp(26px,6.5vw,33px) clamp(37px,8.8vw,45px) clamp(37px,8.8vw,45px)}
+  .full{grid-template-columns:clamp(20px,5vw,26px) minmax(0,1fr) repeat(4,clamp(23px,5.8vw,29px)) clamp(40px,9.5vw,50px) clamp(32px,7.9vw,40px)}
+  .formv{grid-template-columns:clamp(20px,5vw,26px) minmax(0,1fr) clamp(116px,31vw,172px) clamp(32px,7.9vw,40px)}
+
+  /* Mérkőzés oldali kattintható kártyák: picit visszanagyítva */
+  .match-row{min-height:clamp(61px,16.1vw,75px)}
+  .mr-team{font-size:clamp(11.1px,2.95vw,13.6px);font-weight:745}
+  .mr-team .crest{--cs:clamp(18px,4.85vw,23px)}
+  .mr-date{font-size:clamp(11.6px,3.1vw,14.6px)}
+  .mr-date span{font-size:clamp(7.9px,2.1vw,9.9px)}
+  .mr-scores{font-size:clamp(11.7px,3.12vw,14.6px)}
+
+  /* Tippelő sheeten belüli meccskártya tartalom */
+  .tip-match{padding:clamp(13px,3.45vw,17px)!important}
+  .tip-team{font-size:clamp(10.5px,2.65vw,12.8px);font-weight:875;gap:8px}
+  .tip-team .crest{--cs:clamp(36px,9vw,46px)}
+  .tip-team-meta{font-size:clamp(8.4px,2.1vw,10.2px)}
+  .tip-score input,.tip-real-cell{width:clamp(46px,12.5vw,60px);height:clamp(44px,11.6vw,56px);font-size:clamp(21px,5.5vw,29px)}
+  .tip-dash{font-size:clamp(19px,5vw,25px)}
+}
+
+@media (max-width: 360px){
+  .standings .row{height:43px}
+  .standings .rank,
+  .standings .num,
+  .standings .tname{font-size:11.2px}
+  .standings .tc .crest{--cs:20px}
+  .short{grid-template-columns:20px minmax(0,1fr) 25px 34px 34px}
+  .match-row{min-height:58px}
+  .mr-team{font-size:10.6px}
+  .mr-team .crest{--cs:17px}
+  .mr-scores{font-size:11px}
+  .tip-team .crest{--cs:34px}
+  .tip-score input,.tip-real-cell{width:44px;height:43px;font-size:20px}
+}
+
+
+
+/* â”€â”€ FINOM SZÖVEGNÖVELÉS: NAVBAR + MECCS KÖRFEJLÉC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.tab{
+  font-size:clamp(12.8px,3.18vw,15.8px);
+  font-weight:680;
+}
+.top.shrunken .tab{
+  font-size:clamp(11.8px,2.92vw,14.2px);
+}
+.round-header{
+  font-size:clamp(11.2px,2.85vw,13.6px);
+  font-weight:820;
+  letter-spacing:.01em;
+}
+@media(max-width:520px){
+  .tab{
+    font-size:clamp(12.4px,3.28vw,15.2px);
+  }
+  .top.shrunken .tab{
+    font-size:clamp(11.4px,3vw,13.8px);
+  }
+  .round-header{
+    font-size:clamp(11.2px,3vw,13.4px);
+    padding-top:clamp(7px,1.9vw,9px);
+    padding-bottom:clamp(7px,1.9vw,9px);
+  }
+}
+@media(max-width:360px){
+  .tab{
+    font-size:12px;
+  }
+  .top.shrunken .tab{
+    font-size:11px;
+  }
+  .round-header{
+    font-size:10.8px;
+  }
+}
+@media (min-width:768px) and (orientation:portrait), (min-width:900px){
+  .tab{font-size:clamp(15.8px,1.32vw,19px)}
+  .top.shrunken .tab{font-size:clamp(13.8px,1.16vw,16.8px)}
+  .round-header{font-size:clamp(14px,1.15vw,17px)}
+}
+@media (min-width:1180px){
+  .tab{font-size:19px}
+  .round-header{font-size:17px}
+}
+
+
+/* â”€â”€ LAPTOP / DESKTOP POPUP + BRACKET RESPONSIVE FIX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (min-width: 900px){
+  .tip-overlay{
+    z-index:99990!important;
+    align-items:center!important;
+    justify-content:center!important;
+    padding:clamp(14px,1.4vw,22px)!important;
+  }
+  .tip-sheet{
+    width:min(760px,calc(100vw - 64px))!important;
+    max-height:calc(100vh - clamp(34px,4vw,58px))!important;
+    border-radius:20px!important;
+    overflow-y:auto!important;
+    box-shadow:0 24px 80px rgba(0,0,0,.62)!important;
+  }
+  .tip-sheet .sheet-top{
+    padding-top:12px!important;
+  }
+  .tip-sheet .sheet-title{
+    font-size:clamp(19px,1.55vw,25px)!important;
+    padding:clamp(14px,1.25vw,20px) clamp(22px,1.9vw,30px) clamp(6px,.7vw,10px)!important;
+  }
+  .tip-head{
+    padding:0 clamp(22px,1.9vw,30px) clamp(12px,1vw,17px)!important;
+    font-size:clamp(13px,1vw,16px)!important;
+  }
+  .tip-match{
+    margin:0 clamp(22px,1.9vw,30px)!important;
+    padding:clamp(18px,1.55vw,26px)!important;
+  }
+  .tip-team{
+    font-size:clamp(15px,1.1vw,18px)!important;
+  }
+  .tip-team .crest{
+    --cs:clamp(48px,3.7vw,64px)!important;
+  }
+  .tip-score input,.tip-real-cell{
+    width:clamp(60px,4.4vw,78px)!important;
+    height:clamp(58px,4.1vw,74px)!important;
+    font-size:clamp(28px,2.15vw,40px)!important;
+  }
+  .tip-prob-card{
+    margin:clamp(14px,1.2vw,20px) clamp(22px,1.9vw,30px) 0!important;
+    padding:clamp(14px,1.2vw,20px)!important;
+  }
+  .tip-actions{
+    margin:clamp(14px,1.2vw,20px) clamp(22px,1.9vw,30px) 0!important;
+  }
+  .sheet-verdict{
+    margin:clamp(12px,1vw,16px) clamp(22px,1.9vw,30px) 0!important;
+  }
+
+  .ko-bracket{
+    padding:clamp(12px,1.1vw,18px) clamp(12px,1.1vw,18px) clamp(18px,1.6vw,28px)!important;
+  }
+  .ko-stage-wrap{
+    min-width:clamp(3180px,245vw,3720px)!important;
+    grid-template-columns:clamp(1180px,91vw,1380px) clamp(390px,30vw,460px) clamp(1180px,91vw,1380px)!important;
+    gap:clamp(210px,17vw,280px)!important;
+  }
+  .ko-side{
+    grid-template-columns:repeat(4,clamp(265px,20.5vw,315px))!important;
+    gap:clamp(58px,4.8vw,78px)!important;
+  }
+  .ko-col{
+    min-width:clamp(265px,20.5vw,315px)!important;
+    grid-template-rows:repeat(17,clamp(66px,5.15vw,82px))!important;
+    row-gap:clamp(17px,1.45vw,24px)!important;
+    gap:clamp(17px,1.45vw,24px)!important;
+    padding-top:clamp(34px,2.8vw,44px)!important;
+  }
+  .ko-col h3{
+    font-size:clamp(14px,1.05vw,17px)!important;
+    letter-spacing:.01em!important;
+  }
+  .ko-final-col{
+    min-width:clamp(390px,30vw,460px)!important;
+    grid-template-rows:repeat(17,clamp(66px,5.15vw,82px))!important;
+    row-gap:clamp(17px,1.45vw,24px)!important;
+    gap:clamp(17px,1.45vw,24px)!important;
+    padding-top:clamp(38px,3vw,50px)!important;
+  }
+  .ko-final-col .ko-cup{
+    height:clamp(40px,3.2vw,54px)!important;
+    font-size:clamp(32px,2.65vw,44px)!important;
+  }
+  .ko-final-col h3{
+    top:clamp(42px,3.4vw,58px)!important;
+    font-size:clamp(15px,1.15vw,19px)!important;
+  }
+  .ko-card{
+    border-radius:clamp(12px,1vw,16px)!important;
+  }
+  .ko-card .ko-meta{
+    min-height:clamp(32px,2.5vw,40px)!important;
+    padding:clamp(8px,.7vw,11px) clamp(10px,.85vw,14px)!important;
+    font-size:clamp(11px,.85vw,13.5px)!important;
+  }
+  .ko-team{
+    grid-template-columns:clamp(28px,2.1vw,34px) minmax(0,1fr) clamp(34px,2.55vw,42px)!important;
+    min-height:clamp(48px,3.7vw,58px)!important;
+    gap:clamp(9px,.75vw,13px)!important;
+    padding:clamp(9px,.8vw,13px) clamp(10px,.85vw,14px)!important;
+    font-size:clamp(13.5px,1.05vw,17px)!important;
+  }
+  .ko-team .crest{
+    --cs:clamp(28px,2.1vw,34px)!important;
+  }
+  .ko-score{
+    font-size:clamp(14px,1.1vw,18px)!important;
+  }
+  .ko-mid-title{
+    font-size:clamp(13px,1vw,16px)!important;
+  }
+  .ko-left .ko-card::after{right:calc(-1 * clamp(58px,4.8vw,78px))!important;width:clamp(58px,4.8vw,78px)!important}
+  .ko-right .ko-card::after{left:calc(-1 * clamp(58px,4.8vw,78px))!important;width:clamp(58px,4.8vw,78px)!important}
+  .ko-final-col .ko-card::before{left:calc(-1 * clamp(100px,8vw,135px))!important;width:clamp(100px,8vw,135px)!important}
+  .ko-final-col .ko-card::after{right:calc(-1 * clamp(100px,8vw,135px))!important;width:clamp(100px,8vw,135px)!important}
+}
+
+@media (min-width: 900px) and (max-height: 760px){
+  .tip-overlay{
+    padding:10px!important;
+  }
+  .tip-sheet{
+    max-height:calc(100vh - 20px)!important;
+    width:min(720px,calc(100vw - 44px))!important;
+  }
+  .tip-sheet .sheet-title{
+    padding-top:10px!important;
+    font-size:20px!important;
+  }
+  .tip-head{
+    padding-bottom:8px!important;
+  }
+  .tip-match{
+    padding:14px!important;
+  }
+  .tip-team .crest{--cs:48px!important}
+  .tip-score input,.tip-real-cell{width:58px!important;height:56px!important;font-size:30px!important}
+  .tip-prob-card{padding:12px!important;margin-top:10px!important}
+  .tip-actions{margin-top:10px!important}
+  .sheet-verdict{margin-top:8px!important;font-size:12px!important}
+}
+
+
+
+/* â”€â”€ DESKTOP/LAPTOP NAVBAR KOMPAKTABBÍTÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Csak gépen: a teljes felső navbar kevesebb magasságot foglal,
+   a normál és a scroll utáni (shrunken) állapot is feljebb húzva. */
+@media (min-width: 900px){
+  .hdr{
+    height:clamp(94px,7.8vw,124px)!important;
+    padding-top:clamp(12px,1.15vw,18px)!important;
+    padding-bottom:clamp(4px,.55vw,7px)!important;
+    gap:clamp(10px,1.05vw,15px)!important;
+  }
+  .top.shrunken .hdr{
+    height:clamp(58px,4.8vw,74px)!important;
+    padding-top:clamp(6px,.65vw,10px)!important;
+    padding-bottom:clamp(3px,.35vw,5px)!important;
+  }
+  .li-box{
+    width:clamp(46px,3.85vw,58px)!important;
+    height:clamp(46px,3.85vw,58px)!important;
+  }
+  .top.shrunken .li-box{
+    width:clamp(34px,2.8vw,42px)!important;
+    height:clamp(34px,2.8vw,42px)!important;
+  }
+  .li-title{
+    font-size:clamp(15px,1.18vw,19px)!important;
+  }
+  .li-season{
+    font-size:clamp(27px,2.15vw,36px)!important;
+  }
+  .top.shrunken .li-title{
+    font-size:clamp(11px,.88vw,14px)!important;
+  }
+  .top.shrunken .li-season{
+    font-size:clamp(18px,1.45vw,25px)!important;
+  }
+  .hdr-back{
+    width:clamp(27px,2.25vw,34px)!important;
+    height:clamp(27px,2.25vw,34px)!important;
+    font-size:clamp(20px,1.65vw,25px)!important;
+  }
+  .hdr-icon{
+    width:clamp(25px,2.1vw,31px)!important;
+    height:clamp(25px,2.1vw,31px)!important;
+    font-size:clamp(17px,1.35vw,21px)!important;
+  }
+  .tabs{
+    height:clamp(40px,3.25vw,50px)!important;
+    gap:clamp(28px,2.8vw,46px)!important;
+  }
+  .tab{
+    font-size:clamp(12.5px,.98vw,15.5px)!important;
+    padding-bottom:clamp(7px,.65vw,10px)!important;
+  }
+  .top.shrunken .tabs{
+    height:clamp(32px,2.65vw,40px)!important;
+  }
+  .top.shrunken .tab{
+    font-size:clamp(11px,.82vw,13.5px)!important;
+    padding-bottom:clamp(5px,.45vw,7px)!important;
+  }
+}
+
+@media (min-width: 1180px){
+  .hdr{
+    height:128px!important;
+    padding-top:18px!important;
+  }
+  .tabs{
+    height:50px!important;
+  }
+  .tab{
+    font-size:15.5px!important;
+  }
+  .top.shrunken .hdr{
+    height:70px!important;
+    padding-top:8px!important;
+  }
+  .top.shrunken .tabs{
+    height:38px!important;
+  }
+  .top.shrunken .tab{
+    font-size:13px!important;
+  }
+}
+
+
+/* â”€â”€ HARMONIKUS RESZPONZÍV FINOMHANGOLÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   A korábbi túl agresszív desktop override-ok helyett fokozatos skálázás.
+   Telefonos nézetet nem borítjuk fel, laptopon nem túl pici, nagy monitoron nem túl óriás. */
+@media (min-width: 900px){
+  :root{
+    --page-max:clamp(900px,88vw,1180px);
+  }
+
+  .hdr{
+    height:clamp(94px,7.4vw,136px)!important;
+    padding-top:clamp(12px,1.15vw,22px)!important;
+    padding-bottom:clamp(5px,.55vw,9px)!important;
+    gap:clamp(12px,1.15vw,18px)!important;
+  }
+  .top.shrunken .hdr{
+    height:clamp(58px,4.4vw,82px)!important;
+    padding-top:clamp(7px,.7vw,12px)!important;
+  }
+
+  .li-box{
+    width:clamp(42px,3.8vw,64px)!important;
+    height:clamp(42px,3.8vw,64px)!important;
+  }
+  .top.shrunken .li-box{
+    width:clamp(32px,2.8vw,46px)!important;
+    height:clamp(32px,2.8vw,46px)!important;
+  }
+  .li-title{font-size:clamp(15px,1.15vw,21px)!important}
+  .li-season{font-size:clamp(27px,2.25vw,40px)!important}
+  .top.shrunken .li-title{font-size:clamp(11px,.86vw,15px)!important}
+  .top.shrunken .li-season{font-size:clamp(18px,1.45vw,26px)!important}
+
+  .tabs{
+    height:clamp(42px,3.55vw,62px)!important;
+    gap:clamp(30px,2.9vw,62px)!important;
+  }
+  .tab{
+    font-size:clamp(13.5px,.98vw,17px)!important;
+    padding-bottom:clamp(8px,.72vw,13px)!important;
+    font-weight:650!important;
+  }
+  .top.shrunken .tabs{height:clamp(34px,2.65vw,46px)!important}
+  .top.shrunken .tab{
+    font-size:clamp(11.5px,.82vw,14.5px)!important;
+    padding-bottom:clamp(5px,.45vw,8px)!important;
+  }
+
+  .hdr-back{font-size:clamp(21px,1.8vw,29px)!important}
+  .hdr-icon{font-size:clamp(18px,1.45vw,23px)!important}
+
+  /* Statisztikák desktopon: kicsit visszafogottabb, rendezettebb, de nem apró. */
+  .stat-kpi-row{gap:clamp(10px,.9vw,14px)!important;margin-bottom:clamp(12px,1vw,17px)!important}
+  .stat-kpi{padding:clamp(12px,.95vw,17px)!important;border-radius:clamp(10px,.8vw,14px)!important}
+  .stat-kpi-val{font-size:clamp(22px,1.55vw,30px)!important}
+  .stat-kpi-lbl{font-size:clamp(10.5px,.75vw,12.5px)!important}
+
+  .stat-phase-grid{gap:clamp(9px,.8vw,13px)!important}
+  .stat-phase-card{padding:clamp(12px,.95vw,17px)!important;border-radius:clamp(10px,.8vw,14px)!important}
+  .stat-phase-name{font-size:clamp(14px,1vw,17px)!important}
+  .stat-phase-row,.stat-mini-legend{font-size:clamp(10px,.74vw,12px)!important}
+
+  .export-card{padding:clamp(15px,1.15vw,22px)!important;border-radius:clamp(12px,.95vw,17px)!important}
+  .export-copy{font-size:clamp(12px,.86vw,14px)!important;line-height:1.5!important;margin-bottom:clamp(10px,.8vw,14px)!important}
+  .export-btn{font-size:clamp(12.5px,.88vw,14px)!important;padding:clamp(10px,.8vw,13px)!important}
+  .export-hint{font-size:clamp(9.5px,.68vw,11px)!important}
+
+  /* Top 10 meccslisták igazítása: nem csúszik el desktopon. */
+  .stat-match-list{
+    gap:clamp(6px,.52vw,9px)!important;
+    padding:0!important;
+  }
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(34px,2.35vw,42px) minmax(0,1fr) clamp(74px,5.4vw,96px)!important;
+    min-height:clamp(54px,3.9vw,66px)!important;
+    padding:clamp(8px,.65vw,11px) clamp(10px,.8vw,14px)!important;
+    gap:clamp(8px,.68vw,12px)!important;
+    align-items:center!important;
+  }
+  .stat-match-list .wc-stat-rank{
+    font-size:clamp(14px,.98vw,17px)!important;
+    line-height:1!important;
+    text-align:center!important;
+  }
+  .stat-match-list .wc-stat-main{
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+  .stat-match-list .wc-stat-name{
+    font-size:clamp(12.5px,.92vw,15px)!important;
+    line-height:1.14!important;
+    letter-spacing:-.01em!important;
+  }
+  .stat-match-list .stat-game-name{
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:clamp(6px,.5vw,9px)!important;
+    width:100%!important;
+  }
+  .stat-match-list .stat-game-name .crest{
+    --cs:clamp(18px,1.28vw,23px)!important;
+  }
+  .stat-match-list .stat-game-text{
+    min-width:0!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+  .stat-match-list .wc-stat-sub{
+    font-size:clamp(9.5px,.7vw,11.5px)!important;
+    line-height:1.2!important;
+    margin-top:3px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .stat-match-list .wc-stat-val{
+    font-size:clamp(15px,1.05vw,18px)!important;
+    line-height:1!important;
+    text-align:right!important;
+    white-space:nowrap!important;
+    font-variant-numeric:tabular-nums!important;
+  }
+}
+
+@media (min-width: 900px) and (max-height: 760px){
+  .hdr{height:clamp(82px,6.4vw,108px)!important;padding-top:clamp(8px,.75vw,13px)!important}
+  .top.shrunken .hdr{height:clamp(52px,4vw,66px)!important}
+  .tabs{height:clamp(36px,2.8vw,48px)!important}
+  .tab{font-size:clamp(12.5px,.88vw,15px)!important;padding-bottom:clamp(6px,.5vw,9px)!important}
+  .top.shrunken .tabs{height:clamp(30px,2.25vw,38px)!important}
+  .top.shrunken .tab{font-size:clamp(11px,.78vw,13px)!important}
+}
+
+@media (min-width: 1450px){
+  :root{--page-max:clamp(1080px,82vw,1320px)}
+  .hdr{height:clamp(124px,7vw,150px)!important;padding-top:clamp(18px,1.15vw,25px)!important}
+  .top.shrunken .hdr{height:clamp(72px,4vw,90px)!important}
+  .tabs{height:clamp(52px,3vw,66px)!important;gap:clamp(48px,3vw,76px)!important}
+  .tab{font-size:clamp(15.5px,.92vw,18px)!important}
+}
+
+@media (min-width: 900px) and (max-width: 1180px){
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:34px minmax(0,1fr) 76px!important;
+    gap:8px!important;
+  }
+  .stat-match-list .stat-game-name .crest{--cs:18px!important}
+  .stat-match-list .wc-stat-name{font-size:12.5px!important}
+  .stat-match-list .wc-stat-val{font-size:15px!important}
+}
+
+
+/* â”€â”€ DESKTOP STATISZTIKA-LISTÁK: HARMONIKUS, KIJELZŐFÜGGŐ NAGYÍTÁS â”€â”€
+   Javítja a túl kicsi desktop elemeket és a második csapatlogó jobbra csúszását. */
+@media (min-width: 900px){
+  .card:has(.stat-match-list){
+    padding:clamp(22px,1.8vw,32px) !important;
+    border-radius:clamp(17px,1.35vw,24px) !important;
+    margin-bottom:clamp(18px,1.45vw,28px) !important;
+  }
+  .card:has(.stat-match-list) .card-title{
+    font-size:clamp(24px,1.55vw,32px) !important;
+    line-height:1.18 !important;
+    margin-bottom:clamp(18px,1.25vw,25px) !important;
+    letter-spacing:.005em !important;
+  }
+  .stat-match-list{
+    gap:clamp(12px,.9vw,18px) !important;
+    padding:0 !important;
+  }
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(48px,3.15vw,64px) minmax(0,1fr) clamp(86px,5.8vw,116px) !important;
+    min-height:clamp(72px,5vw,94px) !important;
+    padding:clamp(14px,1.05vw,21px) clamp(20px,1.45vw,30px) !important;
+    gap:clamp(14px,1vw,22px) !important;
+    align-items:center !important;
+    border-radius:clamp(15px,1.05vw,20px) !important;
+  }
+  .stat-match-list .wc-stat-rank{
+    font-size:clamp(21px,1.35vw,29px) !important;
+    line-height:1 !important;
+    text-align:center !important;
+    font-weight:900 !important;
+  }
+  .stat-match-list .wc-stat-main{
+    min-width:0 !important;
+    overflow:hidden !important;
+  }
+  .stat-match-list .wc-stat-name{
+    font-size:clamp(16px,1.08vw,22px) !important;
+    line-height:1.15 !important;
+    font-weight:900 !important;
+    letter-spacing:-.012em !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  .stat-match-list .stat-game-name{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:flex-start !important;
+    gap:clamp(8px,.58vw,12px) !important;
+    width:auto !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    vertical-align:middle !important;
+  }
+  .stat-match-list .stat-game-name .crest{
+    --cs:clamp(24px,1.65vw,34px) !important;
+    flex:0 0 var(--cs) !important;
+  }
+  .stat-match-list .stat-game-text{
+    flex:0 1 auto !important;
+    min-width:0 !important;
+    max-width:clamp(260px,34vw,620px) !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+  }
+  .stat-match-list .wc-stat-sub{
+    font-size:clamp(12px,.82vw,16px) !important;
+    line-height:1.22 !important;
+    margin-top:clamp(5px,.38vw,8px) !important;
+    font-weight:800 !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  .stat-match-list .wc-stat-val{
+    font-size:clamp(22px,1.45vw,30px) !important;
+    line-height:1 !important;
+    text-align:right !important;
+    white-space:nowrap !important;
+    font-weight:950 !important;
+    font-variant-numeric:tabular-nums !important;
+    letter-spacing:-.02em !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px){
+  .card:has(.stat-match-list){padding:20px !important}
+  .card:has(.stat-match-list) .card-title{font-size:24px !important;margin-bottom:16px !important}
+  .stat-match-list{gap:11px !important}
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:46px minmax(0,1fr) 86px !important;
+    min-height:70px !important;
+    padding:13px 18px !important;
+    gap:13px !important;
+  }
+  .stat-match-list .wc-stat-rank{font-size:21px !important}
+  .stat-match-list .wc-stat-name{font-size:16px !important}
+  .stat-match-list .wc-stat-sub{font-size:12px !important}
+  .stat-match-list .wc-stat-val{font-size:22px !important}
+  .stat-match-list .stat-game-name .crest{--cs:24px !important}
+  .stat-match-list .stat-game-text{max-width:clamp(230px,32vw,420px) !important}
+}
+
+@media (min-width: 1450px){
+  .card:has(.stat-match-list) .card-title{font-size:clamp(29px,1.45vw,36px) !important}
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(60px,3.2vw,76px) minmax(0,1fr) clamp(108px,5.8vw,136px) !important;
+    min-height:clamp(86px,4.7vw,108px) !important;
+    padding:clamp(18px,1.05vw,25px) clamp(26px,1.55vw,38px) !important;
+  }
+  .stat-match-list .wc-stat-rank{font-size:clamp(27px,1.35vw,34px) !important}
+  .stat-match-list .wc-stat-name{font-size:clamp(20px,1.05vw,26px) !important}
+  .stat-match-list .wc-stat-sub{font-size:clamp(14px,.78vw,18px) !important}
+  .stat-match-list .wc-stat-val{font-size:clamp(28px,1.42vw,36px) !important}
+  .stat-match-list .stat-game-name .crest{--cs:clamp(30px,1.55vw,39px) !important}
+  .stat-match-list .stat-game-text{max-width:clamp(420px,37vw,820px) !important}
+}
+
+
+
+/* â”€â”€ FINAL BALANCED DESKTOP RESPONSIVE OVERRIDES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Laptopon visszafogottabb táblalógók + statisztika elemek,
+   nagy monitoron enyhe, harmonikus skálázás. */
+@media (min-width: 900px){
+  /* Tabellák: a zászlók/logók laptopon ne legyenek túl nagyok */
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{
+    --cs:clamp(25px,1.72vw,33px) !important;
+  }
+  .standings .row{
+    height:clamp(54px,3.85vw,64px) !important;
+  }
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{
+    font-size:clamp(15px,1.02vw,18px) !important;
+  }
+  .standings .thead{
+    font-size:clamp(11px,.78vw,13px) !important;
+  }
+
+  /* Statisztika top-listák: desktopon olvasható, de nem túllőtt */
+  .card:has(.stat-match-list){
+    padding:clamp(20px,1.45vw,28px) !important;
+    border-radius:clamp(16px,1.15vw,22px) !important;
+    margin-bottom:clamp(18px,1.25vw,26px) !important;
+  }
+  .card:has(.stat-match-list) .card-title{
+    font-size:clamp(23px,1.35vw,30px) !important;
+    line-height:1.18 !important;
+    margin-bottom:clamp(16px,1vw,22px) !important;
+  }
+  .stat-match-list{
+    gap:clamp(10px,.72vw,15px) !important;
+    padding:0 !important;
+  }
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(40px,2.55vw,56px) minmax(0,1fr) clamp(74px,4.75vw,104px) !important;
+    min-height:clamp(62px,4.1vw,82px) !important;
+    padding:clamp(11px,.82vw,17px) clamp(16px,1.08vw,24px) !important;
+    gap:clamp(12px,.82vw,18px) !important;
+    align-items:center !important;
+    border-radius:clamp(13px,.9vw,18px) !important;
+  }
+  .stat-match-list .wc-stat-rank{
+    font-size:clamp(18px,1.12vw,25px) !important;
+    line-height:1 !important;
+    text-align:center !important;
+    font-weight:900 !important;
+  }
+  .stat-match-list .wc-stat-main{
+    min-width:0 !important;
+    overflow:hidden !important;
+  }
+  .stat-match-list .wc-stat-name{
+    font-size:clamp(15px,.98vw,20px) !important;
+    line-height:1.15 !important;
+    font-weight:900 !important;
+    letter-spacing:-.008em !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  .stat-match-list .stat-game-name{
+    display:flex !important;
+    align-items:center !important;
+    justify-content:flex-start !important;
+    gap:clamp(7px,.48vw,10px) !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    width:100% !important;
+  }
+  .stat-match-list .stat-game-name .crest,
+  .stat-match-list .stat-game-name .crest[style]{
+    --cs:clamp(21px,1.38vw,29px) !important;
+    flex:0 0 var(--cs) !important;
+  }
+  .stat-match-list .stat-game-text{
+    flex:0 1 auto !important;
+    min-width:0 !important;
+    max-width:max-content !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+  }
+  .stat-match-list .wc-stat-sub{
+    font-size:clamp(11px,.72vw,14px) !important;
+    line-height:1.2 !important;
+    margin-top:clamp(4px,.28vw,6px) !important;
+    font-weight:800 !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  .stat-match-list .wc-stat-val{
+    font-size:clamp(20px,1.2vw,27px) !important;
+    line-height:1 !important;
+    text-align:right !important;
+    white-space:nowrap !important;
+    font-weight:950 !important;
+    font-variant-numeric:tabular-nums !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px){
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{--cs:25px !important}
+  .standings .row{height:54px !important}
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{font-size:15px !important}
+
+  .card:has(.stat-match-list){padding:19px !important}
+  .card:has(.stat-match-list) .card-title{font-size:23px !important;margin-bottom:15px !important}
+  .stat-match-list{gap:10px !important}
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:40px minmax(0,1fr) 76px !important;
+    min-height:62px !important;
+    padding:11px 16px !important;
+    gap:11px !important;
+  }
+  .stat-match-list .wc-stat-rank{font-size:18px !important}
+  .stat-match-list .wc-stat-name{font-size:15px !important}
+  .stat-match-list .wc-stat-sub{font-size:11px !important}
+  .stat-match-list .wc-stat-val{font-size:20px !important}
+  .stat-match-list .stat-game-name .crest,
+  .stat-match-list .stat-game-name .crest[style]{--cs:21px !important}
+}
+
+@media (min-width: 1450px){
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{--cs:clamp(30px,1.65vw,36px) !important}
+  .standings .row{height:clamp(61px,3.25vw,70px) !important}
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{font-size:clamp(17px,.98vw,20px) !important}
+
+  .card:has(.stat-match-list) .card-title{font-size:clamp(27px,1.28vw,34px) !important}
+  .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(50px,2.45vw,66px) minmax(0,1fr) clamp(94px,4.55vw,122px) !important;
+    min-height:clamp(74px,3.75vw,94px) !important;
+    padding:clamp(15px,.86vw,21px) clamp(22px,1.2vw,32px) !important;
+  }
+  .stat-match-list .wc-stat-rank{font-size:clamp(23px,1.05vw,30px) !important}
+  .stat-match-list .wc-stat-name{font-size:clamp(18px,.95vw,24px) !important}
+  .stat-match-list .wc-stat-sub{font-size:clamp(13px,.66vw,16px) !important}
+  .stat-match-list .wc-stat-val{font-size:clamp(25px,1.15vw,32px) !important}
+  .stat-match-list .stat-game-name .crest,
+  .stat-match-list .stat-game-name .crest[style]{--cs:clamp(26px,1.32vw,34px) !important}
+}
+
+
+
+/* â”€â”€ VÉGSŐ STABIL MIKROFINOMHANGOLÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Csak finom desktop skálázás: nem nyúl bele a JS működésébe. */
+@media (min-width: 900px){
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{
+    --cs:clamp(25.5px,1.68vw,33px) !important;
+  }
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{
+    font-size:clamp(15.2px,1.02vw,18px) !important;
+  }
+  .standings .row{height:clamp(54px,3.75vw,64px) !important;}
+
+  .card:has(.stat-match-list) .card-title{
+    font-size:clamp(22px,1.24vw,28px) !important;
+    margin-bottom:clamp(14px,.88vw,20px) !important;
+  }
+  .stat-match-list{gap:clamp(8.5px,.62vw,13px) !important;}
+  .stat-match-list .wc-stat-row{
+    min-height:clamp(58px,3.72vw,76px) !important;
+    padding:clamp(9.5px,.72vw,15px) clamp(14px,.96vw,22px) !important;
+  }
+  .stat-match-list .wc-stat-rank{font-size:clamp(16.8px,1.02vw,23px) !important;}
+  .stat-match-list .wc-stat-name{font-size:clamp(14.1px,.90vw,18.8px) !important;}
+  .stat-match-list .wc-stat-sub{font-size:clamp(10.4px,.66vw,13.2px) !important;}
+  .stat-match-list .wc-stat-val{font-size:clamp(18.8px,1.10vw,25px) !important;}
+  .stat-match-list .stat-game-name .crest,
+  .stat-match-list .stat-game-name .crest[style]{--cs:clamp(20px,1.24vw,27px) !important;}
+}
+
+@media (min-width: 900px) and (max-width: 1180px){
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{--cs:25.5px !important;}
+  .standings .row{height:54px !important;}
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{font-size:15.2px !important;}
+
+  .card:has(.stat-match-list) .card-title{font-size:22px !important;margin-bottom:13.5px !important;}
+  .stat-match-list .wc-stat-row{min-height:58px !important;padding:9.5px 14px !important;}
+  .stat-match-list .wc-stat-rank{font-size:16.8px !important;}
+  .stat-match-list .wc-stat-name{font-size:14.1px !important;}
+  .stat-match-list .wc-stat-sub{font-size:10.4px !important;}
+  .stat-match-list .wc-stat-val{font-size:18.8px !important;}
+  .stat-match-list .stat-game-name .crest,
+  .stat-match-list .stat-game-name .crest[style]{--cs:20px !important;}
+}
+
+
+
+/* â”€â”€ FINAL: DESKTOP MATCHES + TABLE HARMONIC RESPONSIVE TUNE â”€â”€â”€â”€â”€â”€â”€
+   Csak tablet/laptop/desktop nézet: mobilos méretekhez nem nyúl. */
+.ov-poty-card{display:none!important;}
+
+@media (min-width: 900px){
+  /* TABELLÁK: csapatnév, zászló/logó és P/GK/PTS picit nagyobb */
+  .standings .row{
+    height:clamp(57px,3.62vw,69px)!important;
+  }
+  .standings .tc{
+    gap:clamp(12px,.85vw,16px)!important;
+  }
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{
+    --cs:clamp(27px,1.62vw,35px)!important;
+  }
+  .standings .row .tname{
+    font-size:clamp(16.1px,.96vw,20px)!important;
+    font-weight:780!important;
+    letter-spacing:.002em!important;
+  }
+  .standings .row .num,
+  .standings .row .rank{
+    font-size:clamp(16px,.95vw,20px)!important;
+    font-weight:780!important;
+  }
+  .standings .thead{
+    font-size:clamp(11.6px,.74vw,14px)!important;
+  }
+  .short{
+    grid-template-columns:clamp(35px,2.35vw,44px) minmax(0,1fr) clamp(58px,3.55vw,72px) clamp(72px,4.35vw,88px) clamp(72px,4.35vw,88px)!important;
+    column-gap:clamp(12px,.8vw,18px)!important;
+  }
+  .full{
+    grid-template-columns:clamp(35px,2.35vw,44px) minmax(0,1fr) repeat(4,clamp(50px,3.1vw,62px)) clamp(82px,5vw,98px) clamp(68px,4.1vw,82px)!important;
+    column-gap:clamp(9px,.65vw,14px)!important;
+  }
+  .formv{
+    grid-template-columns:clamp(35px,2.35vw,44px) minmax(0,1fr) clamp(224px,14vw,270px) clamp(68px,4.1vw,82px)!important;
+    column-gap:clamp(12px,.8vw,18px)!important;
+  }
+
+  /* MÉRKŐZÉSEK TAB: desktopon kijelzőfüggő, laptopon visszafogottabb */
+  .matches-section{
+    gap:clamp(10px,.72vw,16px)!important;
+  }
+  .round-card{
+    border-radius:clamp(14px,.95vw,20px)!important;
+  }
+  .round-header{
+    font-size:clamp(14px,.88vw,18px)!important;
+    padding:clamp(9px,.7vw,14px) clamp(14px,.95vw,22px)!important;
+  }
+  .round-comp{
+    font-size:clamp(11px,.72vw,14px)!important;
+    padding:clamp(6px,.45vw,10px) clamp(14px,.95vw,22px)!important;
+    gap:clamp(7px,.48vw,10px)!important;
+  }
+  .round-comp .rc-logo{
+    width:clamp(18px,1.16vw,24px)!important;
+    height:clamp(18px,1.16vw,24px)!important;
+  }
+  .match-row{
+    grid-template-columns:clamp(76px,4.6vw,94px) 1px minmax(0,1fr) clamp(46px,2.9vw,60px) clamp(36px,2.25vw,46px)!important;
+    min-height:clamp(66px,4.25vw,84px)!important;
+  }
+  .mr-date{
+    font-size:clamp(14px,.88vw,18px)!important;
+    padding-right:clamp(8px,.58vw,13px)!important;
+  }
+  .mr-date span{
+    font-size:clamp(9.2px,.58vw,12px)!important;
+  }
+  .mr-tip{
+    font-size:clamp(7.6px,.48vw,9.4px)!important;
+  }
+  .mr-teams{
+    gap:clamp(5px,.42vw,8px)!important;
+    padding:clamp(8px,.6vw,13px) clamp(9px,.68vw,15px)!important;
+  }
+  .mr-team{
+    font-size:clamp(14.5px,.9vw,18.2px)!important;
+    min-height:clamp(24px,1.55vw,31px)!important;
+    gap:clamp(6px,.42vw,9px)!important;
+    font-weight:760!important;
+  }
+  .mr-team .crest,
+  .mr-team .crest[style]{
+    --cs:clamp(24px,1.5vw,32px)!important;
+  }
+  .mr-scores{
+    font-size:clamp(15.5px,.98vw,21px)!important;
+    gap:clamp(5px,.42vw,8px)!important;
+    padding:clamp(8px,.6vw,13px) 0!important;
+  }
+  .mr-bell{
+    font-size:clamp(12px,.78vw,16px)!important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px){
+  /* Laptop: meccskártyák picit kisebbek, tabellák viszont olvashatóbbak */
+  .standings .row{height:57px!important;}
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{--cs:27px!important;}
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{font-size:16.1px!important;}
+  .short{grid-template-columns:36px minmax(0,1fr) 58px 72px 72px!important;column-gap:12px!important;}
+
+  .matches-section{gap:10px!important;}
+  .round-header{font-size:14px!important;padding:9px 14px!important;}
+  .round-comp{font-size:11px!important;padding:6px 14px!important;}
+  .round-comp .rc-logo{width:18px!important;height:18px!important;}
+  .match-row{grid-template-columns:76px 1px minmax(0,1fr) 46px 36px!important;min-height:66px!important;}
+  .mr-date{font-size:14px!important;padding-right:8px!important;}
+  .mr-date span{font-size:9.2px!important;}
+  .mr-teams{padding:8px 9px!important;gap:5px!important;}
+  .mr-team{font-size:14.5px!important;min-height:24px!important;gap:6px!important;}
+  .mr-team .crest,
+  .mr-team .crest[style]{--cs:24px!important;}
+  .mr-scores{font-size:15.5px!important;padding:8px 0!important;}
+}
+
+@media (min-width: 1181px) and (max-width: 1440px){
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{--cs:clamp(28px,1.55vw,32px)!important;}
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{font-size:clamp(16.6px,.92vw,18px)!important;}
+
+  .match-row{min-height:clamp(69px,4vw,76px)!important;}
+  .mr-team{font-size:clamp(15.2px,.86vw,16.5px)!important;}
+  .mr-team .crest,
+  .mr-team .crest[style]{--cs:clamp(25px,1.42vw,29px)!important;}
+  .mr-scores{font-size:clamp(16.2px,.92vw,18.5px)!important;}
+}
+
+@media (min-width: 1441px){
+  .standings .row{height:clamp(64px,3.1vw,76px)!important;}
+  .standings .row .tc .crest,
+  .standings .row .tc .crest[style]{--cs:clamp(32px,1.45vw,40px)!important;}
+  .standings .row .tname,
+  .standings .row .num,
+  .standings .row .rank{font-size:clamp(18px,.9vw,22px)!important;}
+
+  .match-row{min-height:clamp(76px,3.7vw,92px)!important;}
+  .mr-team{font-size:clamp(17px,.82vw,20px)!important;}
+  .mr-team .crest,
+  .mr-team .crest[style]{--cs:clamp(30px,1.32vw,38px)!important;}
+  .mr-scores{font-size:clamp(19px,.92vw,24px)!important;}
+  .mr-date{font-size:clamp(16px,.78vw,20px)!important;}
+  .mr-date span{font-size:clamp(11px,.52vw,13.5px)!important;}
+}
+
+
+/* â”€â”€ SAFE DESKTOP MICRO-TUNE: MÉRKŐZÉS KÁRTYÁK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Csak desktop/laptop nézeten hat, mobilhoz nem nyúl. */
+@media (min-width: 768px){
+  .match-row{
+    grid-template-columns:clamp(74px,6.2vw,84px) 1px minmax(0,1fr) clamp(42px,3.55vw,48px) clamp(34px,2.9vw,40px);
+    min-height:clamp(66px,5.75vw,76px);
+  }
+  .mr-teams{
+    gap:clamp(5px,.55vw,7px);
+    padding:clamp(7px,.78vw,10px) clamp(7px,.72vw,10px);
+  }
+  .mr-team{
+    gap:clamp(5px,.52vw,7px);
+    font-size:clamp(13.1px,1.1vw,15.8px);
+    min-height:clamp(24px,2.08vw,30px);
+    font-weight:740;
+  }
+  .mr-team .crest{--cs:clamp(23px,1.98vw,27.5px)}
+  .mr-scores{
+    gap:clamp(5px,.52vw,7px);
+    padding:clamp(7px,.78vw,10px) 0;
+    font-size:clamp(13.4px,1.12vw,16.2px);
+  }
+  .mr-date{
+    font-size:clamp(12.7px,1.05vw,15.3px);
+    padding-right:clamp(7px,.68vw,10px);
+  }
+  .mr-date span{font-size:clamp(8.7px,.76vw,10.8px)}
+}
+
+@media (min-width: 1180px){
+  .match-row{
+    grid-template-columns:clamp(82px,5.5vw,94px) 1px minmax(0,1fr) clamp(48px,3.18vw,56px) clamp(38px,2.72vw,46px);
+    min-height:clamp(72px,4.7vw,84px);
+  }
+  .mr-team{font-size:clamp(14.8px,.98vw,17.6px)}
+  .mr-team .crest{--cs:clamp(25.5px,1.82vw,31.5px)}
+  .mr-scores{font-size:clamp(14.8px,1vw,17.6px)}
+  .mr-date{font-size:clamp(13.8px,.92vw,16.8px)}
+  .mr-date span{font-size:clamp(9.8px,.7vw,11.8px)}
+}
+
+
+/* vegso reszponziv tabella-vezerlok es kompakt bracket */
+#tblCtrl .ctrl-inner{display:grid;grid-template-columns:repeat(3,minmax(74px,auto)) minmax(110px,auto) minmax(42px,max-content);align-items:center;gap:clamp(5px,1.2vw,10px);overflow:visible;max-width:min(var(--page-max),calc(100vw - 2 * var(--pp)))}
+#tblCtrl .pill{min-width:0;text-align:center;padding:clamp(5px,1.05vw,9px) clamp(9px,1.8vw,20px);font-size:clamp(10px,1.05vw,14px)}
+#tblCtrl .view-wrap{margin-left:0;justify-self:stretch;flex:0 0 auto;width:100%}
+#tblCtrl .view-wrap:last-child{justify-self:end;width:auto}
+#tblCtrl .view-btn{width:clamp(34px,4.4vw,52px);height:clamp(29px,3.5vw,42px)}
+#tblCtrl .drop{right:0;min-width:clamp(118px,18vw,164px)}
+@media(max-width:520px){#tblCtrl .ctrl-inner{display:flex;max-width:none;overflow-x:auto;scrollbar-width:none;padding-right:var(--pp)}#tblCtrl .ctrl-inner::-webkit-scrollbar{display:none}#tblCtrl .pill{flex:0 0 auto;font-size:clamp(10.5px,2.7vw,12.5px);padding:clamp(5px,1.4vw,7px) clamp(12px,3.2vw,17px)}#tblCtrl .view-wrap{flex:0 0 auto;position:relative}#tblCtrl .view-wrap:last-child{margin-left:auto}#tblCtrl .view-btn{width:clamp(36px,9.5vw,46px);height:clamp(30px,8vw,38px)}#tblRoundBtn{font-size:clamp(10.5px,2.7vw,12.5px);padding:clamp(5px,1.4vw,7px) clamp(10px,2.6vw,14px);min-width:0!important}}
+
+.ko-stage-wrap{min-width:2440px!important;grid-template-columns:900px 280px 900px!important;gap:130px!important;align-items:start!important}
+.ko-side{grid-template-columns:repeat(4,205px)!important;gap:30px!important}
+.ko-col{min-width:205px!important;grid-template-rows:repeat(17,48px)!important;row-gap:7px!important;gap:7px!important;padding-top:24px!important}
+.ko-final-col{min-width:280px!important;grid-template-rows:repeat(17,48px)!important;row-gap:7px!important;gap:7px!important;padding-top:26px!important}
+.ko-col h3{font-size:11px!important}.ko-final-col h3{top:32px!important;font-size:12px!important}.ko-final-col .ko-cup{height:30px!important;font-size:25px!important}
+.ko-card{border-radius:9px!important}.ko-card .ko-meta{min-height:20px!important;padding:4px 6px!important;font-size:8.5px!important}.ko-team{grid-template-columns:28px minmax(0,1fr) 62px!important;min-height:35px!important;gap:6px!important;padding:3px 6px!important;font-size:12.8px!important;line-height:1.05!important}.ko-team .crest{--cs:28px!important}.ko-name{font-weight:900!important}.ko-score{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:4px!important;font-size:15px!important;text-align:right!important;line-height:1!important}.ko-score b{font:inherit;color:inherit}.ko-pen{display:inline-block!important;color:#f0c275!important;font-size:12px!important;font-weight:950!important;line-height:1!important}.ko-mid-title{font-size:10.5px!important}.ko-final-col .ko-card{max-width:250px!important}.ko-left .ko-card::after{right:-30px!important;width:30px!important}.ko-right .ko-card::after{left:-30px!important;width:30px!important}.ko-final-col .ko-card::before{left:-65px!important;width:65px!important}.ko-final-col .ko-card::after{right:-65px!important;width:65px!important}
+@media(max-width:560px){.ko-stage-wrap{min-width:1840px!important;grid-template-columns:690px 190px 690px!important;gap:85px!important}.ko-side{grid-template-columns:repeat(4,150px)!important;gap:18px!important}.ko-col{min-width:150px!important;grid-template-rows:repeat(17,40px)!important;row-gap:4px!important;gap:4px!important;padding-top:19px!important}.ko-final-col{min-width:190px!important;grid-template-rows:repeat(17,40px)!important;row-gap:4px!important;gap:4px!important;padding-top:20px!important}.ko-col h3{font-size:9px!important}.ko-final-col h3{top:24px!important;font-size:9.5px!important}.ko-final-col .ko-cup{height:22px!important;font-size:19px!important}.ko-card .ko-meta{min-height:15px!important;padding:2px 4px!important;font-size:6.8px!important}.ko-team{grid-template-columns:21px minmax(0,1fr) 47px!important;min-height:27px!important;gap:4px!important;padding:2px 4px!important;font-size:10.2px!important;line-height:1.02!important}.ko-team .crest{--cs:21px!important}.ko-name{font-weight:900!important}.ko-score{font-size:11.5px!important;gap:2px!important}.ko-pen{font-size:9px!important}.ko-final-col .ko-card{max-width:172px!important}.ko-left .ko-card::after{right:-18px!important;width:18px!important}.ko-right .ko-card::after{left:-18px!important;width:18px!important}.ko-final-col .ko-card::before{left:-42px!important;width:42px!important}.ko-final-col .ko-card::after{right:-42px!important;width:42px!important}}
+
+
+/* vegso bracket-kartya belso elrendezes: csapatok fent/lent, nagyobb tartalom */
+.ko-card{display:flex!important;flex-direction:column!important}
+.ko-card .ko-meta{flex:0 0 auto!important;min-height:18px!important;padding:3px 6px!important;font-size:8px!important}
+.ko-card .ko-team{flex:0 0 auto!important;grid-template-columns:30px minmax(0,1fr) 66px!important;min-height:37px!important;gap:6px!important;padding:2px 6px!important;font-size:13.4px!important;line-height:1!important}
+.ko-card .ko-team .crest{--cs:30px!important}
+.ko-card .ko-team:last-child{margin-top:auto!important}
+.ko-card .ko-score{font-size:16px!important;gap:4px!important}
+.ko-card .ko-pen{font-size:12.5px!important}
+@media(max-width:560px){.ko-card .ko-meta{min-height:13px!important;padding:2px 4px!important;font-size:6.4px!important}.ko-card .ko-team{grid-template-columns:22px minmax(0,1fr) 50px!important;min-height:28px!important;gap:4px!important;padding:1px 4px!important;font-size:10.8px!important}.ko-card .ko-team .crest{--cs:22px!important}.ko-card .ko-score{font-size:12.3px!important;gap:2px!important}.ko-card .ko-pen{font-size:9.4px!important}}
+
+
+/* bracket nevter es score beljebb huzas */
+.ko-card .ko-team{grid-template-columns:30px minmax(0,1fr) 58px!important;padding-right:8px!important}
+.ko-card .ko-score{justify-content:flex-end!important;transform:translateX(-1px);min-width:58px!important}
+.ko-card .ko-name{letter-spacing:0!important;font-size:inherit!important;text-overflow:clip!important}
+@media(max-width:560px){.ko-card .ko-team{grid-template-columns:22px minmax(0,1fr) 44px!important;padding-right:6px!important}.ko-card .ko-score{justify-content:flex-end!important;transform:translateX(-1px);min-width:44px!important}.ko-card .ko-name{font-size:inherit!important;text-overflow:clip!important}}
+
+
+/* bracket placeholder es finom score pozicio */
+.ko-card .ko-score{transform:translateX(-1.6px)!important}
+.ko-card .ko-empty{display:flex!important;align-items:center!important;justify-content:flex-start!important;grid-template-columns:none!important;padding-left:6px!important;padding-right:6px!important}
+.ko-card .ko-empty .ko-name{display:block!important;width:100%!important;white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important;font-size:10.5px!important;font-weight:850!important;color:#8997a1!important;text-align:left!important}
+@media(max-width:560px){.ko-card .ko-score{transform:translateX(-1.4px)!important}.ko-card .ko-empty{padding-left:4px!important;padding-right:4px!important}.ko-card .ko-empty .ko-name{font-size:7.8px!important}}
+
+
+/* placeholder nagyobbitas, finom score es belso kozelites */
+.ko-card .ko-score{transform:translateX(-2.2px)!important}
+.ko-card .ko-meta + .ko-team{transform:translateY(1px)!important}
+.ko-card .ko-team:last-child{transform:translateY(-1px)!important}
+.ko-card .ko-empty{justify-content:center!important;padding-left:7px!important;padding-right:7px!important}
+.ko-card .ko-empty .ko-name{font-size:12px!important;font-weight:900!important;text-align:center!important;color:#9aa8b2!important}
+@media(max-width:560px){.ko-card .ko-score{transform:translateX(-1.8px)!important}.ko-card .ko-meta + .ko-team{transform:translateY(.6px)!important}.ko-card .ko-team:last-child{transform:translateY(-.6px)!important}.ko-card .ko-empty{padding-left:5px!important;padding-right:5px!important}.ko-card .ko-empty .ko-name{font-size:9px!important;text-align:center!important}}
+
+
+/* bracket vizjel korcimke es kozepe fele huzott csapatok */
+.ko-card{position:relative!important;overflow:hidden!important}
+.ko-watermark{position:absolute!important;inset:21px 6px 3px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;color:rgba(255,255,255,.075)!important;font-size:24px!important;font-weight:1000!important;line-height:.92!important;letter-spacing:.02em!important;text-transform:uppercase!important;pointer-events:none!important;z-index:0!important;white-space:normal!important}
+.ko-card .ko-meta,.ko-card .ko-team{position:relative!important;z-index:1!important}
+.ko-card .ko-meta{justify-content:center!important;text-align:center!important}
+.ko-card .ko-status{display:block!important;width:100%!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:clip!important}
+.ko-card .ko-meta + .ko-team{transform:translateY(2px)!important}
+.ko-card .ko-team:last-child{transform:translateY(-2px)!important}
+.ko-card .ko-empty .ko-name{font-size:12.8px!important;line-height:1.05!important}
+@media(max-width:560px){.ko-watermark{inset:15px 4px 2px!important;font-size:15px!important;line-height:.94!important}.ko-card .ko-meta + .ko-team{transform:translateY(1.2px)!important}.ko-card .ko-team:last-child{transform:translateY(-1.2px)!important}.ko-card .ko-empty .ko-name{font-size:9.5px!important;line-height:1.05!important}}
+
+/* Bracket: teljes kartya, statuszsav nelkul, merethez igazodo tartalom */
+.ko-card .ko-meta{display:none!important;border:0!important;min-height:0!important;padding:0!important}
+.ko-watermark{inset:4px 6px!important;color:rgba(255,255,255,.115)!important;font-size:clamp(18px,1.35vw,30px)!important;line-height:.9!important}
+.ko-card .ko-team{position:relative!important;z-index:1!important;grid-template-columns:clamp(24px,1.75vw,34px) minmax(0,1fr) clamp(50px,3.7vw,72px)!important;min-height:clamp(28px,2.25vw,42px)!important;gap:clamp(4px,.45vw,8px)!important;padding:clamp(2px,.25vw,5px) clamp(5px,.45vw,9px)!important;font-size:clamp(11px,.9vw,15px)!important;line-height:1.02!important;transform:none!important}
+.ko-card .ko-team .crest{--cs:clamp(24px,1.75vw,34px)!important}
+.ko-card .ko-team:first-of-type{margin-top:clamp(3px,.35vw,7px)!important}
+.ko-card .ko-team:last-child{margin-top:auto!important;margin-bottom:clamp(3px,.35vw,7px)!important}
+.ko-card .ko-score{font-size:clamp(13px,1.05vw,18px)!important;gap:clamp(2px,.22vw,4px)!important;transform:translateX(-2px)!important}
+.ko-card .ko-pen{font-size:clamp(10px,.8vw,14px)!important}
+.ko-card .ko-empty{display:flex!important;align-items:center!important;justify-content:center!important;padding:0 7px!important;text-align:center!important}
+.ko-card .ko-empty .ko-name{font-size:clamp(12px,.95vw,16px)!important;line-height:1.05!important;white-space:normal!important}
+@media(min-width:1500px){.ko-watermark{font-size:32px!important}.ko-card .ko-team{grid-template-columns:36px minmax(0,1fr) 76px!important;min-height:44px!important;font-size:16px!important}.ko-card .ko-team .crest{--cs:36px!important}.ko-card .ko-score{font-size:19px!important}.ko-card .ko-pen{font-size:15px!important}}
+@media(max-width:560px){.ko-watermark{inset:2px 4px!important;color:rgba(255,255,255,.105)!important;font-size:14px!important;line-height:.92!important}.ko-card .ko-team{grid-template-columns:20px minmax(0,1fr) 42px!important;min-height:26px!important;gap:4px!important;padding:1px 4px!important;font-size:9.8px!important}.ko-card .ko-team .crest{--cs:20px!important}.ko-card .ko-team:first-of-type{margin-top:2px!important}.ko-card .ko-team:last-child{margin-bottom:2px!important}.ko-card .ko-score{font-size:11px!important;gap:2px!important;transform:translateX(-1.5px)!important}.ko-card .ko-pen{font-size:8.5px!important}.ko-card .ko-empty .ko-name{font-size:8.8px!important;line-height:1.04!important}}
+
+/* Bracket vegso finomitas: egysoros vizjel, tobb hely a csapatneveknek */
+.ko-watermark{inset:0 5px!important;color:rgba(255,255,255,.12)!important;font-size:clamp(8px,.58vw,12px)!important;line-height:1!important;white-space:nowrap!important;letter-spacing:0!important}
+.ko-card .ko-team{grid-template-columns:clamp(22px,1.55vw,31px) minmax(0,1fr) clamp(42px,2.9vw,60px)!important;font-size:clamp(10.3px,.78vw,13.4px)!important;gap:clamp(3px,.35vw,6px)!important;padding-left:clamp(4px,.35vw,7px)!important;padding-right:clamp(4px,.35vw,7px)!important}
+.ko-card .ko-team .crest{--cs:clamp(22px,1.55vw,31px)!important}
+.ko-card .ko-name{font-size:inherit!important;letter-spacing:0!important;overflow:visible!important;text-overflow:clip!important}
+.ko-card .ko-score{min-width:clamp(42px,2.9vw,60px)!important;justify-content:flex-end!important;transform:translateX(-4px)!important}
+.ko-card .ko-empty .ko-name{font-size:clamp(10.5px,.8vw,13.5px)!important;white-space:nowrap!important;text-align:center!important}
+@media(min-width:1500px){.ko-watermark{font-size:13px!important}.ko-card .ko-team{grid-template-columns:32px minmax(0,1fr) 64px!important;font-size:14px!important}.ko-card .ko-team .crest{--cs:32px!important}.ko-card .ko-score{min-width:64px!important;transform:translateX(-5px)!important}}
+@media(max-width:560px){.ko-watermark{inset:0 4px!important;font-size:7.8px!important;white-space:nowrap!important}.ko-card .ko-team{grid-template-columns:19px minmax(0,1fr) 38px!important;font-size:9.1px!important;gap:3px!important;padding-left:3px!important;padding-right:3px!important}.ko-card .ko-team .crest{--cs:19px!important}.ko-card .ko-score{min-width:38px!important;transform:translateX(-2.5px)!important;font-size:10.5px!important}.ko-card .ko-pen{font-size:8px!important}.ko-card .ko-empty .ko-name{font-size:7.6px!important;white-space:nowrap!important}}
+
+/* Bracket vegso arany: nagyobb csapatok, stabil nev vagas, kozepre igazitas */
+.ko-card{justify-content:center!important;gap:clamp(4px,.45vw,8px)!important}
+.ko-watermark{font-size:clamp(9.5px,.68vw,14px)!important}
+.ko-card .ko-watermark + .ko-team,.ko-card .ko-team:last-child{margin-top:0!important;margin-bottom:0!important;transform:none!important}
+.ko-card .ko-team{grid-template-columns:clamp(25px,1.85vw,36px) minmax(0,1fr) clamp(42px,2.9vw,60px)!important;min-height:clamp(29px,2.25vw,41px)!important;font-size:clamp(11.5px,.9vw,15.2px)!important;gap:clamp(4px,.45vw,7px)!important}
+.ko-card .ko-team .crest{--cs:clamp(25px,1.85vw,36px)!important}
+.ko-card .ko-name{min-width:0!important;overflow:hidden!important;text-overflow:clip!important;white-space:nowrap!important}
+.ko-card .ko-score{min-width:clamp(42px,2.9vw,60px)!important;font-size:clamp(13px,1.05vw,18px)!important;transform:translateX(-4px)!important}
+@media(min-width:1500px){.ko-watermark{font-size:15px!important}.ko-card .ko-team{grid-template-columns:38px minmax(0,1fr) 64px!important;font-size:16px!important;min-height:44px!important}.ko-card .ko-team .crest{--cs:38px!important}.ko-card .ko-score{font-size:19px!important;transform:translateX(-5px)!important}}
+@media(max-width:560px){.ko-card{gap:3px!important}.ko-watermark{font-size:8.6px!important}.ko-card .ko-team{grid-template-columns:21px minmax(0,1fr) 38px!important;min-height:26px!important;font-size:9.9px!important;gap:3px!important}.ko-card .ko-team .crest{--cs:21px!important}.ko-card .ko-score{min-width:38px!important;font-size:10.5px!important;transform:translateX(-2.5px)!important}}
+
+/* Utolso finomhangolas: bracket szoveg/logo arany es tabella zaszlok */
+.ko-watermark{font-size:clamp(10.5px,.76vw,16px)!important}
+.ko-card .ko-team{grid-template-columns:clamp(20px,1.38vw,28px) minmax(0,1fr) clamp(38px,2.55vw,54px)!important;font-size:clamp(11.3px,.86vw,14.8px)!important}
+.ko-card .ko-team .crest{--cs:clamp(20px,1.38vw,28px)!important}
+.ko-card .ko-name{min-width:0!important;overflow:hidden!important;text-overflow:clip!important;white-space:nowrap!important}
+.ko-card .ko-score{min-width:clamp(38px,2.55vw,54px)!important;transform:translateX(-4px)!important}
+.standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:clamp(23px,1.22vw,31px)!important}
+@media(min-width:1500px){.ko-watermark{font-size:17px!important}.ko-card .ko-team{grid-template-columns:30px minmax(0,1fr) 58px!important;font-size:15.6px!important}.ko-card .ko-team .crest{--cs:30px!important}.ko-card .ko-score{min-width:58px!important;transform:translateX(-5px)!important}.standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:33px!important}}
+@media(max-width:560px){.ko-watermark{font-size:9.4px!important}.ko-card .ko-team{grid-template-columns:17px minmax(0,1fr) 36px!important;font-size:9.7px!important}.ko-card .ko-team .crest{--cs:17px!important}.ko-card .ko-score{min-width:36px!important;transform:translateX(-2.5px)!important}.standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:21px!important}}
+
+/* Responsziv logo- es szovegmeret: telefon < laptop < nagy kijelzo */
+.ko-card .ko-team{grid-template-columns:clamp(17.5px,1.48vw,31px) minmax(0,1fr) clamp(38px,2.55vw,54px)!important;font-size:clamp(9.8px,.82vw,15.8px)!important}
+.ko-card .ko-team .crest{--cs:clamp(17.5px,1.48vw,31px)!important}
+.ko-card .ko-name{font-size:inherit!important}
+.ko-card .ko-score{transform:translateX(-5px)!important}
+.standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:clamp(20.5px,1.54vw,37px)!important}
+@media(max-width:560px){.ko-card .ko-team{grid-template-columns:15.5px minmax(0,1fr) 36px!important;font-size:9.2px!important}.ko-card .ko-team .crest{--cs:15.5px!important}.ko-card .ko-score{transform:translateX(-3px)!important}.standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:19.5px!important}}
+@media(min-width:1500px){.ko-card .ko-team{grid-template-columns:clamp(30px,1.56vw,35px) minmax(0,1fr) 58px!important;font-size:clamp(15.8px,.86vw,18px)!important}.ko-card .ko-team .crest{--cs:clamp(30px,1.56vw,35px)!important}.ko-card .ko-score{transform:translateX(-6px)!important}.standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:clamp(33px,1.72vw,41px)!important}}
+
+/* Fontos szovegek responsziv meretezese */
+.card-title{font-size:clamp(18px,1.28vw,28px)!important;line-height:1.16!important}
+.standings .thead{font-size:clamp(9.8px,.68vw,13.5px)!important}
+.standings .row .tname,.standings .row .num,.standings .row .rank{font-size:clamp(11.5px,.82vw,17px)!important}
+.updated{font-size:clamp(11.5px,.72vw,14px)!important;line-height:1.45!important}
+.round-comp{font-size:clamp(9.4px,.7vw,13px)!important;gap:clamp(5px,.5vw,10px)!important}
+.round-comp .rc-logo{width:clamp(15px,1.1vw,24px)!important;height:clamp(15px,1.1vw,24px)!important}
+.match-row{min-height:clamp(58px,4vw,82px)!important}
+.mr-team{font-size:clamp(10.8px,.86vw,17px)!important;gap:clamp(4px,.42vw,8px)!important}
+.mr-team .crest,.mr-team .crest[style]{--cs:clamp(17px,1.55vw,32px)!important}
+.mr-date{font-size:clamp(10.8px,.82vw,17px)!important}
+.mr-date span{font-size:clamp(7.6px,.56vw,12px)!important}
+.mr-scores{font-size:clamp(11px,.9vw,18px)!important}
+.mr-bell{font-size:clamp(13px,.82vw,18px)!important}
+.wc-info b{font-size:clamp(21px,1.55vw,30px)!important}
+.wc-info span,.wc-note,.wc-team-chip span{font-size:clamp(12px,.78vw,15px)!important}
+@media(max-width:560px){.card-title{font-size:18px!important}.standings .thead{font-size:8.8px!important}.standings .row .tname,.standings .row .num,.standings .row .rank{font-size:11.4px!important}.updated{font-size:11.5px!important}.round-comp{font-size:9.4px!important}.round-comp .rc-logo{width:15px!important;height:15px!important}.match-row{min-height:58px!important}.mr-team{font-size:10.8px!important}.mr-team .crest,.mr-team .crest[style]{--cs:17px!important}.mr-date{font-size:10.8px!important}.mr-date span{font-size:7.6px!important}.mr-scores{font-size:11.2px!important}.mr-bell{font-size:12px!important}}
+@media(min-width:1500px){.card-title{font-size:clamp(27px,1.38vw,34px)!important}.standings .row .tname,.standings .row .num,.standings .row .rank{font-size:clamp(17px,.92vw,21px)!important}.standings .thead{font-size:clamp(12px,.66vw,15px)!important}.round-comp{font-size:clamp(13px,.7vw,16px)!important}.match-row{min-height:clamp(82px,3.8vw,96px)!important}.mr-team{font-size:clamp(17px,.88vw,21px)!important}.mr-team .crest,.mr-team .crest[style]{--cs:clamp(31px,1.58vw,40px)!important}.mr-date{font-size:clamp(16px,.82vw,20px)!important}.mr-date span{font-size:clamp(11px,.56vw,13.5px)!important}.mr-scores{font-size:clamp(18px,.92vw,23px)!important}}
+
+/* Desktop visszafogas, mobil olvashatosag */
+.card-title{font-size:clamp(16px,1.04vw,24px)!important}
+.mr-team .crest,.mr-team .crest[style]{--cs:clamp(15.5px,1.28vw,28px)!important}
+@media(min-width:1500px){.card-title{font-size:clamp(23px,1.08vw,29px)!important}.mr-team .crest,.mr-team .crest[style]{--cs:clamp(28px,1.34vw,34px)!important}}
+@media(max-width:560px){
+  .card-title{font-size:17px!important}
+  .standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:22px!important}
+  .standings .row .tname,.standings .row .num,.standings .row .rank{font-size:12.2px!important}
+  .match-row{min-height:62px!important}
+  .mr-team{font-size:11.7px!important}
+  .mr-team .crest,.mr-team .crest[style]{--cs:19px!important}
+  .mr-date{font-size:11.5px!important}
+  .mr-date span{font-size:8px!important}
+  .mr-scores{font-size:12px!important}
+  .ko-watermark{font-size:10.2px!important}
+  .ko-card .ko-team{grid-template-columns:18px minmax(0,1fr) 37px!important;font-size:10.4px!important;min-height:27px!important}
+  .ko-card .ko-team .crest{--cs:18px!important}
+  .ko-card .ko-score{font-size:11.4px!important}
+  .ko-card .ko-pen{font-size:8.6px!important}
+}
+
+/* Mobil tabella/bracket emeles, desktop stat top10 csapatzona */
+@media(max-width:560px){
+  .standings .row .tc .crest,.standings .row .tc .crest[style]{--cs:24px!important}
+  .standings .row .tname,.standings .row .num,.standings .row .rank{font-size:12.8px!important}
+  .ko-watermark{font-size:11.2px!important}
+  .ko-card .ko-team{grid-template-columns:20px minmax(0,1fr) 39px!important;font-size:11.1px!important;min-height:29px!important}
+  .ko-card .ko-team .crest{--cs:20px!important}
+  .ko-card .ko-score{font-size:12.1px!important}
+  .ko-card .ko-pen{font-size:9px!important}
+}
+@media(min-width:900px){
+  .stat-match-list .wc-stat-row{grid-template-columns:clamp(34px,2vw,44px) minmax(0,1fr) clamp(78px,5vw,112px)!important;min-height:clamp(62px,3.8vw,82px)!important}
+  .stat-match-list .wc-stat-name{font-size:clamp(16px,1.05vw,22px)!important}
+  .stat-match-list .stat-game-name{gap:clamp(9px,.75vw,14px)!important}
+  .stat-match-list .stat-game-name .crest,.stat-match-list .stat-game-name .crest[style]{--cs:clamp(28px,1.75vw,42px)!important}
+  .stat-match-list .stat-game-text{max-width:none!important;font-size:inherit!important}
+  .stat-match-list .wc-stat-sub{font-size:clamp(11.5px,.72vw,15px)!important}
+  .stat-match-list .wc-stat-val{font-size:clamp(20px,1.25vw,28px)!important}
+}
+
+/* Vegso aranyok: mobil bracket+, koztes stat top10, nagyobb csoport/zonafelirat */
+.round-comp{font-size:clamp(10.6px,.82vw,14.5px)!important;padding:clamp(6px,.55vw,10px) clamp(10px,.8vw,16px)!important}
+.round-comp .rc-logo{width:clamp(16px,1.05vw,22px)!important;height:clamp(16px,1.05vw,22px)!important}
+.zlabel{font-size:clamp(11.2px,.78vw,15px)!important;line-height:1.22!important}
+@media(max-width:560px){
+  .round-comp{font-size:10.8px!important;padding:6px 10px!important}
+  .round-comp .rc-logo{width:16px!important;height:16px!important}
+  .zlabel{font-size:12.2px!important}
+  .ko-watermark{font-size:12px!important}
+  .ko-card .ko-team{grid-template-columns:22px minmax(0,1fr) 42px!important;font-size:12px!important;min-height:31px!important;gap:4px!important}
+  .ko-card .ko-team .crest{--cs:22px!important}
+  .ko-card .ko-score{font-size:13px!important;transform:translateX(-3px)!important}
+  .ko-card .ko-pen{font-size:9.6px!important}
+}
+@media(min-width:900px){
+  .stat-match-list .wc-stat-row{grid-template-columns:clamp(30px,1.65vw,38px) minmax(0,1fr) clamp(70px,4.2vw,96px)!important;min-height:clamp(58px,3.2vw,72px)!important}
+  .stat-match-list .wc-stat-name{font-size:clamp(14.6px,.88vw,18.6px)!important}
+  .stat-match-list .stat-game-name{gap:clamp(7px,.58vw,11px)!important}
+  .stat-match-list .stat-game-name .crest,.stat-match-list .stat-game-name .crest[style]{--cs:clamp(23px,1.35vw,33px)!important}
+  .stat-match-list .wc-stat-sub{font-size:clamp(10.8px,.62vw,13.4px)!important}
+  .stat-match-list .wc-stat-val{font-size:clamp(18px,1.02vw,24px)!important}
+}
+
+/* Zonarovatok es meccs-blokk fejlecek nagyobb responsziv merete */
+.zlabel{font-size:clamp(10.6px,.72vw,14px)!important;line-height:1.22!important;font-weight:780!important}
+.round-comp{font-size:clamp(11.6px,.9vw,16px)!important;padding:clamp(7px,.68vw,12px) clamp(11px,.95vw,18px)!important;gap:clamp(6px,.58vw,11px)!important}
+.round-comp .rc-logo{width:clamp(18px,1.25vw,27px)!important;height:clamp(18px,1.25vw,27px)!important}
+@media(max-width:560px){

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SuperLiga României 2026/27</title>
+  <script>
+  window.__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH__=(function(){
+    try{
+      var started=Date.now();
+      var base=String(window.SUPERLIGA_WORKER_URL||'').replace(/\/$/,'');
+      var read=String(window.SUPERLIGA_RESULTS_READ_URL||'');
+      var url=window.SUPERLIGA_BOOTSTRAP_LIGHT_URL||(base?base+'/bootstrap-light':(read?read.replace(/\/results(?:\?.*)?$/,'')+'/bootstrap-light':''));
+      if(!url)return Promise.resolve(null);
+      try{var link=document.createElement('link');link.rel='preconnect';link.href=url.replace(/\/bootstrap-light(?:\?.*)?$/,'');link.crossOrigin='';document.head.appendChild(link);}catch(_e){}
+      return fetch(url+(url.indexOf('?')>-1?'&':'?')+'v=superliga-head',{headers:{'Accept':'application/json'},credentials:'omit'})
+        .then(function(r){if(!r.ok)throw new Error('bootstrap-light HTTP '+r.status);return r.json();})
+        .then(function(d){try{window.__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH_META__={ok:true,tookMs:Date.now()-started,at:new Date().toISOString()};}catch(e){}return d;})
+        .catch(function(e){try{window.__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH_META__={ok:false,error:e&&e.message?e.message:String(e),at:new Date().toISOString()};}catch(_e){}return null;});
+    }catch(e){return Promise.resolve(null);}
+  })();
+  </script>
+  <link rel="stylesheet" href="./src/styles/main.css" />
+</head>
+<body>
+<div class="app"><div class="top" id="topBar"><div class="hdr"><div class="hdr-back">&lsaquo;</div><div class="li-box" id="liBox"><img id="liImg" alt="" src="https://www.superliga.ro/images/logo.png" loading="eager"><svg class="li-fb" viewBox="0 0 80 80" aria-hidden="true"><rect width="80" height="80" rx="12" fill="#0e1f27"/><circle cx="40" cy="40" r="25" fill="#e8edf0"/><path d="M40 14l8 14 16 3-11 12 2 16-15-7-15 7 2-16-11-12 16-3z" fill="#17232b"/></svg></div><div class="li-info"><div class="li-title">SuperLiga Rom&acirc;niei</div><div class="li-season">2026/27 <span class="chev">&#9662;</span></div></div><div class="hdr-acts"><div class="hdr-icon">&#8599;</div><div class="hdr-icon">&#9734;</div><div class="hdr-icon">&#9733;</div></div></div><nav class="tabs" id="tabs"><button class="tab active" data-tab="overview">&Aacute;ttekint&eacute;s</button><button class="tab" data-tab="matches">M&eacute;rk&#337;z&eacute;sek</button><button class="tab" data-tab="table">Tabella</button><button class="tab" data-tab="knockout">Playoff / Playout</button><button class="tab" data-tab="baraj">Baraj</button><button class="tab" data-tab="stats">Statisztik&aacute;k</button><button class="tab" data-tab="community">K&ouml;z&ouml;ss&eacute;g</button></nav></div><div id="spacer"></div><div id="ctrlWrap"><div class="ctrl-bar" id="tblCtrl"><div class="ctrl-inner"><button class="pill active" data-f="all">&Ouml;sszes</button><button class="pill" data-f="home">Hazai</button><button class="pill" data-f="away">Idegen</button><div class="view-wrap" style="margin-left:0"><button class="sel-btn" id="tblRoundBtn" style="width:100%;min-width:0"><span class="sel-txt" id="tblRoundTxt">V&eacute;gleges</span><span class="sel-chev">&#9662;</span></button><div class="drop sel-drop" id="tblRoundDrop"></div></div><div class="view-wrap"><button class="view-btn" id="vBtn"><span class="hbars"><i></i><b></b></span></button><div class="drop" id="vDrop"><button data-v="short" class="active">R&ouml;vid</button><button data-v="full">Teljes</button><button data-v="form">Forma</button></div></div></div></div><div class="kc-bar hidden" id="koCtrl"><div class="kc-inner"><div class="sel-wrap"><button class="sel-btn" id="selBtn"><span class="sel-txt" id="selTxt">SuperLiga României 2026/27 - playoff / playout</span><span class="sel-chev">&#9662;</span></button><div class="drop sel-drop" id="selDrop"><button data-b="format" class="active">SuperLiga României 2026/27 - playoff / playout</button></div></div><button class="expand-btn">&#8599;</button></div></div><div class="ctrl-bar hidden" id="mCtrl"><div class="ctrl-inner"><button class="pill active" data-mf="date">D&aacute;tum szerint</button><button class="pill" data-mf="round">K&ouml;r szerint</button><button class="pill" data-mf="team">Csapat szerint</button></div></div><div class="ctrl-bar hidden" id="mRoundBar"><div class="ctrl-inner"><div class="view-wrap" style="margin-left:0"><button class="sel-btn" id="roundSelBtn" style="min-width:clamp(86px,22vw,110px)"><span class="sel-txt" id="roundSelTxt">1. kör</span><span class="sel-chev">&#9662;</span></button><div class="drop sel-drop" id="roundSelDrop" style="min-width:clamp(100px,28vw,140px);max-height:50vh;overflow-y:auto"></div></div></div></div><div class="ctrl-bar hidden" id="mTeamBar"><div class="ctrl-inner" style="gap:clamp(7px,2vw,10px)"><div class="view-wrap" style="margin-left:0;flex:1"><button class="sel-btn" id="teamSelBtn" style="width:100%"><span class="sel-txt" id="teamSelTxt">Csapat kiv&aacute;laszt&aacute;sa</span><span class="sel-chev">&#9662;</span></button><div class="drop sel-drop" id="teamSelDrop" style="min-width:min(280px,calc(100vw - 36px));max-height:50vh;overflow-y:auto"></div></div></div></div></div><main id="main" class="main"></main></div>
+  <script src="./src/data/league-config.js"></script>
+  <script src="./src/ui/dom-utils.js"></script>
+  <script src="./src/core/predictions-store.js"></script>
+  <script src="./src/services/community-firebase.js"></script>
+  <script src="./src/core/standings-engine.js"></script>
+  <script src="./src/views/overview-table.view.js"></script>
+  <script src="./src/data/fixtures.js"></script>
+  <script src="./src/services/live-results.js"></script>
+  <script src="./src/views/stat-cards.view.js"></script>
+  <script src="./src/core/stats-export.js"></script>
+  <script src="./src/core/postseason-engine.js"></script>
+  <script src="./src/views/match-modal.view.js"></script>
+  <script src="./src/views/matches-postseason-stats.view.js"></script>
+  <script src="./src/app/bootstrap.js"></script>
+</body>
+</html>
