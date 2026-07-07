@@ -57,6 +57,7 @@ const TEAM_ELO={
   'Oțelul Galați':1480,'Petrolul Ploiești':1475,'UTA Arad':1460,'FC Botoșani':1450,
   'FC Voluntari':1455,'FC Argeș':1435,'Csikszereda':1420,'Corvinul Hunedoara':1410
 };
+const SUPERLIGA_ODDS={};
 const TEAM_MARKET={
   'FCSB':48,'CFR Cluj':30,'Universitatea Craiova':38,'Rapid București':35,
   'Farul Constanța':25,'Universitatea Cluj':22,'Sepsi OSK':18,'Dinamo':17,

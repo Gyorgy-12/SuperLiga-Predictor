@@ -3,8 +3,9 @@ import { edgeGet, edgePut } from '../services/edge-cache.service.js';
 import { readStoredResults } from '../services/results.service.js';
 import { getLiveSnapshot } from '../services/memory-cache.service.js';
 import { syncLive } from '../services/sync.service.js';
-import { getFixtures } from '../services/fixtures.service.js';
+import { getFixturesPack } from '../services/fixtures.service.js';
 import { readOdds } from '../services/odds.service.js';
+import { readTeamRatings } from '../services/team-ratings.service.js';
 
 /**
  * Public startup bundle, ported from the WC26 optimized worker pattern.
@@ -32,16 +33,19 @@ export async function bootstrapLightPayload(env) {
     new Promise(resolve => setTimeout(() => resolve({ ...getLiveSnapshot(), source: 'bootstrap-live-timeout', fast: true }), Number(env.BOOTSTRAP_LIVE_TIMEOUT_MS || 850)))
   ]);
 
-  const [fixturesPack, resultsPack, livePack, oddsPack] = await Promise.all([
-    getFixtures(env).then(fixtures => ({ ok: true, fixtures })).catch(error => ({ ok: false, fixtures: [], error: error?.message || String(error) })),
+  const [fixturesPack, resultsPack, livePack, oddsPack, ratingsPack] = await Promise.all([
+    getFixturesPack(env).catch(error => ({ ok: false, fixtures: [], source: 'fixtures-error', error: error?.message || String(error) })),
     readStoredResults(env).catch(error => ({ results: {}, source: 'results-error', error: error?.message || String(error) })),
     livePromise,
-    readOdds(env).catch(error => ({ odds: {}, source: 'odds-error', error: error?.message || String(error) }))
+    readOdds(env).catch(error => ({ odds: {}, source: 'odds-error', error: error?.message || String(error) })),
+    readTeamRatings(env).catch(error => ({ ratings: {}, marketValues: {}, source: 'ratings-error', error: error?.message || String(error) }))
   ]);
 
   const results = resultsPack?.results && typeof resultsPack.results === 'object' ? resultsPack.results : {};
   const live = livePack?.results && typeof livePack.results === 'object' ? livePack.results : {};
   const odds = oddsPack?.odds && typeof oddsPack.odds === 'object' ? oddsPack.odds : {};
+  const ratings = ratingsPack?.ratings && typeof ratingsPack.ratings === 'object' ? ratingsPack.ratings : {};
+  const marketValues = ratingsPack?.marketValues && typeof ratingsPack.marketValues === 'object' ? ratingsPack.marketValues : {};
 
   return {
     ok: true,
@@ -51,6 +55,8 @@ export async function bootstrapLightPayload(env) {
     tookMs: Date.now() - startedAt,
     fixtures: fixturesPack.fixtures || [],
     fixturesCount: (fixturesPack.fixtures || []).length,
+    fixturesSource: fixturesPack.source || '',
+    fixtureCacheUpdatedAt: fixturesPack.updatedAt || null,
     fixturesError: fixturesPack.error || '',
     results,
     resultsCount: Object.keys(results).length,
@@ -64,6 +70,12 @@ export async function bootstrapLightPayload(env) {
     odds,
     oddsCount: Object.keys(odds).length,
     oddsSource: oddsPack?.source || '',
-    oddsError: oddsPack?.error || ''
+    oddsError: oddsPack?.error || '',
+    ratings,
+    ratingsCount: Object.keys(ratings).length,
+    marketValues,
+    marketValuesCount: Object.keys(marketValues).length,
+    ratingsSource: ratingsPack?.source || '',
+    ratingsError: ratingsPack?.error || ''
   };
 }

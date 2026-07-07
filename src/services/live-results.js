@@ -5,7 +5,6 @@ const FX_BY_ID=Object.fromEntries(FX.map(m=>[m.id,m]));
 let superligaSyncTimer=null;
 let superligaSyncInFlight=false;
 let LIVE_RESULTS=FROZEN_MODE&&window.__SUPERLIGA_LIVE_RESULTS__?window.__SUPERLIGA_LIVE_RESULTS__:superligaSafeJson(sessionStorage.getItem(SUPERLIGA_CACHE_KEYS.liveSnapshot),{});
-let SUPERLIGA_ODDS={};
 
 function saveLiveResults(){try{sessionStorage.setItem(SUPERLIGA_CACHE_KEYS.liveSnapshot,JSON.stringify(LIVE_RESULTS))}catch(e){}}
 function fixtureKickoff(m){return new Date(m.date+'T'+m.t+':00+03:00').getTime()}
@@ -67,42 +66,37 @@ function superligaNextInterestingDelay(now=Date.now()){
 }
 function superligaWorkerBase(){try{let b=String(SUPERLIGA_WORKER_URL||'').replace(/\/$/,'');if(b)return b;return String(SUPERLIGA_RESULTS_READ_URL||'').replace(/\/results(?:\?.*)?$/,'')}catch(e){return''}}
 function addParams(url,params){let u=new URL(url,location.href);Object.entries(params||{}).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,v)});return u.toString()}
-let superligaBootstrapDone=false,superligaBootstrapFailed=false,superligaBootstrapInFlight=null;
+
 function applyOddsMap(odds){
   if(!odds||typeof odds!=='object')return false;
   let changed=false;
-  Object.entries(odds).forEach(([id,o])=>{
-    if(!id||!o||typeof o!=='object')return;
-    let next={h:o.h??o.home??o.homeOdd,d:o.d??o.draw??o.drawOdd,a:o.a??o.away??o.awayOdd,provider:o.provider||o.source||'odds'};
-    if(!validOdds(next.h)||!validOdds(next.d)||!validOdds(next.a))return;
-    if(JSON.stringify(SUPERLIGA_ODDS[id]||null)!==JSON.stringify(next)){SUPERLIGA_ODDS[id]=next;changed=true;}
-  });
-  if(changed&&['matches','overview','table','knockout'].includes(S.tab))try{superligaRequestRender('odds')}catch(e){}
+  Object.entries(odds).forEach(([id,o])=>{if(!id||!o)return;let old=SUPERLIGA_ODDS[id];let fp=JSON.stringify({h:o.h,d:o.d,a:o.a,provider:o.provider,updatedAt:o.updatedAt});if(!old||JSON.stringify({h:old.h,d:old.d,a:old.a,provider:old.provider,updatedAt:old.updatedAt})!==fp){SUPERLIGA_ODDS[id]=o;changed=true}});
+  if(changed&&['matches','table','overview','knockout','baraj','stats'].includes(S.tab))superligaRequestRender('odds');
   return changed;
 }
-function applyTeamRatingsPayload(payload){
-  if(!payload||typeof payload!=='object')return false;
-  let ratings=payload.ratings||payload.elo||payload.teamElo||null;
-  let markets=payload.marketValues||payload.market||payload.tm||payload.teamMarket||null;
-  let changed=false;
-  if(ratings&&typeof ratings==='object')Object.entries(ratings).forEach(([name,val])=>{if(typeof val==='number'&&isFinite(val)&&TEAM_ELO[name]!==val){TEAM_ELO[name]=val;changed=true}});
-  if(markets&&typeof markets==='object')Object.entries(markets).forEach(([name,val])=>{if(typeof val==='number'&&isFinite(val)&&TEAM_MARKET[name]!==val){TEAM_MARKET[name]=val;changed=true}});
-  if(changed&&['matches','table','overview','knockout'].includes(S.tab))try{superligaRequestRender('ratings')}catch(e){}
+function applyTeamRatingsData(data){
+  if(!data||typeof data!=='object')return false;
+  let changed=false,ratings=data.ratings||data.elo||{},mv=data.marketValues||data.values||{};
+  Object.entries(ratings).forEach(([name,val])=>{let n=Number(val);if(Number.isFinite(n)&&TEAM_ELO[name]!==n){TEAM_ELO[name]=n;changed=true}});
+  Object.entries(mv).forEach(([name,val])=>{let n=Number(val);if(Number.isFinite(n)&&TEAM_MARKET[name]!==n){TEAM_MARKET[name]=n;changed=true}});
+  if(changed&&['matches','table','overview','knockout','baraj','stats'].includes(S.tab))superligaRequestRender('team-ratings');
   return changed;
 }
-async function loadFirebasePublicCacheDoc(docId){
-  if(!SUPERLIGA_FIREBASE_RESULTS_FALLBACK||!superligaFirebaseConfigured()||!SUPERLIGA_COLLECTIONS.publicCache)return null;
-  try{
-    if(!superligaDb){let ok=await loadSuperligaFirebase();if(!ok||!superligaDb)return null;}
-    let doc=await superligaDb.collection(SUPERLIGA_COLLECTIONS.publicCache).doc(docId).get();
-    return doc.exists?(doc.data()||null):null;
-  }catch(e){return null}
-}
+let superligaBootstrapDone=false,superligaBootstrapFailed=false,superligaBootstrapInFlight=null;
 function applyFixtureList(list){
   if(!Array.isArray(list)||!list.length)return false;
-  let byId={};list.forEach(f=>{if(f&&f.id)byId[f.id]=f});
+  let byId={};list.forEach(f=>{if(f&&f.id)byId[String(f.id)]=f});
   let changed=false;
-  FX.forEach(x=>{let ov=byId[x.id];if(!ov)return;let date=ov.date||ov.d,time=ov.t||ov.time;if(!date||!time)return;let yr=+String(date).slice(0,4),delta=Math.abs(Date.parse(date)-Date.parse(x.date))/86400000;if(yr!==2026||delta>14)return;if(date!==x.date||time!==x.t){x.date=date;x.t=time;x.day=+(String(date).replace(/-/g,'')+String(time).replace(':',''));changed=true}});
+  FX.forEach(x=>{
+    let ov=byId[String(x.id)];if(!ov)return;
+    let date=ov.date||ov.d||x.date,time=ov.t||ov.time||x.t;
+    if(!date||!time)return;
+    let yr=+String(date).slice(0,4);if(yr!==2026)return;
+    let fields={date:String(date),t:String(time),label:ov.label||x.label,kickoffAt:ov.kickoffAt||null,livescoreId:ov.livescoreId||x.livescoreId||null,sofascoreId:ov.sofascoreId||x.sofascoreId||null,fixtureSource:ov.fixtureSource||ov.source||x.fixtureSource||null,fixtureUpdatedAt:ov.fixtureUpdatedAt||ov.fixtureCacheUpdatedAt||x.fixtureUpdatedAt||null};
+    Object.entries(fields).forEach(([k,v])=>{if(v!==undefined&&v!==null&&x[k]!==v){x[k]=v;changed=true}});
+    let day=+(String(x.date).replace(/-/g,'')+String(x.t).replace(':',''));
+    if(x.day!==day){x.day=day;changed=true;}
+  });
   if(changed){FX.sort((a,b)=>a.day-b.day||a.g.localeCompare(b.g)||a.r-b.r);try{superligaRequestRender('fixtures')}catch(e){}}
   return changed;
 }
@@ -120,10 +114,10 @@ async function loadBootstrapLight(opts={}){
       if(!data||data.ok===false)throw new Error((data&&data.error)||'bootstrap-light invalid payload');
       let changed=false;
       if(data.fixtures)changed=applyFixtureList(data.fixtures)||changed;
+      if(data.odds)changed=applyOddsMap(data.odds)||changed;
+      if(data.ratings||data.marketValues)changed=applyTeamRatingsData(data)||changed;
       if(data.results)changed=mergeLiveResults(data.results)||changed;
       if(data.live)changed=mergeLiveResults(data.live)||changed;
-      if(data.odds)changed=applyOddsMap(data.odds)||changed;
-      if(data.ratings||data.marketValues||data.elo)changed=applyTeamRatingsPayload(data)||changed;
       superligaBootstrapDone=true;superligaBootstrapFailed=false;
       try{window.SUPERLIGA_BOOTSTRAP_DEBUG={ok:true,tookMs:data.tookMs||null,resultsCount:data.resultsCount||Object.keys(data.results||{}).length,liveCount:data.liveCount||Object.keys(data.live||{}).length,fixturesCount:data.fixturesCount||(data.fixtures||[]).length,usedPrefetch,changed,at:new Date().toISOString(),prefetchMeta:window.__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH_META__||null}}catch(e){}
       return changed||true;
@@ -136,7 +130,7 @@ async function fetchWorkerJson(url){let r=await fetch(url,{cache:'no-store',cred
 async function loadMatchResultsFromBackendDb(){
   if(FROZEN_MODE)return false;
   if(!superligaBootstrapDone&&!superligaBootstrapFailed){let ok=await loadBootstrapLight({fallback:false});if(ok)return true}
-  if(!SUPERLIGA_RESULTS_READ_URL){let cached=await loadFirebasePublicCacheDoc('results');return cached&&cached.results?mergeLiveResults(cached.results):false;}
+  if(!SUPERLIGA_RESULTS_READ_URL)return false;
   try{let data=await fetchWorkerJson(SUPERLIGA_RESULTS_READ_URL);let changed=data&&data.results?mergeLiveResults(data.results):false;if(data&&data.fixtures)changed=applyFixtureList(data.fixtures)||changed;return changed}catch(e){return false}
 }
 async function loadLiveResultsFromWorker(opts={}){
@@ -168,12 +162,12 @@ async function syncLiveResults(opts={}){
     if(!superligaBootstrapDone&&!superligaBootstrapFailed)await loadBootstrapLight({fallback:false});
     if(SUPERLIGA_RESULTS_SYNC_URL)return await loadLiveResultsFromWorker(opts);
     if(SUPERLIGA_RESULTS_READ_URL)return await loadMatchResultsFromBackendDb();
-    if(SUPERLIGA_FIREBASE_RESULTS_FALLBACK&&superligaFirebaseConfigured()&&!superligaDb)await loadSuperligaFirebase();
     return await loadMatchResultsOnceFromSdk(active.map(m=>m.id));
   }finally{superligaSyncInFlight=false}
 }
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
 function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await syncLiveResults();scheduleLiveSync()},delay??nextLiveSyncDelay())}
 function listenMatchResults(){return syncLiveResults({force:true})}
-async function applyTeamElo(){if(FROZEN_MODE)return false;try{let data=null;if(SUPERLIGA_RESULTS_READ_URL){let base=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'');data=await fetch(base+'/team-ratings',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null)||await fetch(base+'/elo',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);}else{data=await loadFirebasePublicCacheDoc('elo');}return applyTeamRatingsPayload(data)}catch(e){return false}}
-async function applyFixtureOverrides(){if(FROZEN_MODE)return false;try{let data=null;if(SUPERLIGA_RESULTS_READ_URL){let url=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'/fixtures');data=await fetch(url,{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);}else{data=await loadFirebasePublicCacheDoc('fixtures');}let list=data&&Array.isArray(data.fixtures)?data.fixtures:null;return applyFixtureList(list)}catch(e){return false}}
+async function applyTeamElo(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let base=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'');let data=await fetch(base+'/team-ratings',{cache:'no-store'}).then(r=>r.ok?r.json():null);return applyTeamRatingsData(data)}catch(e){return false}}
+async function applyOddsFromWorker(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let base=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'');let data=await fetch(base+'/odds',{cache:'no-store'}).then(r=>r.ok?r.json():null);return applyOddsMap(data&&data.odds)}catch(e){return false}}
+async function applyFixtureOverrides(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let url=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'/fixtures');let data=await fetch(addParams(url,{fresh:1,t:Date.now()}),{cache:'no-store'}).then(r=>r.ok?r.json():null);let list=data&&Array.isArray(data.fixtures)?data.fixtures:null;return applyFixtureList(list)}catch(e){return false}}
