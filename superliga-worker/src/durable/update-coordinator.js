@@ -1,14 +1,12 @@
 import { refreshFixtures } from '../services/fixture-refresh.service.js';
 import { refreshOdds } from '../services/odds.service.js';
 import { syncLive } from '../services/sync.service.js';
-import { refreshTeamRatings } from '../services/team-ratings.service.js';
 
 const STATE_KEY = 'coordinator-state';
 const LOCK_KEY = 'coordinator-lock';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ODDS_MIN_MS = 6 * 60 * 60 * 1000;
 const FIXTURE_MIN_MS = 20 * 60 * 60 * 1000;
-const RATINGS_MIN_MS = 6 * 24 * 60 * 60 * 1000;
 
 export class UpdateCoordinator {
   constructor(state, env) {
@@ -26,7 +24,6 @@ export class UpdateCoordinator {
     if (request.method === 'GET' && (path === '/' || path === '/state')) return this.json(await this.readState());
     if (request.method === 'GET' && path === '/fixtures-cache') return this.json(await this.state.storage.get('fixtures-cache') || { ok: true, fixtures: [], source: 'empty' });
     if (request.method === 'GET' && path === '/odds-cache') return this.json(await this.state.storage.get('odds-cache') || { ok: true, odds: {}, source: 'empty' });
-    if (request.method === 'GET' && path === '/ratings-cache') return this.json(await this.state.storage.get('ratings-cache') || { ok: true, ratings: {}, marketValues: {}, source: 'empty' });
     if (request.method === 'POST' && (path === '/run' || path === '/refresh')) {
       const result = await this.runTask(task, { force, manual: true, round });
       return this.json(result);
@@ -59,8 +56,6 @@ export class UpdateCoordinator {
       let result;
       if (normalizedTask === 'fixtures') result = await this.runFixtures(opts);
       else if (normalizedTask === 'odds') result = await this.runOdds(opts);
-      else if (normalizedTask === 'ratings' || normalizedTask === 'elo' || normalizedTask === 'market-values') result = await this.runRatings(opts);
-      else if (normalizedTask === 'weekly') result = await this.runWeekly(opts);
       else if (normalizedTask === 'live') result = await syncLive(this.env, { force: !!opts.force, cron: !!opts.cron });
       else result = await this.runDaily(opts);
 
@@ -99,33 +94,6 @@ export class UpdateCoordinator {
       results,
       updatedAt: new Date().toISOString()
     };
-  }
-
-
-  async runWeekly(opts = {}) {
-    const state = await this.readState();
-    const now = Date.now();
-    const force = !!opts.force;
-    const ratingsAge = now - Number(state.lastRuns?.ratings?.ts || 0);
-    const results = {};
-    if (force || ratingsAge >= Number(this.env.RATINGS_REFRESH_MIN_MS || RATINGS_MIN_MS)) {
-      results.ratings = await this.runRatings(opts);
-    }
-    await this.armNextAlarm();
-    return {
-      ok: true,
-      task: 'weekly',
-      ran: Object.keys(results),
-      skipped: !Object.keys(results).length,
-      results,
-      updatedAt: new Date().toISOString()
-    };
-  }
-
-  async runRatings(opts = {}) {
-    const result = await refreshTeamRatings(this.env, opts);
-    await this.state.storage.put('ratings-cache', result);
-    return result;
   }
 
   async runFixtures(opts = {}) {

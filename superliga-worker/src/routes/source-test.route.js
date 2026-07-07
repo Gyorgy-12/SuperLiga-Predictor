@@ -4,9 +4,6 @@ import { fetchLiveScoreResults } from '../sources/livescore-source.js';
 import { fetchSofaScoreEvents } from '../sources/sofascore-events-source.js';
 import { interestingFixtures } from '../core/match-window.js';
 import { readStoredResults } from '../services/results.service.js';
-import { fetchOdds } from '../sources/odds-source.js';
-import { fetchTransfermarktMarketValues } from '../sources/transfermarkt-market-source.js';
-import { fetchClubEloRatings } from '../sources/clubelo-source.js';
 
 export async function sourceTestRoute(request, env) {
   if (!requireAdmin(request, env)) return unauthorized(env);
@@ -30,9 +27,6 @@ export async function sourceTestRoute(request, env) {
 
   let pack;
   if (source === 'sofascore') pack = await fetchSofaScoreEvents(env, active, { force, date, url: sourceUrl, includeScheduled: url.searchParams.get('scheduled') === '1', maxDates: url.searchParams.get('maxDates') || undefined });
-  else if (source === 'odds' || source === 'oddspedia') pack = await fetchOdds(env, active, { force, date, url: sourceUrl, daysAhead: url.searchParams.get('daysAhead') || undefined });
-  else if (source === 'transfermarkt' || source === 'market-values') pack = await fetchTransfermarktMarketValues(env, active, { force, url: sourceUrl });
-  else if (source === 'clubelo' || source === 'elo') pack = await fetchClubEloRatings(env, active, { force, url: sourceUrl });
   else pack = await fetchLiveScoreResults(env, active, { force, date, url: sourceUrl, includeScheduled: url.searchParams.get('scheduled') === '1' });
 
   return json({

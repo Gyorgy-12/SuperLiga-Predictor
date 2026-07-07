@@ -58,7 +58,8 @@ function superligaMarketLabel(v){v=+v||0;if(v>=100)return '€'+Math.round(v)+'M
 function teamModelScore(team){let elo=superligaElo(team),mv=superligaMarketValue(team),market=Math.log(mv+10)*72;return elo+market}
 function matchProb(m){let diff=teamModelScore(m.h)-teamModelScore(m.a),draw=Math.max(.18,Math.min(.30,.27-Math.abs(diff)/2800)),homeShare=1/(1+Math.exp(-diff/285)),rem=1-draw,home=rem*homeShare,away=rem*(1-homeShare),sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff}}
 function impliedProbFromOdds(odds){if(!odds||!validOdds(odds.h)||!validOdds(odds.d)||!validOdds(odds.a))return null;let h=1/+odds.h,d=1/+odds.d,a=1/+odds.a,sum=h+d+a;if(!sum)return null;return{home:h/sum,draw:d/sum,away:a/sum}}
-function matchProbWithMarket(m,r){let model=matchProb(m),market=r?impliedProbFromOdds(r.odds):null;if(!market)return{...model,fromMarket:false};let mw=.7,sw=.3,home=market.home*mw+model.home*sw,draw=market.draw*mw+model.draw*sw,away=market.away*mw+model.away*sw,sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff:model.diff,fromMarket:true}}
+function liveOrCachedOdds(m,r){return (r&&r.odds)||((typeof SUPERLIGA_ODDS!=='undefined'&&m&&m.id)?SUPERLIGA_ODDS[m.id]:null)||null}
+function matchProbWithMarket(m,r){let model=matchProb(m),market=impliedProbFromOdds(liveOrCachedOdds(m,r));if(!market)return{...model,fromMarket:false};let mw=.7,sw=.3,home=market.home*mw+model.home*sw,draw=market.draw*mw+model.draw*sw,away=market.away*mw+model.away*sw,sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff:model.diff,fromMarket:true}}
 function pct(v){return Math.round((+v||0)*100)}
 function odd(v){return v?Math.max(1.01,1/v).toFixed(2):'-'}
 function modelMeta(team){return '<span class="model-pill">Elo '+Math.round(superligaElo(team))+'</span><span class="model-pill">'+superligaMarketLabel(superligaMarketValue(team))+'</span>'}
@@ -67,10 +68,9 @@ function probRow(name,v,clr,act,rawOdd){return '<div class="tip-prob-row'+(act?'
 function modalProbCard(m,r){
   if(!m||!m.h||!m.a||m.h==='?'||m.a==='?')return'';
   if(!r||!r.odds){let lr=m.id?LIVE_RESULTS[m.id]:null;if(lr&&lr.odds)r=lr;}
-  if((!r||!r.odds)&&m.id&&SUPERLIGA_ODDS[m.id])r={...(r||{}),odds:SUPERLIGA_ODDS[m.id]};
-  let p=matchProbWithMarket(m,r),outcome=null;
+  let odds=liveOrCachedOdds(m,r),p=matchProbWithMarket(m,r),outcome=null;
   if(r&&r.finished&&validScore(r.h)&&validScore(r.a))outcome=r.h>r.a?'home':r.h<r.a?'away':'draw';
-  let market=r&&r.odds&&validOdds(r.odds.h)&&validOdds(r.odds.d)&&validOdds(r.odds.a)?r.odds:null;
+  let market=odds&&validOdds(odds.h)&&validOdds(odds.d)&&validOdds(odds.a)?odds:null;
   let subtitle=market?'Piaci odds (70%) + Elo (30%)':'Elo + keretérték';
   return '<div class="tip-prob-card"><div class="tip-prob-title"><span>Modellezett esélyek</span><span>'+esc(subtitle)+'</span></div>'
     +probRow(modalTeamName(m.h),p.home,'linear-gradient(90deg,#27c96a,#8df0b0)',outcome==='home',market?market.h:null)

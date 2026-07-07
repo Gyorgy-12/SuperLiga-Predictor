@@ -97,8 +97,6 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
     scoreSource: raw.scoreSource || sourceMeta.scoreSource || 'unknown',
     eventSource: raw.eventSource || sourceMeta.eventSource || null,
     source: raw.source || sourceMeta.source || 'superliga-worker',
-    odds: raw.odds || null,
-    modelSnapshot: raw.modelSnapshot || null,
     updatedAt: raw.updatedAt || new Date().toISOString()
   };
 }

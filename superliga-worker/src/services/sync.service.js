@@ -5,7 +5,6 @@ import { readStoredResults, writeFinalIfChanged } from './results.service.js';
 import { getFixtures } from './fixtures.service.js';
 import { fetchLiveScoreResults } from '../sources/livescore-source.js';
 import { fetchSofaScoreEvents } from '../sources/sofascore-events-source.js';
-import { readOdds } from './odds.service.js';
 
 export async function syncLive(env, opts = {}) {
   const fixtures = await getFixtures(env);
@@ -17,8 +16,7 @@ export async function syncLive(env, opts = {}) {
 
   const scorePack = await fetchLiveScoreResults(env, active, opts).catch(error => ({ ok: false, source: 'livescore', results: {}, error: error.message }));
   const eventPack = await fetchSofaScoreEvents(env, active, opts).catch(error => ({ ok: false, source: 'sofascore', results: {}, error: error.message }));
-  const oddsPack = await readOdds(env).catch(error => ({ odds: {}, source: 'odds-error', error: error.message }));
-  const merged = mergeScoreAndEvents(active, scorePack.results || {}, eventPack.results || {}, oddsPack.odds || {});
+  const merged = mergeScoreAndEvents(active, scorePack.results || {}, eventPack.results || {});
 
   mergeLiveResults(merged, 'sync-live');
 
@@ -34,14 +32,13 @@ export async function syncLive(env, opts = {}) {
     count: Object.keys(merged).length,
     scoreSource: summarizeSource(scorePack),
     eventSource: summarizeSource(eventPack),
-    oddsSource: { source: oddsPack.source || null, count: Object.keys(oddsPack.odds || {}).length, error: oddsPack.error || null },
     finalWrites,
     results: getLiveSnapshot().results,
     updatedAt: new Date().toISOString()
   };
 }
 
-function mergeScoreAndEvents(fixtures, scoreResults, eventResults, oddsMap = {}) {
+function mergeScoreAndEvents(fixtures, scoreResults, eventResults) {
   const merged = {};
   for (const fixture of fixtures) {
     const score = scoreResults[fixture.id];
@@ -54,8 +51,7 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, oddsMap = {})
       yellowCards: events?.yellowCards?.length ? events.yellowCards : score?.yellowCards || [],
       doubleYellowCards: events?.doubleYellowCards?.length ? events.doubleYellowCards : score?.doubleYellowCards || [],
       eventSource: events?.eventSource || score?.eventSource || null,
-      scoreSource: score?.scoreSource || 'livescore',
-      odds: oddsMap[fixture.id] || score?.odds || null
+      scoreSource: score?.scoreSource || 'livescore'
     };
     const normalized = normalizeLiveMatch(fixture.id, raw, fixture, { source: 'merged', scoreSource: raw.scoreSource, eventSource: raw.eventSource });
     if (normalized) merged[fixture.id] = normalized;

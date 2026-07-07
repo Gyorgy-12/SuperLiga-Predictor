@@ -1,0 +1,12 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "superliga_community_predictions_v1",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

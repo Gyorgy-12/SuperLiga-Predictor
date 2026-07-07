@@ -1,3 +1,4 @@
+src/data/firebase-config.js
 src/data/league-config.js
 src/ui/dom-utils.js
 src/core/predictions-store.js

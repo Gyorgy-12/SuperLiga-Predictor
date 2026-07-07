@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /superliga_users_v1/{uid} {
+      allow read: if true;
+      allow create, update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    match /superliga_private_predictions_v1/{uid} {
+      allow read, create, update, delete: if isOwner(uid);
+    }
+
+    match /superliga_community_predictions_v1/{uid} {
+      allow read: if true;
+      allow create, update, delete: if isOwner(uid);
+    }
+
+    // Public read-only data for the frontend. The Cloudflare Worker writes these
+    // through a Firebase service account, not through client security rules.
+    match /superliga_match_results_v1/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /superliga_live_matches_v1/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /superliga_fixture_overrides_v1/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /superliga_match_odds_v1/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /superliga_team_elo_v1/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /superliga_public_cache_v1/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

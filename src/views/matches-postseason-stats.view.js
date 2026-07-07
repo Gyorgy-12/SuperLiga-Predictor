@@ -1,11 +1,11 @@
 // Matches, KO, baraj and stats renderers
 
 function matchRow(m,isKo){
-  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),state=isKo?(m.locked?'locked':matchLockState({id:m.id})):matchLockState(m),sc=isKo?gradeKoTip(tip,r):tipScore(m),locked=state!=='open',edit=(FROZEN_MODE&&!READONLY_MODE)||locked?'':'<div class="mr-bell">✎</div>',rowCls=(tip?' predicted':'')+(locked?' locked':'')+(state==='live'?' live-locked':'')+matchGradeClass(tip,r,!!isKo),attr=isKo?'data-ko-mid':'data-mid';
-  return '<div class="match-row'+rowCls+'" '+attr+'="'+esc(m.id)+'" role="button" tabindex="0">'
+  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),locked=isKo?(m.locked||!!(r&&r.started)):matchLockState(m)!=='open',live=r&&r.started&&!r.finished,done=r&&r.finished,cls=(done?' finished':live?' live-locked':tip?' predicted':'')+(locked?' locked':'')+matchGradeClass(tip,r,!!isKo),attr=isKo?'data-ko-mid':'data-mid',edit=(FROZEN_MODE&&!READONLY_MODE)||locked?'':'<div class="mr-bell">✎</div>';
+  return '<div class="match-row'+cls+'" '+attr+'="'+esc(m.id)+'" role="button" tabindex="0">'
     +'<div class="mr-date">'+esc(m.t||'21:00')+'<span>'+esc(matchStageText(m,!!isKo))+'</span>'+matchTipBadge(m,!!isKo)+matchStateBadge(m,!!isKo)+'</div>'
     +'<div class="mr-sep"></div>'
-    +'<div class="mr-teams"><div class="mr-team">'+crest(m.h)+'<span class="mr-tname">'+esc(teamNameFor(m.h,'match-card'))+'</span></div><div class="mr-team">'+crest(m.a)+'<span class="mr-tname">'+esc(teamNameFor(m.a,'match-card'))+'</span></div></div>'
+    +'<div class="mr-teams"><div class="mr-team">'+crest(m.h)+'<span class="mr-tname">'+esc(stn(m.h))+'</span></div><div class="mr-team">'+crest(m.a)+'<span class="mr-tname">'+esc(stn(m.a))+'</span></div></div>'
     +'<div class="mr-scores">'+scoreHtml(m,!!isKo)+'</div>'+edit+'</div>';
 }
 function bindMatchCardOpeners(root){
@@ -36,7 +36,7 @@ function bindMatchCardOpeners(root){
 function matchRoundTitle(key){if(/^\d+$/.test(String(key)))return key+'. forduló';let opt=postseasonRoundOptions().find(o=>o.key===key);return opt?opt.label:String(key)}function renderMatches(){
   let m=document.getElementById('main');m.className='main matches-main';
   let base=FX.slice(),post=buildAllPostseasonMatches(),all=base.concat(post),list=[];
-  if(MS.filt==='round'){let key=MS.round;if(/^\d+$/.test(String(key)))list=base.filter(x=>x.r===+key);else if(/^R\d+$/.test(String(key))){let n=String(key).replace('R','');list=post.filter(x=>x.r==='PO'+n||x.r==='PL'+n)}else list=post.filter(x=>x.r===key)}
+  if(MS.filt==='round'){let key=MS.round;if(/^\d+$/.test(String(key)))list=base.filter(x=>x.r===+key);else list=post.filter(x=>x.r===key)}
   else if(MS.filt==='team'){let t=MS.team||ALL[0];list=all.filter(x=>x.h===t||x.a===t)}
   else list=all.slice().sort((a,b)=>matchSortKey(a).localeCompare(matchSortKey(b)));
   function section(title,arr){let groups={};arr.sort((a,b)=>matchSortKey(a).localeCompare(matchSortKey(b))).forEach(x=>{let label=x.g==='SL'?(compLabel(x.g)+' · '+x.r+'. forduló'):postseasonCategory(x);(groups[label]||(groups[label]=[])).push(x)});return'<section class="card"><h2 class="card-title">'+esc(matchDateTitle(title))+'</h2>'+Object.entries(groups).map(([label,rows])=>'<div class="round-comp"><span>🏆</span><b>'+esc(label)+'</b></div><div class="matches">'+rows.map(x=>matchRow(x,x.g!=='SL')).join('')+'</div>').join('')+'</section>'}
@@ -111,8 +111,12 @@ function statsRoundEfficiencyHtml(){
   let post=[];
   try{post=buildPostseasonMatches()}catch(e){post=[]}
   for(let n=1;n<=10;n++){
-    let e=statEffForMatches(post.filter(m=>(m.g==='PO'&&m.r==='PO'+n)||(m.g==='PL'&&m.r==='PL'+n)),KO_PRED,true);
-    if(e.max)cards.push(['Rájátszás '+n+'. forduló',e]);
+    let e=statEffForMatches(post.filter(m=>m.g==='PO'&&m.r==='PO'+n),KO_PRED,true);
+    if(e.max)cards.push(['Playoff '+n+'. forduló',e]);
+  }
+  for(let n=1;n<=9;n++){
+    let e=statEffForMatches(post.filter(m=>m.g==='PL'&&m.r==='PL'+n),KO_PRED,true);
+    if(e.max)cards.push(['Playout '+n+'. forduló',e]);
   }
   let bar=[];
   try{bar=buildBarajMatches()}catch(e){bar=[]}
@@ -128,7 +132,7 @@ function statsRoundEfficiencyHtml(){
     if(e.max)cards.push([pair[0],e]);
   });
   if(!cards.length){
-    return '<section class="card stat-round-section"><h2 class="card-title">Hatékonyság fordulónként</h2><div class="stat-round-empty">Még nincs élő vagy lezárt meccs. Amint lesz eredmény, itt külön kártyán jelenik meg minden konkrét forduló: alapszakasz, rájátszás, ECL-baraj és bentmaradás-baraj.</div></section>';
+    return '<section class="card stat-round-section"><h2 class="card-title">Hatékonyság fordulónként</h2><div class="stat-round-empty">Még nincs élő vagy lezárt meccs. Amint lesz eredmény, itt külön kártyán jelenik meg minden konkrét forduló: alapszakasz, playoff, playout, ECL-baraj és bentmaradás-baraj.</div></section>';
   }
   return '<section class="card stat-round-section"><h2 class="card-title">Hatékonyság fordulónként</h2><div class="stat-round-grid">'+cards.map(x=>statRoundCard(x[0],x[1])).join('')+'</div></section>';
 }function barajMatchTone(m){
@@ -152,7 +156,7 @@ function barajResultSource(m){
   return 'Tippelhető';
 }
 function barajTeamHtml(name,side){
-  return '<div class="baraj-team '+side+'">'+crest(name,'30px')+'<span>'+esc(teamNameFor(name,'baraj-match'))+'</span></div>'
+  return '<div class="baraj-team '+side+'">'+crest(name,'30px')+'<span>'+esc(stn(name))+'</span></div>'
 }
 function barajMiniMatch(m){
   return '<button class="baraj-match-card'+barajMatchTone(m)+'" type="button" data-ko-mid="'+esc(m.id)+'">'
@@ -166,7 +170,7 @@ function aggregateForRows(rows){
   let a=rows[0].h,b=rows[0].a,ga=0,gb=0,played=0;
   rows.forEach(m=>{let p=resultForMatch(m,true);if(!p||!validScore(p.h)||!validScore(p.a))return;played++;if(m.h===a){ga+=+p.h;gb+=+p.a}else{ga+=+p.a;gb+=+p.h}});
   if(!played)return '';
-  return '<div class="baraj-aggregate"><span>Összesítés</span><b>'+esc(teamNameFor(a,'baraj-match'))+' '+ga+' - '+gb+' '+esc(teamNameFor(b,'baraj-match'))+'</b></div>'
+  return '<div class="baraj-aggregate"><span>Összesítés</span><b>'+esc(stn(a))+' '+ga+' - '+gb+' '+esc(stn(b))+'</b></div>'
 }
 function barajPathCard(opts){
   let rows=opts.rows||[];
@@ -185,7 +189,7 @@ function renderBaraj(){
   let m=document.getElementById('main');m.className='main baraj-main';
   const st=calcFullStandings(),po=postseasonStandings('PO',st.slice(0,6),'all'),pl=postseasonStandings('PL',st.slice(6,16),'all');
   const pl15=pl[8],pl16=pl[9],brReady=postseasonComplete(),all=buildBarajMatches(),conf=all.filter(x=>x.id.startsWith('CB-')),rel1=all.filter(x=>x.id.startsWith('BR-1-')),rel2=all.filter(x=>x.id.startsWith('BR-2-'));
-  let out='<section class="baraj-hero card"><div><h1>Baraj</h1><p>Konferencialiga-hely és bentmaradás. A meccsek ugyanazt a SuperLiga-kártyás felületet használják, mint az app többi része.</p></div></section>';
+  let out='<section class="baraj-hero card"><div><span class="baraj-eyebrow">Szezonvégi döntések</span><h1>Baraj</h1><p>Konferencialiga-hely és bentmaradás, külön ágakban. Csak akkor tippelhető, ha a rájátszás mezőnye már eldőlt.</p></div><div class="baraj-hero-chips"><span>ECL</span><span>Bentmaradás</span><span>Liga 2</span></div></section>';
   if(!brReady)out+='<section class="baraj-lock-card"><b>ⓘ Zárolva</b><span>A baraj akkor nyílik, ha az összes playoff/playout meccsre tippeltél, vagy azok lezárultak.</span></section>';
   out+=barajPathCard({tone:'conference',badge:'ECL',title:'Konferencialiga-baraj',sub:'A play-out első két csapata elődöntőt játszik, a győztes a playoff 3. helyezettjével döntőzik.',note:'Győztes: Konferencialiga-selejtezős hely.',rows:conf});
   out+=barajPathCard({tone:'survival',badge:'BR1',title:'Bentmaradás-baraj · 1. párharc',sub:'Playout 13. helyezett vs Liga 2 rájátszás 3. helyezett.',note:'Oda-visszavágós párharc.',rows:rel1});
