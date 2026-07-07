@@ -1,0 +1,194 @@
+/* SuperLiga final responsive polish — WC26 sizing tokens, without the destructive global exact-lock.
+   This file must be imported LAST from src/styles/main.css.
+   It intentionally does NOT set --top-h with !important, because JS must update it when the navbar shrinks. */
+
+:root{
+  --bg:#05090b;
+  --surface:#0f161a;
+  --surface2:#151d23;
+  --surface3:#1c2530;
+  --hdr1:#4b0008;
+  --hdr2:#2e0005;
+  --text:#e8edf0;
+  --muted:#7e8c96;
+  --muted2:#a4b0b8;
+  --green:#28d16c;
+  --blue:#6ec6ff;
+  --cyan:#17ceca;
+  --aqua:#7ee8ea;
+  --orange:#f59500;
+  --red:#f04050;
+  --el:#e8a020;
+  --line:rgba(255,255,255,.08);
+
+  /* WC26 v178 clamp tokens */
+  --logo:clamp(19px,calc(14.0345px + 1.5517vw),28px);
+  --row-h:clamp(40px,calc(33.3793px + 2.069vw),52px);
+  --card-r:clamp(12px,calc(9.7931px + 0.6897vw),16px);
+  --pp:clamp(10px,calc(5.5862px + 1.3793vw),18px);
+  --cp:clamp(10px,calc(5.5862px + 1.3793vw),18px);
+  --fz-xs:clamp(8px,calc(6.3448px + 0.5172vw),11px);
+  --fz-sm:clamp(9px,calc(7.3448px + 0.5172vw),12px);
+  --fz-md:clamp(11px,calc(9.3448px + 0.5172vw),14px);
+  --fz-lg:clamp(13px,calc(10.7931px + 0.6897vw),17px);
+  --fz-title:clamp(14px,calc(11.7931px + 0.6897vw),18px);
+  --fz-ht:clamp(15px,calc(13.3448px + 0.5172vw),18px);
+  --fz-sz:clamp(25px,calc(20.0345px + 1.5517vw),34px);
+  --page-max:720px;
+}
+
+/* WC26 navbar sizing, but keep layout JS in charge of --top-h. */
+.top{position:fixed!important;inset:0 0 auto!important;z-index:9999!important;background:linear-gradient(175deg,#6b000e 0%,#480007 40%,#2e0005 100%)!important;border-bottom:1px solid #1a2228!important;}
+.hdr{height:clamp(88px,21vw,116px)!important;padding:clamp(12px,3vw,18px) var(--pp) clamp(6px,1.5vw,10px)!important;display:flex!important;align-items:flex-start!important;gap:clamp(9px,2.5vw,14px)!important;transition:height .2s,padding-top .2s!important;}
+.hdr-back{width:clamp(24px,6vw,30px)!important;height:clamp(24px,6vw,30px)!important;font-size:clamp(18px,4.5vw,24px)!important;}
+.li-box{width:clamp(38px,9.2vw,50px)!important;height:clamp(38px,9.2vw,50px)!important;border-radius:clamp(7px,1.8vw,10px)!important;padding:clamp(4px,1.1vw,6px)!important;}
+.li-title{font-size:var(--fz-ht)!important;font-weight:700!important;line-height:1.05!important;}
+.li-season{font-size:var(--fz-sz)!important;font-weight:400!important;line-height:1!important;margin-top:1px!important;letter-spacing:.02em!important;}
+.hdr-acts{gap:clamp(7px,2vw,12px)!important;}
+.hdr-icon{width:clamp(22px,5.5vw,28px)!important;height:clamp(22px,5.5vw,28px)!important;font-size:clamp(16px,4vw,20px)!important;}
+.tabs{height:clamp(42px,10vw,52px)!important;padding:0 var(--pp)!important;gap:clamp(22px,6vw,44px)!important;align-items:flex-end!important;}
+.tab{font-size:clamp(14px,3.18vw,15.8px)!important;font-weight:680!important;padding:0 1px clamp(9px,2.2vw,12px)!important;}
+.top.shrunken .hdr{height:clamp(60px,15vw,76px)!important;padding-top:clamp(7px,1.8vw,10px)!important;}
+.top.shrunken .li-box{width:clamp(30px,7.5vw,38px)!important;height:clamp(30px,7.5vw,38px)!important;}
+.top.shrunken .li-title{font-size:clamp(10px,2.5vw,12.5px)!important;}
+.top.shrunken .li-season{font-size:clamp(17px,4.3vw,22px)!important;}
+.top.shrunken .tabs{height:clamp(36px,8.8vw,44px)!important;}
+.top.shrunken .tab{font-size:clamp(11.8px,2.92vw,14.2px)!important;padding-bottom:clamp(6px,1.5vw,9px)!important;}
+
+/* Control bars: WC26-style fixed wrapper that follows the live navbar height.
+   Old sticky bars were the reason the pill row drifted under/over the navbar. */
+#ctrlWrap{position:fixed!important;left:0!important;right:0!important;top:var(--top-h,148px)!important;z-index:7000!important;pointer-events:none!important;}
+#ctrlWrap>.ctrl-bar,
+#ctrlWrap>.kc-bar{position:static!important;top:auto!important;z-index:auto!important;pointer-events:auto!important;background:#0d1419!important;border-bottom:1px solid #1c2730!important;}
+#ctrlWrap>.hidden{display:none!important;}
+.ctrl-inner,.kc-inner{max-width:var(--page-max)!important;margin:0 auto!important;display:flex!important;align-items:center!important;gap:clamp(5px,1.6vw,9px)!important;padding:clamp(6px,1.7vw,10px) var(--pp)!important;}
+.pill{font-size:clamp(12px,calc(11.2857px + 0.2232vw),13px)!important;font-weight:700!important;padding:clamp(7px,calc(6.2857px + 0.2232vw),8px) clamp(12px,calc(10.5714px + 0.4464vw),14px)!important;}
+.view-btn{width:clamp(36px,9.5vw,46px)!important;height:clamp(30px,8vw,38px)!important;}
+.sel-btn{font-size:clamp(13px,calc(12px + 0.2vw),16px)!important;font-weight:600!important;padding:clamp(7px,calc(6.25px + 0.2344vw),10px) clamp(12px,calc(10.5px + 0.4688vw),18px)!important;}
+.main{max-width:var(--page-max)!important;margin:0 auto!important;padding:calc(clamp(10px,2.6vw,14px) + var(--ctrl-h,0px) + 12px) var(--pp) 64px!important;}
+
+/* Make the table filter row adapt like the WC26 controls. */
+#tblCtrl .ctrl-inner{flex-wrap:nowrap!important;overflow:visible!important;}
+#tblCtrl .pill{flex:1 1 0!important;min-width:0!important;text-align:center!important;}
+#tblCtrl .view-wrap:first-of-type{flex:1.55 1 160px!important;min-width:clamp(140px,22vw,250px)!important;margin-left:0!important;}
+#tblCtrl #tblRoundBtn{width:100%!important;min-width:0!important;}
+#tblCtrl .view-wrap:last-child{flex:0 0 auto!important;margin-left:0!important;}
+.drop{z-index:20000!important;}
+@media(max-width:560px){
+  #tblCtrl .ctrl-inner{gap:4px!important;padding-left:7px!important;padding-right:7px!important;}
+  #tblCtrl .pill{font-size:clamp(9.5px,2.55vw,11px)!important;padding-left:7px!important;padding-right:7px!important;}
+  #tblCtrl .view-wrap:first-of-type{flex:1 1 auto!important;min-width:clamp(116px,34vw,160px)!important;}
+  #tblCtrl #tblRoundTxt{font-size:clamp(9.6px,2.55vw,11px)!important;}
+  .view-btn{width:34px!important;}
+}
+
+/* WC26 table/match sizing core, without touching every unrelated SuperLiga element. */
+.card{border-radius:var(--card-r)!important;padding:var(--cp)!important;margin-bottom:clamp(9px,2.4vw,14px)!important;box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025)!important;}
+.card-title{font-size:clamp(16px,1.04vw,24px)!important;font-weight:700!important;margin-bottom:clamp(8px,2vw,12px)!important;line-height:1.16!important;}
+.row{height:var(--row-h)!important;font-size:var(--fz-md)!important;}
+.crest{--cs:var(--logo);}
+.short{grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(24px,6vw,30px) clamp(34px,8.2vw,42px) clamp(34px,8.2vw,42px)!important;column-gap:clamp(4px,1.2vw,8px)!important;}
+.full{grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) repeat(4,clamp(22px,5.4vw,27px)) clamp(38px,9vw,48px) clamp(30px,7.4vw,38px)!important;column-gap:clamp(3px,1vw,6px)!important;}
+.formv{grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(110px,30vw,165px) clamp(30px,7.4vw,38px)!important;column-gap:clamp(4px,1.2vw,8px)!important;}
+.fb{width:clamp(21px,5.5vw,28px)!important;height:clamp(18px,4.6vw,23px)!important;font-size:clamp(7.5px,1.9vw,9.5px)!important;}
+
+/* Áttekintés: WC26 card scale and clamp behavior. */
+.overview-main .ov-season-card{padding:var(--cp)!important;border-radius:var(--card-r)!important;margin-bottom:clamp(9px,2.4vw,14px)!important;}
+.overview-main .ov-season-logo{width:clamp(36px,9vw,46px)!important;height:clamp(36px,9vw,46px)!important;border-radius:10px!important;}
+.overview-main .ov-season-name{font-size:clamp(20px,calc(15.4706px + 0.8088vw),31px)!important;font-weight:900!important;line-height:1.1!important;letter-spacing:-.015em!important;}
+.overview-main .ov-season-country{font-size:clamp(12.2px,.76vw,15.5px)!important;line-height:1.24!important;font-weight:700!important;}
+.overview-main .wc-info-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;padding:0!important;}
+.overview-main .wc-info{background:#111a20!important;border:1px solid var(--line)!important;border-radius:8px!important;padding:13px 14px!important;min-height:76px!important;}
+.overview-main .wc-info b{display:block!important;color:var(--text)!important;font-size:clamp(19px,calc(17px + 0.625vw),29px)!important;line-height:1!important;margin-bottom:7px!important;}
+.overview-main .wc-info span{color:var(--muted)!important;font-size:clamp(11px,calc(10.5px + 0.1562vw),13.5px)!important;font-weight:650!important;line-height:1.35!important;}
+.overview-main .wc-chip-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;padding:0!important;}
+.overview-main .wc-team-chip{display:flex!important;align-items:center!important;gap:11px!important;background:#111a20!important;border:1px solid var(--line)!important;border-radius:8px!important;padding:11px 12px!important;min-width:0!important;}
+.overview-main .wc-team-chip span{font-size:clamp(14px,calc(12.8px + 0.375vw),20px)!important;font-weight:760!important;color:#dce6eb!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+@media(max-width:700px){
+  .overview-main .wc-info-grid{gap:6px!important;}
+  .overview-main .wc-info{min-height:clamp(42px,9vw,58px)!important;padding:7px 9px!important;border-radius:11px!important;}
+  .overview-main .wc-info b{font-size:clamp(18px,5vw,25px)!important;margin-bottom:2px!important;}
+  .overview-main .wc-info span{font-size:clamp(9.4px,2.35vw,11.5px)!important;line-height:1.08!important;}
+  .overview-main .card:has(.wc-info-grid){padding:clamp(10px,2.4vw,14px)!important;}
+  .overview-main .card .updated{font-size:clamp(10px,2.45vw,12px)!important;line-height:1.2!important;margin-top:8px!important;}
+}
+@media(min-width:390px) and (max-width:700px){.overview-main .wc-info-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;}}
+@media(max-width:389px){.overview-main .wc-info-grid,.overview-main .wc-chip-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}
+@media(min-width:561px){.overview-main .wc-team-chip .crest{--cs:clamp(26px,calc(24.0784px + 0.5882vw),30px)!important;}}
+@media(max-width:560px){.overview-main .wc-team-chip{gap:8px!important;padding:7px 9px!important;border-radius:7px!important;}.overview-main .wc-team-chip .crest{--cs:21px!important;}}
+
+/* Baraj: undo the oversized poster layout. Make it compact, WC26 card/list style. */
+.baraj-main{padding-top:calc(clamp(10px,2.6vw,14px) + var(--ctrl-h,0px) + 12px)!important;}
+.baraj-hero.card{display:block!important;background:var(--surface)!important;border:0!important;border-radius:var(--card-r)!important;padding:var(--cp)!important;margin-bottom:clamp(9px,2.4vw,14px)!important;box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025)!important;}
+.baraj-hero::before,.baraj-hero::after,.baraj-hero-chips,.baraj-eyebrow{display:none!important;}
+.baraj-hero h1{font-size:clamp(16px,1.04vw,24px)!important;font-weight:800!important;line-height:1.16!important;letter-spacing:0!important;margin:0 0 5px!important;}
+.baraj-hero p{max-width:none!important;margin:0!important;color:var(--muted2)!important;font-size:var(--fz-sm)!important;font-weight:650!important;line-height:1.45!important;}
+.baraj-lock-card{display:flex!important;align-items:center!important;gap:8px!important;margin-bottom:clamp(9px,2.4vw,14px)!important;padding:9px 11px!important;border-radius:10px!important;background:rgba(245,149,0,.08)!important;border:1px solid rgba(245,149,0,.24)!important;color:#f6d7a4!important;font-size:var(--fz-sm)!important;line-height:1.25!important;}
+.baraj-path-card{background:var(--surface)!important;border-radius:var(--card-r)!important;padding:0!important;margin-bottom:clamp(9px,2.4vw,14px)!important;box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025)!important;overflow:hidden!important;}
+.baraj-path-card::before{width:2.5px!important;opacity:1!important;}
+.baraj-path-head{display:grid!important;grid-template-columns:clamp(34px,8vw,42px) minmax(0,1fr)!important;align-items:center!important;gap:clamp(9px,2.4vw,13px)!important;margin:0!important;padding:clamp(10px,2.6vw,14px) var(--cp) clamp(8px,2.1vw,11px)!important;border-bottom:1px solid rgba(255,255,255,.045)!important;}
+.baraj-path-badge{width:clamp(30px,7.2vw,38px)!important;height:clamp(30px,7.2vw,38px)!important;border-radius:10px!important;font-size:clamp(10px,2.4vw,12px)!important;background:#0a141a!important;}
+.baraj-path-head h2{font-size:clamp(15px,calc(12.7931px + .6897vw),19px)!important;font-weight:850!important;line-height:1.12!important;letter-spacing:-.01em!important;margin:0!important;}
+.baraj-path-head p{font-size:var(--fz-sm)!important;font-weight:650!important;line-height:1.32!important;margin:3px 0 0!important;color:var(--muted2)!important;}
+.baraj-path-note{display:block!important;margin:0!important;border-radius:0!important;background:#0a1015!important;border-bottom:1px solid rgba(255,255,255,.045)!important;color:#aec1cb!important;font-size:var(--fz-xs)!important;font-weight:800!important;line-height:1.25!important;padding:7px var(--cp)!important;}
+.baraj-match-grid{display:flex!important;flex-direction:column!important;gap:0!important;}
+.baraj-match-card{appearance:none!important;display:grid!important;grid-template-columns:clamp(58px,14vw,76px) 1px minmax(0,1fr)!important;grid-template-rows:auto auto!important;align-items:stretch!important;border:0!important;border-radius:0!important;background:transparent!important;color:var(--text)!important;padding:0!important;min-height:clamp(64px,15vw,82px)!important;box-shadow:none!important;transform:none!important;border-top:1px solid rgba(255,255,255,.045)!important;}
+.baraj-match-card:first-child{border-top:0!important;}
+.baraj-match-card:hover,.baraj-match-card:focus-visible{background:rgba(255,255,255,.025)!important;transform:none!important;outline:none!important;}
+.baraj-match-card::before{content:"";grid-column:2;grid-row:1 / 3;background:rgba(255,255,255,.07);margin:9px 0!important;}
+.baraj-match-top{grid-column:1!important;grid-row:1 / 3!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:flex-end!important;gap:3px!important;color:#e8edf0!important;font-size:clamp(10.2px,2.55vw,12.5px)!important;font-weight:900!important;text-align:right!important;padding:0 clamp(7px,2vw,11px) 0 0!important;}
+.baraj-match-top span{color:#7f8c96!important;font-size:clamp(7.8px,2vw,10px)!important;font-weight:800!important;line-height:1.12!important;}
+.baraj-match-top b{color:#e8edf0!important;font-size:clamp(10.5px,2.7vw,13px)!important;font-weight:900!important;}
+.baraj-match-body{grid-column:3!important;grid-row:1!important;display:grid!important;grid-template-columns:minmax(0,1fr) clamp(50px,12vw,68px) minmax(0,1fr)!important;align-items:center!important;gap:clamp(7px,2vw,11px)!important;padding:clamp(8px,2.2vw,12px) var(--cp) 4px!important;}
+.baraj-team{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:clamp(5px,1.5vw,8px)!important;text-align:left!important;font-size:clamp(10.8px,calc(9.3448px + .5172vw),14px)!important;font-weight:760!important;line-height:1.12!important;min-width:0!important;}
+.baraj-team.away{justify-content:flex-end!important;text-align:right!important;}
+.baraj-team .crest,.baraj-team .crest[style]{--cs:clamp(21px,5.2vw,28px)!important;width:var(--cs)!important;height:var(--cs)!important;min-width:var(--cs)!important;flex:0 0 var(--cs)!important;}
+.baraj-team span{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:100%!important;}
+.baraj-score{min-width:0!important;width:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;border-radius:10px!important;background:#111d24!important;border:1px solid #273641!important;color:#fff!important;font-size:clamp(16px,4vw,22px)!important;font-weight:900!important;padding:7px 8px!important;}
+.baraj-score span{font-size:.72em!important;color:#7f909a!important;}
+.baraj-match-bottom{grid-column:3!important;grid-row:2!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;color:var(--muted)!important;font-size:var(--fz-xs)!important;font-weight:800!important;padding:0 var(--cp) clamp(8px,2.2vw,12px)!important;}
+.baraj-match-bottom strong{font-size:var(--fz-xs)!important;font-weight:900!important;color:#a3b2bb!important;}
+.baraj-match-card.predicted .baraj-match-bottom strong{color:#28d16c!important;}
+.baraj-match-card.live .baraj-match-bottom strong{color:#f04050!important;}
+.baraj-aggregate{margin:0!important;border-radius:0!important;background:#0a1116!important;border-top:1px solid rgba(255,255,255,.045)!important;padding:8px var(--cp)!important;color:#bdd0d9!important;font-size:var(--fz-xs)!important;font-weight:850!important;}
+.baraj-relegated.card,.baraj-promotion.card{padding:var(--cp)!important;}
+.baraj-section-title{display:flex!important;align-items:flex-end!important;justify-content:space-between!important;gap:12px!important;margin-bottom:clamp(8px,2.2vw,12px)!important;}
+.baraj-section-title h2{font-size:var(--fz-title)!important;font-weight:800!important;line-height:1.12!important;}
+.baraj-section-title p{font-size:var(--fz-sm)!important;font-weight:650!important;color:var(--muted2)!important;line-height:1.35!important;}
+.baraj-relegated-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+.baraj-relegated-tile{border-radius:10px!important;padding:10px!important;background:#111a20!important;border:1px solid var(--line)!important;}
+@media(max-width:640px){
+  .baraj-lock-card{align-items:flex-start!important;}
+  .baraj-match-card{grid-template-columns:clamp(52px,15vw,64px) 1px minmax(0,1fr)!important;}
+  .baraj-match-body{grid-template-columns:minmax(0,1fr) clamp(46px,13vw,58px) minmax(0,1fr)!important;gap:6px!important;}
+  .baraj-team{font-size:clamp(10px,2.75vw,12px)!important;}
+  .baraj-team .crest,.baraj-team .crest[style]{--cs:22px!important;}
+  .baraj-score{font-size:clamp(15px,4vw,19px)!important;padding:6px!important;}
+  .baraj-section-title{display:block!important;}
+  .baraj-section-title p{text-align:left!important;margin-top:4px!important;}
+}
+
+/* Community: hide internal/debug-looking helper lines. */
+.community-debug,.community-dev,.community-diagnostics,[data-debug],[data-dev-only]{display:none!important;}
+.community-main .community-meta{line-height:1.25!important;}
+.community-main .community-top-card .community-meta{color:var(--muted2)!important;}
+
+/* Desktop width passes matching WC26 behavior. */
+@media(min-width:768px){
+  :root{--page-max:720px;}
+  .main{padding-top:calc(clamp(10px,2.6vw,14px) + var(--ctrl-h,0px) + 18px)!important;}
+}
+@media(min-width:900px){
+  .tabs{gap:clamp(30px,3.2vw,52px)!important;}
+}
+@media(min-width:1180px){
+  :root{--page-max:1040px;}
+  .main,.ctrl-inner,.kc-inner{max-width:1040px!important;}
+  .card-title{font-size:clamp(18px,1.25vw,26px)!important;}
+  .row{font-size:clamp(13px,.9vw,18px)!important;}
+  .tname,.rank,.num{font-size:clamp(13px,.9vw,18px)!important;}
+}
+@media(min-width:1441px){
+  :root{--page-max:1120px;}
+  .main,.ctrl-inner,.kc-inner{max-width:1120px!important;}
+}

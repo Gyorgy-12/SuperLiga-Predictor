@@ -1,13 +1,5 @@
 /* community, live result, modal and final responsive polish */
 
-  .matches-main .mr-scores{
-    font-size:clamp(14.8px,.78vw,19.5px)!important;
-  }
-}
-.ctrl-bar,
-.kc-bar{
-  top:var(--control-top,var(--top-h,148px))!important;
-}
 /* Bracket-kartyak: csapatnev, logo, gol es tizenegyes teljes reszponziv skala */
 .ko-card{
   --ko-card-crest:clamp(17px,1.18vw,28px);
@@ -1065,3 +1057,20 @@
   #tblCtrl .tbl-round-wrap{width:90px!important;flex-basis:90px!important;}
   #tblCtrl #tblRoundTxt{font-size:9.2px!important;}
 }
+
+
+/* Community rename modal: replaces browser prompt with the same sheet/modal system used by community preview. */
+.community-rename-preview{z-index:10002!important}
+.community-rename-modal{width:min(520px,94vw)!important;max-height:none!important;overflow:visible!important}
+.community-rename-form{display:grid;gap:clamp(10px,2vw,14px);margin-top:clamp(10px,1.8vw,14px)}
+.community-rename-label{color:#e8edf0;font-size:clamp(12px,1vw,14px);font-weight:950;letter-spacing:.02em;text-transform:uppercase}
+.community-rename-input{width:100%;border:1px solid rgba(255,255,255,.16);background:#0d1420;color:#f4f7f9;border-radius:14px;padding:clamp(12px,2.2vw,15px) clamp(13px,2.2vw,16px);font-size:clamp(16px,1.4vw,19px);font-weight:900;outline:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.community-rename-input:focus{border-color:rgba(40,198,232,.72);box-shadow:0 0 0 3px rgba(40,198,232,.16),inset 0 0 0 1px rgba(0,0,0,.18)}
+.community-rename-help{display:flex;justify-content:space-between;gap:10px;color:#94a3b8;font-size:clamp(11px,.9vw,13px);font-weight:800;margin-top:-4px}
+.community-rename-count{font-variant-numeric:tabular-nums;color:#b8c4cc;white-space:nowrap}
+.community-rename-error{display:none;background:rgba(255,91,110,.1);border:1px solid rgba(255,91,110,.32);color:#ffc1c9;border-radius:12px;padding:10px 12px;font-size:clamp(12px,1vw,14px);font-weight:850;line-height:1.35}
+.community-rename-error.show{display:block}
+.community-rename-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:2px}
+.community-rename-actions .community-btn{min-width:112px}
+.community-rename-actions .community-btn:disabled{opacity:.55;cursor:wait}
+@media(max-width:620px){.community-rename-preview{align-items:flex-end!important;padding:12px 8px!important}.community-rename-modal{width:100%!important;border-radius:18px 18px 0 0!important;padding:18px!important}.community-rename-actions{display:grid;grid-template-columns:1fr 1fr}.community-rename-actions .community-btn{width:100%;min-width:0}}

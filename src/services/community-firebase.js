@@ -25,12 +25,6 @@ function superligaStableJson(v){if(v==null||typeof v!=='object')return JSON.stri
 function superligaTipsPayload(){return{pred:superligaCleanTips(PRED),ko:superligaCleanTips(KO_PRED)}}
 function superligaTipsHash(){return superligaStableJson(superligaTipsPayload())}
 function superligaProfileHash(u){return superligaStableJson({uid:u?.uid||'',displayName:u?.displayName||'',email:u?.email||'',photoURL:u?.photoURL||''})}
-function superligaDocPayloadFromData(d){
-  d=d||{};
-  let remotePred=superligaPickObj(d,['pred','predictions','tips','groupPred','groupPredictions','PRED']);
-  let remoteKo=superligaPickObj(d,['ko','knockout','knockoutPredictions','koPred','KO_PRED']);
-  return {pred:superligaCleanTips(remotePred),ko:superligaCleanTips(remoteKo)};
-}
 
 async function loadSuperligaFirebase(opts={}){
   if(FROZEN_MODE||!superligaFirebaseConfigured())return false;
@@ -94,18 +88,11 @@ async function loadOwnTipsFromFirebase(){
   if(!superligaDb||!superligaUser)return false;
   superligaOwnTipsLoaded=false;superligaOwnTipsLoadFailed=false;
   try{
-    let privateDoc=null,communityDoc=null;
-    if(SUPERLIGA_COLLECTIONS.privatePredictions){
-      privateDoc=await superligaDb.collection(SUPERLIGA_COLLECTIONS.privatePredictions).doc(superligaUser.uid).get();
-    }
-    if(!privateDoc||!privateDoc.exists){
-      communityDoc=await superligaDb.collection(SUPERLIGA_COLLECTIONS.community).doc(superligaUser.uid).get();
-    }
-    let doc=(privateDoc&&privateDoc.exists)?privateDoc:communityDoc;
-    superligaRemoteDocExists=!!(doc&&doc.exists);
-    if(doc&&doc.exists){
-      let payload=superligaDocPayloadFromData(doc.data()||{});
-      PRED=payload.pred;KO_PRED=payload.ko;superligaClearLocalPreds();superligaLastPublishedHash=superligaTipsHash();superligaOwnTipsLoaded=true;superligaRequestRender('own-tips');return true;
+    let doc=await superligaDb.collection(SUPERLIGA_COLLECTIONS.community).doc(superligaUser.uid).get();
+    superligaRemoteDocExists=doc.exists;
+    if(doc.exists){
+      let d=doc.data()||{},remotePred=superligaPickObj(d,['pred','predictions','tips','groupPred','groupPredictions','PRED']),remoteKo=superligaPickObj(d,['ko','knockout','knockoutPredictions','koPred','KO_PRED']);
+      PRED=superligaCleanTips(remotePred);KO_PRED=superligaCleanTips(remoteKo);superligaClearLocalPreds();superligaLastPublishedHash=superligaTipsHash();superligaOwnTipsLoaded=true;superligaRequestRender('own-tips');return true;
     }
     superligaOwnTipsLoaded=true;
     if(superligaHasTips(PRED)||superligaHasTips(KO_PRED))await publishCommunityTips(true,{force:true,allowEmpty:false});
@@ -123,17 +110,9 @@ async function publishCommunityTips(silent,opts={}){
   if(!superligaOwnTipsLoaded&&!opts.force){await loadOwnTipsFromFirebase();if(superligaOwnTipsLoadFailed)return false}
   if(opts.allowEmpty===false&&!superligaHasTips(PRED)&&!superligaHasTips(KO_PRED))return false;
   let hash=superligaTipsHash();if(!opts.force&&hash===superligaLastPublishedHash)return false;
-  let payload=superligaTipsPayload(),summary=communitySummary(payload.pred,payload.ko),serverTime=firebase.firestore.FieldValue.serverTimestamp();
-  let privateData={uid:superligaUser.uid,...payload,summary,updatedAt:serverTime,version:5,storage:'firebase-private-deduped'};
-  let publicData={uid:superligaUser.uid,displayName:superligaUser.displayName||superligaUser.email||'Játékos',photoURL:superligaUser.photoURL||'',...payload,summary,updatedAt:serverTime,version:5,storage:'firebase-community-deduped'};
-  if(SUPERLIGA_COLLECTIONS.privatePredictions){
-    let batch=superligaDb.batch();
-    batch.set(superligaDb.collection(SUPERLIGA_COLLECTIONS.privatePredictions).doc(superligaUser.uid),privateData,{merge:true});
-    batch.set(superligaDb.collection(SUPERLIGA_COLLECTIONS.community).doc(superligaUser.uid),publicData,{merge:true});
-    await batch.commit();
-  }else{
-    await superligaDb.collection(SUPERLIGA_COLLECTIONS.community).doc(superligaUser.uid).set(publicData,{merge:true});
-  }
+  let payload=superligaTipsPayload();
+  let data={uid:superligaUser.uid,displayName:superligaUser.displayName||superligaUser.email||'Játékos',photoURL:superligaUser.photoURL||'',...payload,summary:communitySummary(payload.pred,payload.ko),updatedAt:firebase.firestore.FieldValue.serverTimestamp(),version:4,storage:'firebase-deduped'};
+  await superligaDb.collection(SUPERLIGA_COLLECTIONS.community).doc(superligaUser.uid).set(data,{merge:true});
   superligaRemoteDocExists=true;superligaLastPublishedHash=hash;
   if(!silent&&superligaCommunityActive)await loadCommunityTips({force:true});
   if(!silent&&S.tab==='community')renderCommunity();
@@ -156,7 +135,60 @@ function setCommunityActive(active){
 }
 async function superligaSignIn(){let ok=await loadSuperligaFirebase({community:true});if(!ok){renderCommunity();return}await superligaAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}
 async function superligaSignOut(){if(superligaAuth)await superligaAuth.signOut()}
-async function superligaRenameProfile(){if(!superligaUser||!superligaDb)return;let current=superligaUser.displayName||superligaUser.email||'Játékos',name=prompt('Új közösségi név',current);if(!name)return;name=name.trim().slice(0,42);if(!name)return;try{if(superligaUser.updateProfile)await superligaUser.updateProfile({displayName:name});await saveSuperligaUserProfile({uid:superligaUser.uid,email:superligaUser.email||'',photoURL:superligaUser.photoURL||'',displayName:name});await publishCommunityTips(false,{force:true})}catch(e){superligaBackendError=e.message||String(e);renderCommunity()}}
+function superligaCloseRenameModal(){
+  document.querySelectorAll('.community-preview[data-community-rename="1"]').forEach(x=>x.remove());
+  syncModalOpenClass();
+}
+function superligaRenameModalError(msg){
+  let el=document.querySelector('.community-rename-error');
+  if(el){el.textContent=msg||'';el.classList.toggle('show',!!msg)}
+}
+function openSuperligaRenameModal(){
+  if(!superligaUser||!superligaDb)return;
+  superligaCloseRenameModal();
+  let current=superligaUser.displayName||superligaUser.email||'Játékos';
+  let ov=document.createElement('div');
+  ov.className='community-preview community-rename-preview';
+  ov.dataset.communityRename='1';
+  ov.innerHTML='<div class="community-modal community-rename-modal" role="dialog" aria-modal="true" aria-labelledby="communityRenameTitle"><div class="community-modal-head"><div><h2 class="community-title" id="communityRenameTitle" style="margin:0">Név módosítása</h2><p class="community-lead">Ez jelenik meg a közösségi rangsorban és a publikus tippnézetben.</p></div><button class="community-close" type="button" data-community-rename-close="1">Bezárás</button></div><form class="community-rename-form"><label class="community-rename-label" for="communityRenameInput">Közösségi név</label><input class="community-rename-input" id="communityRenameInput" name="displayName" maxlength="42" autocomplete="nickname" value="'+esc(current)+'"><div class="community-rename-help"><span>Max. 42 karakter.</span><span class="community-rename-count">'+Math.min(42,current.length)+'/42</span></div><div class="community-rename-error" aria-live="polite"></div><div class="community-rename-actions"><button class="community-btn" type="button" data-community-rename-close="1">Mégse</button><button class="community-btn primary" type="submit">Mentés</button></div></form></div>';
+  document.body.appendChild(ov);
+  syncModalOpenClass();
+  let input=ov.querySelector('.community-rename-input'),count=ov.querySelector('.community-rename-count'),form=ov.querySelector('.community-rename-form');
+  requestAnimationFrame(()=>{try{input.focus();input.select()}catch(e){}});
+  input.addEventListener('input',()=>{count.textContent=input.value.length+'/42';superligaRenameModalError('')});
+  ov.addEventListener('click',e=>{
+    if(e.target===ov||e.target.closest('[data-community-rename-close]'))superligaCloseRenameModal();
+  });
+  ov.addEventListener('keydown',e=>{if(e.key==='Escape')superligaCloseRenameModal()});
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    let submit=form.querySelector('button[type="submit"]'),name=(input.value||'').trim().replace(/\s+/g,' ').slice(0,42);
+    if(name.length<2){superligaRenameModalError('Legalább 2 karakteres nevet adj meg.');input.focus();return}
+    if(name===(superligaUser.displayName||'')){superligaCloseRenameModal();return}
+    try{
+      submit.disabled=true;
+      submit.textContent='Mentés...';
+      await superligaSaveProfileName(name);
+      superligaCloseRenameModal();
+      if(S.tab==='community')renderCommunity();
+    }catch(err){
+      submit.disabled=false;
+      submit.textContent='Mentés';
+      superligaRenameModalError(err&&err.message?err.message:String(err));
+    }
+  });
+}
+async function superligaSaveProfileName(name){
+  if(!superligaUser||!superligaDb)return false;
+  if(superligaUser.updateProfile)await superligaUser.updateProfile({displayName:name});
+  if(superligaAuth&&superligaAuth.currentUser&&superligaAuth.currentUser.reload)await superligaAuth.currentUser.reload().catch(()=>{});
+  if(superligaAuth&&superligaAuth.currentUser)superligaUser=superligaAuth.currentUser;
+  await saveSuperligaUserProfile({uid:superligaUser.uid,email:superligaUser.email||'',photoURL:superligaUser.photoURL||'',displayName:name});
+  await publishCommunityTips(false,{force:true});
+  await loadCommunityTips({force:true});
+  return true;
+}
+async function superligaRenameProfile(){openSuperligaRenameModal()}
 
 function communityGoalSum(obj){return Object.values(obj||{}).reduce((n,p)=>n+(validScore(p&&p.h)?+p.h:0)+(validScore(p&&p.a)?+p.a:0),0)}
 function gradeTip(p,r){if(!p||!r||!validScore(r.h)||!validScore(r.a))return{cat:'miss',pts:0,label:'Nincs tipp'};let ph=+p.h,pa=+p.a,rh=+r.h,ra=+r.a;if(ph===rh&&pa===ra)return{cat:'exact',pts:1,label:'Pontos'};if(ph-pa===rh-ra)return{cat:'diff',pts:.5,label:'Gólkülönbség'};if(Math.sign(ph-pa)===Math.sign(rh-ra))return{cat:'outcome',pts:.25,label:'Kimenetel'};return{cat:'miss',pts:0,label:'Téves'}}
@@ -177,4 +209,4 @@ function communityRankMeta(e){return e.max?fmtCommunityPts(e.pts)+' pont / '+e.m
 function communityTabHtml(tabs){return'<div class="community-tabs">'+tabs.map((t,i)=>'<button class="'+(i?'':'active')+'" data-community-tab="'+t.id+'">'+t.label+'</button>').join('')+'</div>'+tabs.map((t,i)=>'<div class="community-tab-panel '+(i?'':'active')+'" data-community-panel="'+t.id+'">'+t.html+'</div>').join('')}
 function openCommunityTips(id){let item=superligaCommunityItems.find(x=>x.id===id||x.uid===id);if(!item)return;let s=communitySummary(item.pred||{},item.ko||{}),poTitles=Array.from({length:10},(_,i)=>'Playoff '+(i+1)+'. forduló'),plTitles=Array.from({length:9},(_,i)=>'Playout '+(i+1)+'. forduló'),tabs=[{id:'r1_10',label:'1-10. forduló',html:'<div class="community-list">'+communityMatchRows(item,[1,2,3,4,5,6,7,8,9,10])+'</div>'},{id:'r11_20',label:'11-20. forduló',html:'<div class="community-list">'+communityMatchRows(item,[11,12,13,14,15,16,17,18,19,20])+'</div>'},{id:'r21_30',label:'21-30. forduló',html:'<div class="community-list">'+communityMatchRows(item,[21,22,23,24,25,26,27,28,29,30])+'</div>'},{id:'playoff',label:'Playoff',html:'<div class="community-list">'+communityKoRows(item,poTitles)+'</div>'},{id:'playout',label:'Playout',html:'<div class="community-list">'+communityKoRows(item,plTitles)+'</div>'},{id:'confbaraj',label:'KL-baraj',html:'<div class="community-list">'+communityKoRows(item,['Konferencialiga-baraj elődöntő','Konferencialiga-baraj döntő','CB1','CB2'])+'</div>'},{id:'baraj',label:'Bentmaradás-baraj',html:'<div class="community-list">'+communityKoRows(item,['Bentmaradás-baraj 1. párharc - 1. mérkőzés','Bentmaradás-baraj 1. párharc - visszavágó','Bentmaradás-baraj 2. párharc - 1. mérkőzés','Bentmaradás-baraj 2. párharc - visszavágó','BR1','BR2'])+'</div>'}],ov=document.createElement('div');ov.className='community-preview';ov.dataset.communityViewId=id;ov.innerHTML='<div class="community-modal"><div class="community-modal-head"><div><h2 class="community-title" style="margin:0">'+esc(item.displayName||'Játékos')+'</h2><p class="community-lead">'+communityRankMeta(s.eff)+' · frissítve: '+esc(communityDate(item.updatedAt))+'</p></div><button class="community-close" type="button">Bezárás</button></div>'+communityStatsHtml(s)+communityTabHtml(tabs)+'</div>';document.body.appendChild(ov);syncModalOpenClass();activateCrests();ov.onclick=e=>{if(e.target===ov||e.target.closest('.community-close')){ov.remove();syncModalOpenClass()}let b=e.target.closest('[data-community-tab]');if(b){let root=ov.querySelector('.community-modal');root.querySelectorAll('[data-community-tab]').forEach(x=>x.classList.toggle('active',x===b));root.querySelectorAll('[data-community-panel]').forEach(x=>x.classList.toggle('active',x.dataset.communityPanel===b.dataset.communityTab))}}}
 function refreshCommunityPreviews(){document.querySelectorAll('.community-preview[data-community-view-id]').forEach(ov=>{let id=ov.dataset.communityViewId,active=ov.querySelector('[data-community-tab].active')?.dataset.communityTab;ov.remove();openCommunityTips(id);let fresh=[...document.querySelectorAll('.community-preview[data-community-view-id]')].pop();if(active&&fresh){let b=fresh.querySelector('[data-community-tab="'+active+'"]');if(b)b.click()}})}
-function renderCommunity(){setCommunityActive(true);let m=document.getElementById('main');m.className='main community-main';let mine=communitySummary(),configured=superligaFirebaseConfigured(),setupHtml='',rows=superligaCommunityItems.slice().sort((a,b)=>{let ea=communitySummary(a.pred||{},a.ko||{}).eff,eb=communitySummary(b.pred||{},b.ko||{}).eff;return eb.pct-ea.pct||eb.exact-ea.exact||eb.diff-ea.diff||String(a.displayName||'').localeCompare(String(b.displayName||''))});if(!configured)setupHtml='<section class="card community-card"><h1 class="community-title">Külön SuperLiga Firebase backend</h1><p class="community-lead">Illeszd be a SuperLiga Firebase projekt adatait a konfigurációs blokkba. A közösségi tippek külön Firestore gyűjteménybe mennek: <b>'+SUPERLIGA_COLLECTIONS.community+'</b>.</p></section>';let projectHtml=configured?'<div class="community-meta" style="margin:8px 0 0">Firebase project: <b>'+esc(SUPERLIGA_FIREBASE_CONFIG.projectId||'unknown')+'</b> · collections: <b>'+esc(SUPERLIGA_COLLECTIONS.community)+'</b> / <b>'+esc(SUPERLIGA_COLLECTIONS.privatePredictions||'none')+'</b></div>':'';let errorHtml=superligaBackendError?'<div class="community-empty" style="margin:12px 0;border-color:rgba(255,91,110,.35);color:#ffb7c0">Firebase állapot: '+esc(superligaBackendError)+'</div>':'';let authHtml=superligaUser?'<div class="community-user"><img class="community-avatar" src="'+esc(superligaUser.photoURL||'')+'" alt=""><div><div class="community-name">'+esc(superligaUser.displayName||superligaUser.email||'Játékos')+'</div><div class="community-meta">Bejelentkezve · saját tippjeid takarékosan, csak változáskor mentődnek</div></div></div><div class="community-actions"><button class="community-btn" id="superligaRenameBtn">Név módosítása</button><button class="community-btn" id="superligaLogoutBtn">Kilépés</button></div>':'<div class="community-actions"><button class="community-btn primary" id="superligaLoginBtn" '+(!configured?'disabled':'')+'>Belépés Google-lel</button></div>';let listHtml=rows.length?rows.map((item,i)=>{let s=communitySummary(item.pred||{},item.ko||{}),e=s.eff;return'<div class="community-row"><div class="community-rank">'+(i+1)+'.</div><div class="community-user"><img class="community-avatar" src="'+esc(item.photoURL||'')+'" alt=""><div><div class="community-name">'+esc(item.displayName||'Játékos')+'</div><div class="community-meta">'+communityRankMeta(e)+' · frissítve: '+esc(communityDate(item.updatedAt))+'</div></div></div><div><div class="community-score">'+(e.max?e.pct+'%':'-')+'</div><button class="community-btn" data-community-view="'+esc(item.id||item.uid)+'">Megnézés</button></div></div>'}).join(''):'<div class="community-empty">Még nincs publikus SuperLiga-tipp a backendben.</div>';m.innerHTML=setupHtml+'<section class="card community-card community-top-card"><h1 class="community-title">Közösség</h1>'+authHtml+projectHtml+errorHtml+communityStatsHtml(mine)+'</section><section class="card community-card"><h2 class="community-section-title" style="margin-top:0">Rangsor pontosság szerint</h2>'+listHtml+'</section>';m.querySelector('#superligaLoginBtn')?.addEventListener('click',superligaSignIn);m.querySelector('#superligaLogoutBtn')?.addEventListener('click',superligaSignOut);m.querySelector('#superligaRenameBtn')?.addEventListener('click',superligaRenameProfile);m.querySelectorAll('[data-community-view]').forEach(b=>b.addEventListener('click',()=>openCommunityTips(b.dataset.communityView)));activateCrests();syncSpacer()}
+function renderCommunity(){setCommunityActive(true);let m=document.getElementById('main');m.className='main community-main';let mine=communitySummary(),configured=superligaFirebaseConfigured(),setupHtml='',rows=superligaCommunityItems.slice().sort((a,b)=>{let ea=communitySummary(a.pred||{},a.ko||{}).eff,eb=communitySummary(b.pred||{},b.ko||{}).eff;return eb.pct-ea.pct||eb.exact-ea.exact||eb.diff-ea.diff||String(a.displayName||'').localeCompare(String(b.displayName||''))});let errorHtml='';let authHtml=superligaUser?'<div class="community-user"><img class="community-avatar" src="'+esc(superligaUser.photoURL||'')+'" alt=""><div><div class="community-name">'+esc(superligaUser.displayName||superligaUser.email||'Játékos')+'</div><div class="community-meta">Bejelentkezve</div></div></div><div class="community-actions"><button class="community-btn" id="superligaRenameBtn">Név módosítása</button><button class="community-btn" id="superligaLogoutBtn">Kilépés</button></div>':'<div class="community-actions"><button class="community-btn primary" id="superligaLoginBtn" '+(!configured?'disabled':'')+'>Belépés Google-lel</button></div>';let listHtml=rows.length?rows.map((item,i)=>{let s=communitySummary(item.pred||{},item.ko||{}),e=s.eff;return'<div class="community-row"><div class="community-rank">'+(i+1)+'.</div><div class="community-user"><img class="community-avatar" src="'+esc(item.photoURL||'')+'" alt=""><div><div class="community-name">'+esc(item.displayName||'Játékos')+'</div><div class="community-meta">'+communityRankMeta(e)+' · frissítve: '+esc(communityDate(item.updatedAt))+'</div></div></div><div><div class="community-score">'+(e.max?e.pct+'%':'-')+'</div><button class="community-btn" data-community-view="'+esc(item.id||item.uid)+'">Megnézés</button></div></div>'}).join(''):'<div class="community-empty">Még nincs publikus SuperLiga-tipp a backendben.</div>';m.innerHTML=setupHtml+'<section class="card community-card community-top-card"><h1 class="community-title">Közösség</h1>'+authHtml+errorHtml+communityStatsHtml(mine)+'</section><section class="card community-card"><h2 class="community-section-title" style="margin-top:0">Rangsor pontosság szerint</h2>'+listHtml+'</section>';m.querySelector('#superligaLoginBtn')?.addEventListener('click',superligaSignIn);m.querySelector('#superligaLogoutBtn')?.addEventListener('click',superligaSignOut);m.querySelector('#superligaRenameBtn')?.addEventListener('click',superligaRenameProfile);m.querySelectorAll('[data-community-view]').forEach(b=>b.addEventListener('click',()=>openCommunityTips(b.dataset.communityView)));activateCrests();syncSpacer()}
