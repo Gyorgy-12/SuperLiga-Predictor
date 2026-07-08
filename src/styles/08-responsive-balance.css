@@ -1,187 +1,121 @@
-/* Final responsive balance pass: exact WC26 sizing where components are shared. */
+/* STEP 7 — final responsive balance polish only.
+   Scope: global overflow/min-width hygiene + tiny mobile rhythm fixes.
+   No tabella/meccs/áttekintés/baraj/community component sizing lives here anymore. */
 
-/* Overview: use WC26 card rhythm, not the earlier compressed SuperLiga shrink. */
-.overview-main .wc-info-grid{
-  display:grid!important;
-  grid-template-columns:repeat(2,minmax(0,1fr))!important;
-  gap:10px!important;
-  padding:0 var(--pp) var(--pp)!important;
-}
-.overview-main .wc-info{
-  background:#111a20!important;
-  border:1px solid var(--line)!important;
-  border-radius:8px!important;
-  padding:13px 14px!important;
-  min-height:76px!important;
-}
-.overview-main .wc-info b{
-  display:block!important;
-  color:var(--text)!important;
-  font-size:clamp(19px,calc(17px + 0.625vw),29px)!important;
-  line-height:1!important;
-  margin-bottom:7px!important;
-}
-.overview-main .wc-info span{
-  color:var(--muted)!important;
-  font-size:clamp(11px,calc(10.5px + 0.1562vw),13.5px)!important;
-  font-weight:650!important;
-  line-height:1.35!important;
-}
-.overview-main .card .updated{
-  margin-top:clamp(7px,1.8vw,10px)!important;
-  font-size:clamp(11.5px,.72vw,14px)!important;
-  line-height:1.45!important;
-}
-@media(max-width:560px){
-  .overview-main .wc-info-grid{gap:8px!important;padding:0!important;}
-  .overview-main .wc-info{min-height:68px!important;padding:11px 12px!important;}
+html,
+body,
+.app{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
 }
 
-/* Table controls: the round selector may use the free space instead of being squeezed to a tiny pill. */
-#tblCtrl .ctrl-inner{
-  display:flex!important;
-  flex-wrap:nowrap!important;
-  overflow:hidden!important;
-}
-#tblCtrl .tbl-round-wrap{
-  flex:1 1 auto!important;
-  min-width:clamp(128px,26vw,220px)!important;
-  max-width:none!important;
-}
-#tblCtrl #tblRoundBtn{
-  width:100%!important;
-  max-width:none!important;
-}
-#tblCtrl .sel-txt{
-  min-width:0!important;
-  overflow:hidden!important;
-  text-overflow:ellipsis!important;
-  white-space:nowrap!important;
-}
-@media(max-width:560px){
-  #tblCtrl .ctrl-inner{
-    padding-left:clamp(7px,1.9vw,10px)!important;
-    padding-right:clamp(7px,1.9vw,10px)!important;
-    gap:clamp(3px,1.05vw,5px)!important;
-  }
-  #tblCtrl .pill{
-    flex:0 0 auto!important;
-    min-width:0!important;
-    padding-left:clamp(7px,1.75vw,9px)!important;
-    padding-right:clamp(7px,1.75vw,9px)!important;
-    font-size:clamp(9.4px,2.55vw,10.6px)!important;
-  }
-  #tblCtrl .tbl-round-wrap{
-    width:auto!important;
-    flex:1 1 auto!important;
-    min-width:clamp(132px,34vw,172px)!important;
-  }
-  #tblCtrl #tblRoundTxt{
-    font-size:clamp(9.7px,2.65vw,11px)!important;
-  }
-  #tblCtrl .view-wrap:last-child{
-    flex:0 0 auto!important;
-    margin-left:0!important;
-  }
-}
-@media(max-width:380px){
-  #tblCtrl .pill{font-size:9px!important;padding-left:5px!important;padding-right:5px!important;}
-  #tblCtrl .tbl-round-wrap{min-width:122px!important;}
-  #tblCtrl #tblRoundTxt{font-size:9px!important;}
+.main,
+.main > *,
+.card,
+.round-card,
+.ov-season-card,
+.ov-tots-card,
+.ov-rel-card,
+.export-card,
+.community-card,
+.baraj-hero,
+.baraj-path-card,
+.baraj-match-card,
+.tip-sheet,
+.sheet{
+  min-width:0;
+  max-width:100%;
 }
 
-/* Form table: lock Pts and Forma into their own columns and make W/D/L blocks bigger. */
-.grid.formv.thead,
-.standings .grid.formv{
-  grid-template-columns:clamp(19px,4.4vw,27px) minmax(0,1fr) clamp(42px,8vw,64px) clamp(130px,24vw,180px)!important;
-  column-gap:clamp(5px,1.25vw,10px)!important;
-}
-.grid.formv.thead>div:nth-child(3),
-.standings .grid.formv>.num.pts{
-  text-align:center!important;
-  justify-self:center!important;
-}
-.grid.formv.thead>div:nth-child(4){
-  text-align:right!important;
-  padding-right:0!important;
-}
-.standings .grid.formv .fstrip{
-  justify-self:end!important;
-  justify-content:flex-end!important;
-  align-items:center!important;
-  width:100%!important;
-  min-width:0!important;
-}
-.fb{
-  width:clamp(25px,4.9vw,35px)!important;
-  height:clamp(22px,4.35vw,30px)!important;
-  font-size:clamp(8.6px,1.75vw,11.4px)!important;
-  line-height:1!important;
-}
-@media(max-width:560px){
-  .grid.formv.thead,
-  .standings .grid.formv{
-    grid-template-columns:20px minmax(0,1fr) 38px clamp(126px,30vw,152px)!important;
-    column-gap:4px!important;
-  }
-  .standings .grid.formv .tc{gap:6px!important;}
-  .standings .grid.formv .tc .crest,
-  .standings .grid.formv .tc .crest[style]{--cs:25px!important;}
-  .standings .grid.formv .tname{font-size:clamp(16px,4.05vw,20px)!important;}
-  .standings .grid.formv .num.pts{font-size:clamp(16px,4.05vw,20px)!important;}
-  .fb{
-    width:clamp(24px,6.3vw,29px)!important;
-    height:clamp(22px,5.6vw,26px)!important;
-    font-size:clamp(8.5px,2.25vw,10px)!important;
-  }
-}
-@media(max-width:380px){
-  .grid.formv.thead,
-  .standings .grid.formv{
-    grid-template-columns:18px minmax(0,1fr) 34px 118px!important;
-  }
-  .fb{width:23px!important;height:21px!important;font-size:8px!important;}
+.card,
+.round-card,
+.ov-season-card,
+.ov-tots-card,
+.ov-rel-card,
+.export-card{
+  background-clip:padding-box;
 }
 
-/* Per-round efficiency should be scannable on phone, not a huge vertical wall. */
-.stat-round-section .stat-round-grid{
-  grid-template-columns:repeat(auto-fit,minmax(clamp(148px,24vw,210px),1fr))!important;
-  gap:clamp(7px,1.2vw,12px)!important;
+.crest,
+.crest[style]{
+  flex-shrink:0;
 }
-.stat-round-card{
-  padding:clamp(9px,1.05vw,14px)!important;
-  border-radius:clamp(10px,.9vw,14px)!important;
+
+.crest img,
+.li-box img,
+.round-comp .rc-logo,
+.ov-season-logo img,
+.community-avatar{
+  display:block;
+  max-width:100%;
+  object-position:center;
 }
-.stat-round-label{
-  font-size:clamp(11.4px,.78vw,14px)!important;
-  line-height:1.18!important;
+
+.drop,
+.sel-drop,
+.community-preview,
+.rename-overlay,
+.tip-overlay{
+  isolation:isolate;
 }
-.stat-round-pct{
-  font-size:clamp(22px,4.2vw,30px)!important;
-  line-height:1!important;
+
+.drop,
+.sel-drop{
+  z-index:20000;
 }
-.stat-round-sub{
-  font-size:clamp(10.8px,.72vw,13px)!important;
+
+#ctrlWrap{
+  max-width:none;
+  isolation:isolate;
 }
-.stat-round-empty{
-  background:#0b1219;
-  border:1px dashed rgba(154,174,190,.24);
-  border-radius:clamp(12px,2.4vw,16px);
-  color:#9db0bd;
-  font-size:clamp(12px,2.9vw,14.5px);
-  font-weight:760;
-  line-height:1.45;
-  padding:clamp(12px,3vw,18px);
+
+#ctrlWrap .ctrl-bar,
+#ctrlWrap .kc-bar{
+  width:100%;
 }
-@media(max-width:560px){
-  .stat-round-section .stat-round-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:7px!important;
+
+#ctrlWrap .hidden{
+  display:none!important;
+}
+
+/* Keep the fixed wrapper from eating clicks outside the visible control bar. */
+#ctrlWrap{
+  pointer-events:none;
+}
+#ctrlWrap .ctrl-bar,
+#ctrlWrap .kc-bar,
+#ctrlWrap .drop,
+#ctrlWrap .sel-drop{
+  pointer-events:auto;
+}
+
+/* Tiny-phone polish: keep the WC26 rhythm, only prevent cramping. */
+@media(max-width:420px){
+  .tabs{
+    gap:clamp(18px,5.2vw,32px)!important;
   }
-  .stat-round-card{padding:8px!important;}
-  .stat-round-label{font-size:10.8px!important;}
-  .stat-round-pct{font-size:22px!important;}
-  .stat-round-sub{font-size:10.6px!important;}
-  .stat-round-card .eff-split-dots{gap:3px!important;}
-  .stat-round-card .eff-sdot{font-size:9.6px!important;}
+  .tab{
+    letter-spacing:-.01em;
+  }
+  .ctrl-inner,
+  .kc-inner{
+    gap:clamp(4px,1.25vw,7px)!important;
+  }
+  .pill{
+    padding-left:clamp(9px,2.45vw,12px)!important;
+    padding-right:clamp(9px,2.45vw,12px)!important;
+  }
+}
+
+@media(max-width:360px){
+  .tabs{
+    gap:clamp(15px,4.8vw,24px)!important;
+  }
+  .tab{
+    font-size:clamp(13.2px,3.55vw,14.4px)!important;
+  }
+  .top.shrunken .tab{
+    font-size:clamp(11.2px,3.1vw,12.8px)!important;
+  }
 }

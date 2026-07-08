@@ -1,174 +1,418 @@
-/* matches tab, match rows, mobile match-card tuning */
+/* Step 3: matches tab only — WC26 v178 match-card sizing/rhythm.
+   No standings, overview, baraj, community or navbar rules in this file. */
 
-@media(max-width:375px){
-  .short{grid-template-columns:18px minmax(0,1fr) 22px 30px 30px}
-  .full{grid-template-columns:18px minmax(0,1fr) repeat(4,20px) 35px 28px}
-  .formv{grid-template-columns:18px minmax(0,1fr) 100px 28px}
-  .fb{width:19px}
-  .pill{padding-left:10px;padding-right:10px}
-}
-@media(orientation:landscape)and(max-height:500px){
-  :root{
-    --logo:16px;--row-h:32px;--card-r:11px;--pp:9px;--cp:9px;
-    --fz-xs:7.5px;--fz-sm:8px;--fz-md:9.5px;--fz-lg:12px;
-    --fz-title:12.5px;--fz-ht:11.5px;--fz-sz:17px;--top-h:96px;
-  }
-  .hdr{height:54px!important;padding-top:6px!important}
-  .li-box{width:28px!important;height:28px!important}
-  .tabs{height:30px!important;gap:24px!important}
-  .tab{font-size:10.5px!important;padding-bottom:5px!important}
-  .pill{padding:4px 9px!important;font-size:9.5px!important}
-  .view-btn{width:30px!important;height:25px!important}
-  .bracket{--mh:70px!important;--gap:12px!important}
-  .baraj-wrap{padding-top:10px!important}
-  .baraj-trophy{font-size:30px!important}
-  .baraj-cards{flex-direction:row!important}
-  .bpair{flex:1!important}
+.matches-section{
+  display:flex;
+  flex-direction:column;
+  gap:clamp(8px,2.2vw,12px);
 }
 
-/* â”€â”€ MÉRKŐZÉSEK FÜL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.matches-section{display:flex;flex-direction:column;gap:clamp(8px,2.2vw,12px)}
-.round-card{background:var(--surface);border-radius:var(--card-r);overflow:hidden;
-  box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025)}
+.round-card{
+  background:var(--surface);
+  border-radius:var(--card-r);
+  overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
 .round-header{
   padding:clamp(7px,1.9vw,10px) clamp(10px,2.6vw,14px);
-  font-size:var(--fz-sm);font-weight:700;color:var(--muted2);
+  font-size:clamp(11.2px,2.85vw,13.6px);
+  font-weight:820;
+  color:var(--muted2);
   border-bottom:1px solid rgba(255,255,255,.04);
+  letter-spacing:.01em;
 }
+
 .round-comp{
-  display:flex;align-items:center;gap:clamp(6px,1.8vw,9px);
-  padding:clamp(5px,1.5vw,7px) clamp(10px,2.6vw,14px);
+  display:flex;
+  align-items:center;
+  gap:clamp(6px,.58vw,11px);
+  padding:clamp(7px,.68vw,12px) clamp(11px,.95vw,18px);
   border-bottom:1px solid rgba(255,255,255,.04);
-  font-size:var(--fz-xs);color:var(--muted2);font-weight:600;
+  font-size:clamp(13px,calc(11.5714px + 0.4464vw),15px);
+  color:var(--muted2);
+  font-weight:600;
 }
+
 .round-comp .rc-logo{
-  width:clamp(14px,3.6vw,18px);height:clamp(14px,3.6vw,18px);
-  object-fit:contain;flex:0 0 auto;
+  width:clamp(18px,1.25vw,27px);
+  height:clamp(18px,1.25vw,27px);
+  object-fit:contain;
+  flex:0 0 auto;
 }
-.rc-sep{color:#454f57;margin:0 2px}
+
+.rc-sep{
+  color:#454f57;
+  margin:0 2px;
+}
+
 .match-row{
   display:grid;
-  grid-template-columns:clamp(66px,17vw,88px) 1px 1fr clamp(34px,8.5vw,46px) clamp(28px,7vw,36px);
+  grid-template-columns:clamp(66px,17vw,88px) 1px minmax(0,1fr) clamp(34px,8.5vw,46px) clamp(28px,7vw,36px);
   align-items:stretch;
-  min-height:clamp(72px,18vw,92px);
+  min-height:clamp(58px,4vw,82px);
   border-top:1px solid rgba(255,255,255,.04);
+  cursor:pointer;
+  transition:background .15s ease;
 }
-.match-row:first-of-type{border-top:0}
-.mr-date{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;
-  gap:clamp(3px,1vw,5px);padding-right:clamp(8px,2.2vw,12px);
-  color:#e8edf0;font-size:clamp(14px,3.7vw,19px);font-weight:900;font-variant-numeric:tabular-nums}
-.mr-date span{color:#7f8c96;font-size:clamp(9.5px,2.5vw,12.5px);font-weight:800}
-.mr-sep{background:rgba(255,255,255,.08);margin:10px 0}
-.mr-teams{display:flex;flex-direction:column;justify-content:center;
-  gap:clamp(6px,1.7vw,9px);padding:clamp(9px,2.4vw,13px) clamp(9px,2.6vw,14px)}
-.mr-team{display:flex;align-items:center;gap:clamp(5px,1.5vw,7px);
-  font-size:clamp(13px,3.35vw,17px);font-weight:760;
-  min-height:clamp(26px,6.5vw,34px);color:#d8e1e6}
-.mr-team.win{color:#e8edf0;font-weight:750}
-.mr-team.dim{opacity:.45}
-.mr-team .crest{--cs:clamp(24px,6.3vw,32px)}
-.mr-tname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mr-scores{display:flex;flex-direction:column;justify-content:center;
-  gap:clamp(6px,1.7vw,9px);padding:clamp(9px,2.4vw,13px) 0;
-  font-size:clamp(14px,3.6vw,19px);font-weight:900;
-  font-variant-numeric:tabular-nums;text-align:center;color:#c8d2d7}
-.mr-scores .win{color:#e8edf0}
-.mr-scores .dim{opacity:.45}
-.mr-bell{display:flex;align-items:center;justify-content:center;
-  color:#253540;font-size:clamp(13px,3.5vw,16px);padding-right:2px}
 
-/* â”€â”€ MÉRKŐZÉSEK MOBIL FINOMHANGOLÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-@media (max-width: 520px){
-  .main{padding-left:clamp(8px,2.4vw,12px);padding-right:clamp(8px,2.4vw,12px)}
-  .matches-section{gap:clamp(6px,1.8vw,9px)}
-  .round-header{padding:clamp(6px,1.6vw,8px) clamp(8px,2.2vw,11px);font-size:clamp(9px,2.35vw,11px)}
-  .round-comp{padding:clamp(4px,1.2vw,6px) clamp(8px,2.2vw,11px);font-size:clamp(8px,2.05vw,9.5px);gap:clamp(4px,1.2vw,6px)}
-  .round-comp .rc-logo{width:clamp(12px,3.1vw,15px);height:clamp(12px,3.1vw,15px)}
+.match-row:first-of-type{
+  border-top:0;
+}
+
+.match-row:hover{
+  background:rgba(255,255,255,.025);
+}
+
+.mr-date{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-end;
+  gap:clamp(3px,1vw,5px);
+  padding-right:clamp(8px,2.2vw,12px);
+  color:#e8edf0;
+  font-size:clamp(10.8px,.82vw,17px);
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  min-width:0;
+}
+
+.mr-date span{
+  color:#7f8c96;
+  font-size:clamp(7.6px,.56vw,12px);
+  font-weight:800;
+  word-break:break-word;
+  text-align:right;
+  max-width:100%;
+}
+
+.mr-sep{
+  background:rgba(255,255,255,.08);
+  margin:10px 0;
+}
+
+.mr-teams{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:clamp(6px,1.7vw,9px);
+  padding:clamp(9px,2.4vw,13px) clamp(9px,2.6vw,14px);
+  min-width:0;
+}
+
+.mr-team{
+  display:flex;
+  align-items:center;
+  gap:clamp(4px,.42vw,8px);
+  font-size:clamp(10.8px,.86vw,17px);
+  font-weight:760;
+  min-height:clamp(26px,6.5vw,34px);
+  color:#d8e1e6;
+  min-width:0;
+}
+
+.mr-team.win{
+  color:#e8edf0;
+  font-weight:750;
+}
+
+.mr-team.dim{
+  opacity:.45;
+}
+
+.mr-team .crest,
+.mr-team .crest[style]{
+  --cs:clamp(24px,6.3vw,32px);
+}
+
+.mr-tname{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.mr-scores{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:clamp(6px,1.7vw,9px);
+  padding:clamp(9px,2.4vw,13px) 0;
+  font-size:clamp(12.5px,1vw,19.5px);
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+  color:#c8d2d7;
+}
+
+.mr-scores .win{
+  color:#e8edf0;
+}
+
+.mr-scores .dim{
+  opacity:.45;
+}
+
+.mr-bell{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#253540;
+  font-size:clamp(13px,.82vw,18px);
+  padding-right:2px;
+}
+
+@media(max-width:520px){
+  .matches-section{
+    gap:clamp(6px,1.8vw,9px);
+  }
+
+  .round-header{
+    padding:clamp(7px,1.9vw,9px) clamp(8px,2.2vw,11px);
+    font-size:clamp(11.2px,3vw,13.4px);
+  }
+
+  .round-comp{
+    padding:clamp(4px,1.2vw,6px) clamp(8px,2.2vw,11px);
+    font-size:clamp(13px,calc(11.5714px + 0.4464vw),15px);
+    gap:clamp(4px,1.2vw,6px);
+  }
+
+  .round-comp .rc-logo{
+    width:clamp(12px,3.1vw,15px);
+    height:clamp(12px,3.1vw,15px);
+  }
+
   .match-row{
     grid-template-columns:clamp(52px,14vw,64px) 1px minmax(0,1fr) clamp(28px,7.4vw,36px) clamp(21px,5.8vw,28px);
-    min-height:clamp(58px,15.5vw,72px);
+    min-height:clamp(61px,16.1vw,75px);
   }
+
   .mr-date{
     gap:clamp(2px,.7vw,4px);
     padding-right:clamp(5px,1.5vw,8px);
-    font-size:clamp(11px,3vw,14px);
+    font-size:clamp(11.6px,3.1vw,14.6px);
   }
-  .mr-date span{font-size:clamp(7.5px,2vw,9.5px)}
-  .mr-tip{font-size:clamp(6.8px,1.8vw,8px);margin-top:1px}
-  .mr-sep{margin:7px 0}
+
+  .mr-date span{
+    font-size:clamp(7.9px,2.1vw,9.9px);
+  }
+
+  .mr-tip{
+    font-size:clamp(6.8px,1.8vw,8px);
+    margin-top:1px;
+  }
+
+  .mr-sep{
+    margin:7px 0;
+  }
+
   .mr-teams{
     gap:clamp(4px,1.15vw,6px);
     padding:clamp(6px,1.7vw,9px) clamp(5px,1.5vw,8px);
-    min-width:0;
   }
+
   .mr-team{
     gap:clamp(4px,1.1vw,6px);
-    font-size:clamp(10.5px,2.8vw,13px);
+    font-size:clamp(11.1px,2.95vw,13.6px);
     min-height:clamp(20px,5.3vw,25px);
-    font-weight:720;
+    font-weight:745;
   }
-  .mr-team .crest{--cs:clamp(17px,4.6vw,22px)}
+
+  .mr-team .crest,
+  .mr-team .crest[style]{
+    --cs:clamp(18px,4.85vw,23px);
+  }
+
   .mr-scores{
     gap:clamp(4px,1.15vw,6px);
     padding:clamp(6px,1.7vw,9px) 0;
-    font-size:clamp(11px,3vw,14px);
+    font-size:clamp(11.7px,3.12vw,14.6px);
   }
-  .mr-bell{font-size:clamp(10px,2.8vw,13px)}
+
+  .mr-bell{
+    font-size:clamp(10px,2.8vw,13px);
+  }
 }
 
-@media (max-width: 360px){
-  .match-row{grid-template-columns:48px 1px minmax(0,1fr) 26px 20px;min-height:56px}
-  .mr-team{font-size:10px;gap:4px}
-  .mr-team .crest{--cs:16px}
-  .mr-date{font-size:10.5px;padding-right:5px}
-  .mr-date span{font-size:7px}
-  .mr-teams{padding-left:5px;padding-right:4px}
-  .mr-scores{font-size:10.5px}
+@media(max-width:360px){
+  .match-row{
+    grid-template-columns:48px 1px minmax(0,1fr) 26px 20px;
+    min-height:56px;
+  }
+
+  .mr-team{
+    font-size:10px;
+    gap:4px;
+  }
+
+  .mr-team .crest,
+  .mr-team .crest[style]{
+    --cs:16px;
+  }
+
+  .mr-date{
+    font-size:10.5px;
+    padding-right:5px;
+  }
+
+  .mr-date span{
+    font-size:7px;
+  }
+
+  .mr-teams{
+    padding-left:5px;
+    padding-right:4px;
+  }
+
+  .mr-scores{
+    font-size:10.5px;
+  }
 }
 
+@media(min-width:768px) and (orientation:portrait), (min-width:900px){
+  .matches-section{
+    gap:clamp(10px,.72vw,16px);
+  }
 
-/* â”€â”€ TÁBLÁZAT MOBIL ICI-PICI NAGYÍTÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-@media (max-width: 520px){
-  .standings .grid.short{
-    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) clamp(28px,7.1vw,34px) clamp(38px,9.2vw,46px) clamp(38px,9.2vw,46px);
-    column-gap:clamp(5px,1.45vw,8px);
+  .round-card{
+    border-radius:clamp(14px,.95vw,20px);
   }
-  .standings .grid.full{
-    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) repeat(4,clamp(24px,5.9vw,30px)) clamp(42px,10vw,50px) clamp(34px,8.2vw,42px);
-    column-gap:clamp(4px,1.15vw,7px);
+
+  .round-header{
+    font-size:clamp(14px,.88vw,18px);
+    padding:clamp(9px,.7vw,14px) clamp(14px,.95vw,22px);
   }
-  .standings .grid.formv{
-    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) clamp(118px,32vw,174px) clamp(34px,8.2vw,42px);
-    column-gap:clamp(5px,1.45vw,8px);
+
+  .round-comp{
+    font-size:clamp(14px,calc(12.3488px + 0.2943vw),18px);
+    padding:clamp(6px,.45vw,10px) clamp(14px,.95vw,22px);
+    gap:clamp(7px,.48vw,10px);
   }
-  .standings .row{
-    height:clamp(43px,10.4vw,56px);
-    font-size:clamp(12px,3.05vw,14.5px);
+
+  .round-comp .rc-logo{
+    width:clamp(18px,1.16vw,24px);
+    height:clamp(18px,1.16vw,24px);
   }
-  .standings .thead{
-    font-size:clamp(8.8px,2.18vw,10.8px);
-    min-height:clamp(17px,4.1vw,22px);
+
+  .match-row{
+    grid-template-columns:clamp(76px,4.6vw,94px) 1px minmax(0,1fr) clamp(46px,2.9vw,60px) clamp(36px,2.25vw,46px);
+    min-height:clamp(66px,4.25vw,84px);
   }
-  .standings .tc{gap:clamp(8px,2.15vw,11px)}
-  .standings .crest{--cs:clamp(21px,5.45vw,28px)}
-  .standings .tname{
-    font-size:clamp(12px,3.05vw,14.5px);
-    font-weight:740;
+
+  .mr-date{
+    font-size:clamp(14px,.88vw,18px);
+    padding-right:clamp(8px,.58vw,13px);
   }
-  .standings .rank,
-  .standings .num{
-    font-size:clamp(11.8px,2.95vw,14px);
+
+  .mr-date span{
+    font-size:clamp(9.2px,.58vw,12px);
+  }
+
+  .mr-tip{
+    font-size:clamp(7.6px,.48vw,9.4px);
+  }
+
+  .mr-teams{
+    gap:clamp(5px,.42vw,8px);
+    padding:clamp(8px,.6vw,13px) clamp(9px,.68vw,15px);
+  }
+
+  .mr-team{
+    font-size:clamp(14.5px,.9vw,18.2px);
+    min-height:clamp(24px,1.55vw,31px);
+    gap:clamp(6px,.42vw,9px);
     font-weight:760;
   }
+
+  .mr-team .crest,
+  .mr-team .crest[style]{
+    --cs:clamp(24px,1.5vw,32px);
+  }
+
+  .mr-scores{
+    font-size:clamp(17px,1.08vw,23px);
+    gap:clamp(5px,.42vw,8px);
+    padding:clamp(8px,.6vw,13px) 0;
+  }
+
+  .mr-bell{
+    font-size:clamp(12px,.78vw,16px);
+  }
 }
 
-@media (max-width: 360px){
-  .standings .grid.short{grid-template-columns:20px minmax(0,1fr) 27px 36px 36px}
-  .standings .row{height:42px;font-size:11.5px}
-  .standings .crest{--cs:20px}
-  .standings .tname{font-size:11.5px}
-  .standings .rank,.standings .num{font-size:11.3px}
+@media(min-width:900px) and (max-width:1180px){
+  .matches-section{
+    gap:10px;
+  }
+
+  .round-header{
+    font-size:14px;
+    padding:9px 14px;
+  }
+
+  .round-comp{
+    font-size:15.3px;
+    padding:6px 14px;
+  }
+
+  .round-comp .rc-logo{
+    width:18px;
+    height:18px;
+  }
+
+  .match-row{
+    grid-template-columns:76px 1px minmax(0,1fr) 46px 36px;
+    min-height:66px;
+  }
+
+  .mr-date{
+    font-size:14px;
+    padding-right:8px;
+  }
+
+  .mr-date span{
+    font-size:9.2px;
+  }
+
+  .mr-teams{
+    padding:8px 9px;
+    gap:5px;
+  }
+
+  .mr-team{
+    font-size:14.5px;
+    min-height:24px;
+    gap:6px;
+  }
+
+  .mr-team .crest,
+  .mr-team .crest[style]{
+    --cs:24px;
+  }
+
+  .mr-scores{
+    font-size:17px;
+    padding:8px 0;
+  }
 }
 
+@media(min-width:1181px) and (max-width:1440px){
+  .match-row{
+    min-height:clamp(69px,4vw,76px);
+  }
 
-/* â”€â”€ STATISZTIKÁK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .mr-team{
+    font-size:clamp(15.2px,.86vw,16.5px);
+  }
+
+  .mr-team .crest,
+  .mr-team .crest[style]{
+    --cs:clamp(25px,1.42vw,29px);
+  }
+
+  .mr-scores{
+    font-size:clamp(18px,1.02vw,20.5px);
+  }
+}

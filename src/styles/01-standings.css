@@ -1,91 +1,130 @@
-/* table cards, standings grid, crests, zone lines */
+/* Step 4 — standings/table cards only.
+   Scope: Tabella fül: cards, table grids, crests, zone lines, form strip.
+   WC26 v178 rhythm, kept SuperLiga-specific halving note. */
 
 .card{
-  background:var(--surface);border-radius:var(--card-r);
-  padding:var(--cp);margin-bottom:clamp(9px,2.4vw,14px);
-  /* subtle inner border like SofaScore */
+  background:var(--surface);
+  border-radius:var(--card-r);
+  padding:var(--cp);
+  margin-bottom:clamp(9px,2.4vw,14px);
   box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025);
 }
-.card-title{font-size:var(--fz-title);font-weight:700;margin-bottom:clamp(8px,2vw,12px);color:#dde4e8}
+.card-title{
+  font-size:clamp(16px,1.04vw,24px)!important;
+  font-weight:700;
+  margin-bottom:clamp(8px,2vw,12px);
+  color:#dde4e8;
+  line-height:1.16!important;
+}
 
-/* â”€â”€ TABLE GRID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-/* SofaScore short: rank | team(logo+name) | P | GD | PTS */
 .grid{display:grid;align-items:center}
 .short{
-  grid-template-columns:
-    clamp(18px,4.6vw,24px)   /* rank */
-    minmax(0,1fr)              /* team */
-    clamp(24px,6vw,30px)      /* P */
-    clamp(34px,8.2vw,42px)    /* GD */
-    clamp(34px,8.2vw,42px);   /* PTS */
+  grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(24px,6vw,30px) clamp(34px,8.2vw,42px) clamp(34px,8.2vw,42px);
   column-gap:clamp(4px,1.2vw,8px);
 }
 .full{
-  grid-template-columns:
-    clamp(18px,4.6vw,24px)
-    minmax(0,1fr)
-    repeat(4,clamp(22px,5.4vw,27px))
-    clamp(38px,9vw,48px)
-    clamp(30px,7.4vw,38px);
+  grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) repeat(4,clamp(22px,5.4vw,27px)) clamp(38px,9vw,48px) clamp(30px,7.4vw,38px);
   column-gap:clamp(3px,1vw,6px);
 }
 .formv{
-  grid-template-columns:
-    clamp(18px,4.6vw,24px)
-    minmax(0,1fr)
-    clamp(110px,30vw,165px)
-    clamp(30px,7.4vw,38px);
+  grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(110px,30vw,165px) clamp(30px,7.4vw,38px);
   column-gap:clamp(4px,1.2vw,8px);
 }
-/* header row */
 .thead{
-  color:var(--muted);font-size:var(--fz-xs);font-weight:700;
-  min-height:clamp(16px,3.8vw,21px);margin-bottom:2px;
+  color:var(--muted);
+  font-size:var(--fz-xs);
+  font-weight:700;
+  min-height:clamp(16px,3.8vw,21px);
+  margin-bottom:2px;
 }
 .thead>div{text-align:center}
 .thead>div:nth-child(1),.thead>div:nth-child(2),.thead .th-team{text-align:left;padding-left:0}
-/* data rows */
 .row{
-  height:var(--row-h);font-size:var(--fz-md);font-weight:600;
-  color:#d8dfe4;align-items:center;
+  height:var(--row-h);
+  font-size:var(--fz-md);
+  font-weight:600;
+  color:#d8dfe4;
+  align-items:center;
   border-top:1px solid rgba(255,255,255,.04);
 }
 .row:first-of-type{border-top:0}
-.rank{color:#c0cad1;text-align:center;font-size:var(--fz-md);font-variant-numeric:tabular-nums;font-weight:700}
-.num{text-align:center;font-variant-numeric:tabular-nums;font-weight:600}
-/* team cell */
-.tc{min-width:0;display:flex;align-items:center;gap:clamp(7px,1.9vw,10px)}
-.tname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank{
+  color:#c0cad1;
+  text-align:center;
+  font-size:var(--fz-md);
+  font-variant-numeric:tabular-nums;
+  font-weight:700;
+}
+.num{
+  text-align:center;
+  font-size:var(--fz-md);
+  font-variant-numeric:tabular-nums;
+  font-weight:600;
+}
+.tc{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:clamp(7px,1.9vw,10px);
+}
+.tname{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:var(--fz-md);
+}
 
-/* â”€â”€ CLUB CRESTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .crest{
   --cs:var(--logo);
-  width:var(--cs);height:var(--cs);min-width:var(--cs);max-width:var(--cs);
-  flex:0 0 var(--cs);position:relative;overflow:visible;
-  display:inline-flex;align-items:center;justify-content:center;align-self:center;
-  background:transparent;border-radius:0;vertical-align:middle;
+  width:var(--cs);
+  height:var(--cs);
+  min-width:var(--cs);
+  max-width:var(--cs);
+  flex:0 0 var(--cs);
+  position:relative;
+  overflow:visible;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  align-self:center;
+  background:transparent;
+  border-radius:0;
+  vertical-align:middle;
 }
 .crest img{
-  position:absolute;inset:0;width:100%;height:100%;
-  object-fit:contain;object-position:center;
-  transform:none;transform-origin:center;
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+  transform:none;
+  transform-origin:center;
   display:block;
   image-rendering:auto;
 }
-/* svg inline fallback */
 .crest .svg-fb{
-  position:absolute;inset:0;width:100%;height:100%;
-  display:none;align-items:center;justify-content:center;
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:none;
+  align-items:center;
+  justify-content:center;
 }
 .crest .svg-fb svg{width:80%;height:80%;display:block}
-/* initials text fallback */
 .crest .ini-fb{
-  display:none;font-size:calc(var(--cs)*.32);font-weight:800;
-  color:#cdd6dc;text-align:center;line-height:1;letter-spacing:-.02em;
+  display:none;
+  font-size:calc(var(--cs)*.32);
+  font-weight:800;
+  color:#cdd6dc;
+  text-align:center;
+  line-height:1;
+  letter-spacing:-.02em;
   font-family:-apple-system,sans-serif;
 }
-/* states */
-.crest.has-svg img{display:block} /* img still tries first */
+.crest.has-svg img{display:block}
 .crest.show-svg img{display:none!important}
 .crest.show-svg .svg-fb{display:flex}
 .crest.show-ini img{display:none!important}
@@ -93,21 +132,9 @@
 .crest.show-ini{border-radius:50%;background:#1a2832;overflow:hidden}
 .crest.show-ini .ini-fb{display:block}
 
-/* â”€â”€ QUALIFICATION ZONE LINES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-/*
-  SofaScore style: a vertical bar on the far left of the card,
-  with a tiny horizontal top-hook and bottom-hook pointing right.
-  The bar spans exactly from the first row's vertical centre
-  to the last row's vertical centre.
-  Each zone is a separate coloured segment with a small gap between.
-*/
 .standings{display:flex;flex-direction:column;gap:0}
 .zone{position:relative;padding-left:0}
-/* coloured bracket line */
-.zone.zl{
-  --zc:var(--green);
-  padding-left:0;
-}
+.zone.zl{--zc:var(--green);padding-left:0}
 .zone.zl::before{
   content:"";
   position:absolute;
@@ -120,68 +147,67 @@
   border-right:0;
   width:clamp(9px,2.6vw,13px);
   background:transparent;
-  pointer-events:none;z-index:1;
+  pointer-events:none;
+  z-index:1;
 }
-/* Összeforrasztás: egymás utáni azonos színű zone-ok */
-/* Az első: van felső horog, nincs alsó */
-.zone.zl.zl-first::before{
-  border-bottom:0;
-  bottom:calc(-1 * clamp(8px,2.2vw,13px));  /* átnyúlik a következőbe */
-}
-/* Középső: nincs felső, nincs alsó horog, átnyúlik mindkét irányba */
-.zone.zl.zl-mid::before{
-  border-top:0;
-  border-bottom:0;
-  top:calc(-1 * clamp(8px,2.2vw,13px));
-  bottom:calc(-1 * clamp(8px,2.2vw,13px));
-}
-/* Utolsó: nincs felső horog */
-.zone.zl.zl-last::before{
-  border-top:0;
-  top:calc(-1 * clamp(8px,2.2vw,13px));
-}
-/* Solo: mindkét horog megvan (alapértelmezett, nem kell külön) */
-/* Összeforrasztott zone-ok közt nincs margin */
+.zone.zl.zl-first::before{border-bottom:0;bottom:calc(-1 * clamp(8px,2.2vw,13px))}
+.zone.zl.zl-mid::before{border-top:0;border-bottom:0;top:calc(-1 * clamp(8px,2.2vw,13px));bottom:calc(-1 * clamp(8px,2.2vw,13px))}
+.zone.zl.zl-last::before{border-top:0;top:calc(-1 * clamp(8px,2.2vw,13px))}
 .zone.zl.zl-first + .zone.zl.zl-last,
 .zone.zl.zl-first + .zone.zl.zl-mid,
-.zone.zl.zl-mid   + .zone.zl.zl-last,
-.zone.zl.zl-mid   + .zone.zl.zl-mid{
-  margin-top:0!important;
-}
-/* gap between consecutive zone lines */
+.zone.zl.zl-mid + .zone.zl.zl-last,
+.zone.zl.zl-mid + .zone.zl.zl-mid{margin-top:0!important}
 .zone.zl+.zone.zl{margin-top:clamp(8px,2.2vw,13px)}
-/* zone label */
 .zlabel{
-  font-size:clamp(12.5px,.78vw,15px);font-weight:850;color:var(--muted2);
+  font-size:clamp(11.5px,calc(10.4286px + 0.3348vw),13px)!important;
+  font-weight:780!important;
+  color:var(--muted);
   padding-left:clamp(14px,4vw,24px);
-  line-height:1.25;
-  /* SofaScore: label sits ABOVE its first row, inside the zone */
-  padding-top:clamp(8px,1.9vw,12px);
-  padding-bottom:clamp(5px,1.2vw,8px);
+  line-height:1.22!important;
+  padding-top:clamp(6px,1.6vw,9px);
+  padding-bottom:clamp(3px,1vw,5px);
 }
 .zone:first-child .zlabel{padding-top:0}
 .updated{
-  text-align:right;color:var(--muted2);
-  font-size:var(--fz-xs);margin-top:clamp(7px,1.8vw,10px);
+  text-align:right;
+  color:var(--muted2);
+  font-size:clamp(11.5px,.72vw,14px)!important;
+  margin-top:clamp(7px,1.8vw,10px);
+  line-height:1.45!important;
 }
 .rules-row{
-  margin-top:clamp(10px,2.6vw,14px);background:#0a1015;border-radius:10px;
-  padding:clamp(9px,2.4vw,13px);display:flex;align-items:center;justify-content:space-between;
-  font-size:var(--fz-md);font-weight:700;
+  margin-top:clamp(10px,2.6vw,14px);
+  background:#0a1015;
+  border-radius:10px;
+  padding:clamp(9px,2.4vw,13px);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:var(--fz-md);
+  font-weight:700;
 }
 .rules-arr{width:12px;height:12px;border-right:2.5px solid #c0cad1;border-bottom:2.5px solid #c0cad1;transform:rotate(45deg)}
 
-/* â”€â”€ FORM STRIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .fstrip{display:flex;justify-content:flex-end}
 .fb{
-  width:clamp(21px,5.5vw,28px);height:clamp(18px,4.6vw,23px);
-  display:grid;place-items:center;
-  font-size:clamp(7.5px,1.9vw,9.5px);font-weight:800;color:#060c10;
+  width:clamp(21px,5.5vw,28px);
+  height:clamp(18px,4.6vw,23px);
+  display:grid;
+  place-items:center;
+  font-size:clamp(7.5px,1.9vw,9.5px);
+  font-weight:800;
+  color:#060c10;
 }
-.fb:first-child{border-radius:5px 0 0 5px}.fb:last-child{border-radius:0 5px 5px 0}
+.fb:first-child{border-radius:5px 0 0 5px}
+.fb:last-child{border-radius:0 5px 5px 0}
 .W{background:#1bc872}.D{background:#909aa3}.L{background:#ef4f4f}
-
-/* â”€â”€ KNOCKOUT / BRACKET â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.formv .stat-badge{
+  font-size:clamp(10.5px,.72vw,14px)!important;
+  padding:clamp(2px,.18vw,4px) clamp(7px,.48vw,11px)!important;
+  border-radius:clamp(6px,.38vw,9px)!important;
+  min-width:clamp(34px,2.4vw,50px)!important;
+  text-align:center!important;
+}
 
 .halving-meta{
   margin-top:clamp(10px,2.4vw,16px);
@@ -192,22 +218,8 @@
   font-weight:760;
   line-height:1.45;
 }
-.halving-title{
-  color:#e8edf0;
-  font-size:clamp(12.5px,.82vw,16px);
-  font-weight:900;
-  margin-bottom:clamp(5px,1vw,8px);
-}
-.halving-list{
-  display:flex;
-  flex-wrap:wrap;
-  gap:clamp(6px,1.2vw,10px) clamp(12px,2vw,18px);
-}
+.halving-title{color:#e8edf0;font-size:clamp(12.5px,.82vw,16px);font-weight:900;margin-bottom:clamp(5px,1vw,8px)}
+.halving-list{display:flex;flex-wrap:wrap;gap:clamp(6px,1.2vw,10px) clamp(12px,2vw,18px)}
 .halving-list span{white-space:nowrap}
 .halving-list b{color:#e8edf0;font-weight:950}
-.halving-note{
-  margin-top:clamp(6px,1.2vw,9px);
-  color:var(--muted);
-  font-size:clamp(11px,.68vw,13.5px);
-  font-weight:720;
-}
+.halving-note{margin-top:clamp(6px,1.2vw,9px);color:var(--muted);font-size:clamp(11px,.68vw,13.5px);font-weight:720}

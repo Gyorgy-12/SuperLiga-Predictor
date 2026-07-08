@@ -1,235 +1,557 @@
-/* matches tab, match rows, mobile match-card tuning */
+/* STEP 2 — Overview + Stats only
+   Scope: Áttekintés fül és Statisztikák fül WC26 v178 ritmus.
+   Nincs meccskártya, tabella, Baraj vagy Community override ebben a fájlban. */
 
-@media(max-width:375px){
-  .short{grid-template-columns:18px minmax(0,1fr) 22px 30px 30px}
-  .full{grid-template-columns:18px minmax(0,1fr) repeat(4,20px) 35px 28px}
-  .formv{grid-template-columns:18px minmax(0,1fr) 100px 28px}
-  .fb{width:19px}
-  .pill{padding-left:10px;padding-right:10px}
-}
-@media(orientation:landscape)and(max-height:500px){
-  :root{
-    --logo:16px;--row-h:32px;--card-r:11px;--pp:9px;--cp:9px;
-    --fz-xs:7.5px;--fz-sm:8px;--fz-md:9.5px;--fz-lg:12px;
-    --fz-title:12.5px;--fz-ht:11.5px;--fz-sz:17px;--top-h:96px;
-  }
-  .hdr{height:54px!important;padding-top:6px!important}
-  .li-box{width:28px!important;height:28px!important}
-  .tabs{height:30px!important;gap:24px!important}
-  .tab{font-size:10.5px!important;padding-bottom:5px!important}
-  .pill{padding:4px 9px!important;font-size:9.5px!important}
-  .view-btn{width:30px!important;height:25px!important}
-  .bracket{--mh:70px!important;--gap:12px!important}
-  .baraj-wrap{padding-top:10px!important}
-  .baraj-trophy{font-size:30px!important}
-  .baraj-cards{flex-direction:row!important}
-  .bpair{flex:1!important}
-}
-
-/* ── MÉRKŐZÉSEK FÜL — WC26 v178 core sizing ───────────────────────── */
-.matches-section{
-  display:flex;
-  flex-direction:column;
-  gap:clamp(8px,2.2vw,12px);
-}
-.round-card{
+/* ── ÁTTEKINTÉS / SEASON HEADER ─────────────────────────────────── */
+.overview-main .ov-season-card,
+.ov-season-card{
   background:var(--surface);
   border-radius:var(--card-r);
-  overflow:hidden;
+  padding:var(--cp);
+  margin-bottom:clamp(9px,2.4vw,14px);
   box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025);
 }
-.round-header{
-  padding:clamp(7px,1.9vw,10px) clamp(10px,2.6vw,14px);
-  font-size:clamp(11.2px,2.85vw,13.6px);
-  font-weight:820;
-  color:var(--muted2);
-  border-bottom:1px solid rgba(255,255,255,.04);
-  letter-spacing:.01em;
-}
-.round-comp{
+
+.overview-main .ov-season-top,
+.ov-season-top{
   display:flex;
   align-items:center;
-  gap:clamp(6px,.58vw,11px)!important;
-  padding:clamp(7px,.68vw,12px) clamp(11px,.95vw,18px)!important;
-  border-bottom:1px solid rgba(255,255,255,.04);
-  font-size:clamp(13px,calc(11.5714px + 0.4464vw),15px)!important;
-  color:var(--muted2);
-  font-weight:600;
+  gap:clamp(9px,2.5vw,14px);
+  margin-bottom:clamp(10px,2.8vw,14px);
 }
-.round-comp .rc-logo{
-  width:clamp(18px,1.25vw,27px)!important;
-  height:clamp(18px,1.25vw,27px)!important;
-  object-fit:contain;
-  flex:0 0 auto;
-}
-.rc-sep{color:#454f57;margin:0 2px}
-.match-row{
+
+.overview-main .ov-season-logo,
+.ov-season-logo{
+  width:clamp(36px,9vw,46px);
+  height:clamp(36px,9vw,46px);
+  border-radius:10px;
+  background:#0e1f27;
+  padding:5px;
   display:grid;
-  grid-template-columns:clamp(66px,17vw,88px) 1px 1fr clamp(34px,8.5vw,46px) clamp(28px,7vw,36px);
-  align-items:stretch;
-  min-height:clamp(58px,4vw,82px)!important;
-  border-top:1px solid rgba(255,255,255,.04);
-  cursor:pointer;
-  transition:background .15s ease;
+  place-items:center;
+  flex:0 0 auto;
+  overflow:hidden;
 }
-.match-row:first-of-type{border-top:0}
-.mr-date{
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:flex-end;
-  gap:clamp(3px,1vw,5px);
-  padding-right:clamp(8px,2.2vw,12px);
-  color:#e8edf0;
-  font-size:clamp(10.8px,.82vw,17px)!important;
-  font-weight:900;
-  font-variant-numeric:tabular-nums;
+
+.overview-main .ov-season-logo img,
+.ov-season-logo img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+  display:block;
+}
+
+.overview-main .ov-season-info,
+.ov-season-info{
+  flex:1 1 auto;
   min-width:0;
 }
-.mr-date span{
-  color:#7f8c96;
-  font-size:clamp(7.6px,.56vw,12px)!important;
-  font-weight:800;
-  word-break:break-word;
-  text-align:right;
-  max-width:100%;
+
+.overview-main .ov-season-name,
+.ov-season-name{
+  font-size:clamp(20px,calc(15.4706px + 0.8088vw),31px);
+  font-weight:900;
+  color:#e8edf0;
+  line-height:1.1;
+  letter-spacing:-.01em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
-.mr-sep{background:rgba(255,255,255,.08);margin:10px 0}
-.mr-teams{
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap:clamp(6px,1.7vw,9px);
-  padding:clamp(9px,2.4vw,13px) clamp(9px,2.6vw,14px);
-}
-.mr-team{
+
+.overview-main .ov-season-country,
+.ov-season-country{
   display:flex;
   align-items:center;
-  gap:clamp(4px,.42vw,8px)!important;
-  font-size:clamp(10.8px,.86vw,17px)!important;
-  font-weight:760;
-  min-height:clamp(26px,6.5vw,34px);
-  color:#d8e1e6;
+  gap:5px;
+  font-size:clamp(12.2px,.76vw,15.5px);
+  color:var(--muted);
+  margin-top:2px;
+  line-height:1.24;
+  font-weight:650;
 }
-.mr-team.win{color:#e8edf0;font-weight:750}
-.mr-team.dim{opacity:.45}
-.mr-team .crest{--cs:clamp(24px,6.3vw,32px)}
-.mr-tname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mr-scores{
+
+.overview-main .ov-progress-bar,
+.ov-progress-bar{
+  height:4px;
+  background:#1a2530;
+  border-radius:2px;
+  overflow:hidden;
+  margin-bottom:clamp(4px,1.2vw,6px);
+}
+
+.overview-main .ov-progress-fill,
+.ov-progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--blue),var(--cyan));
+  border-radius:2px;
+}
+
+.overview-main .ov-progress-dates,
+.ov-progress-dates{
   display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap:clamp(6px,1.7vw,9px);
-  padding:clamp(9px,2.4vw,13px) 0;
-  font-size:clamp(12.5px,1vw,19.5px)!important;
+  justify-content:space-between;
+  font-size:clamp(11.3px,.68vw,14px);
+  color:var(--muted);
+  font-weight:760;
+  line-height:1.25;
+}
+
+/* ── ÁTTEKINTÉS / INFO CARDS ────────────────────────────────────── */
+.overview-main .wc-info-grid,
+.wc-info-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  padding:0 var(--pp) var(--pp);
+}
+
+.overview-main .wc-info,
+.wc-info{
+  background:#111a20;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:13px 14px;
+  min-height:76px;
+}
+
+.overview-main .wc-info b,
+.wc-info b{
+  display:block;
+  color:var(--text);
+  font-size:clamp(19px,calc(17px + 0.625vw),29px);
+  line-height:1;
+  margin-bottom:7px;
   font-weight:900;
   font-variant-numeric:tabular-nums;
-  text-align:center;
-  color:#c8d2d7;
 }
-.mr-scores .win{color:#e8edf0}
-.mr-scores .dim{opacity:.45}
-.mr-bell{
+
+.overview-main .wc-info span,
+.wc-info span{
+  display:block;
+  color:var(--muted);
+  font-size:clamp(11px,calc(10.5px + 0.1562vw),13.5px);
+  font-weight:650;
+  line-height:1.35;
+}
+
+.overview-main .wc-note,
+.wc-note{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:650;
+  line-height:1.55;
+  padding:0 var(--pp) var(--pp);
+}
+
+/* ── ÁTTEKINTÉS / TEAM CHIPS ────────────────────────────────────── */
+.overview-main .wc-chip-grid,
+.wc-chip-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  padding:0 var(--pp) var(--pp);
+}
+
+.overview-main .wc-team-chip,
+.wc-team-chip{
   display:flex;
   align-items:center;
+  gap:11px;
+  background:#111a20;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:11px 12px;
+  min-width:0;
+}
+
+.overview-main .wc-team-chip .crest,
+.overview-main .wc-team-chip .crest[style],
+.wc-team-chip .crest,
+.wc-team-chip .crest[style]{
+  --cs:clamp(26px,calc(24.0784px + 0.5882vw),30px)!important;
+}
+
+.overview-main .wc-team-chip span,
+.wc-team-chip span{
+  font-size:clamp(14px,calc(12.8px + 0.375vw),20px);
+  font-weight:760;
+  color:#dce6eb;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* ── ÁTTEKINTÉS / TOP LISTÁK ────────────────────────────────────── */
+.overview-main .wc-stat-list,
+.stats-main .wc-stat-list,
+.wc-stat-list{
+  padding:0 var(--pp) var(--pp);
+  display:grid;
+  gap:clamp(10px,2.7vw,16px);
+}
+
+.overview-main .wc-stat-row,
+.stats-main .wc-stat-row,
+.wc-stat-row{
+  display:grid;
+  grid-template-columns:clamp(30px,7.4vw,40px) minmax(0,1fr) clamp(64px,15vw,86px);
+  align-items:center;
+  gap:clamp(9px,2.4vw,14px);
+  background:#111a20;
+  border:1px solid var(--line);
+  border-radius:clamp(11px,2.9vw,16px);
+  padding:clamp(13px,3.35vw,20px) clamp(13px,3.35vw,20px);
+  min-height:clamp(70px,17.5vw,94px);
+}
+
+.overview-main .wc-stat-rank,
+.stats-main .wc-stat-rank,
+.wc-stat-rank{
+  color:var(--muted);
+  font-weight:800;
+  font-size:clamp(15px,calc(13.5714px + 0.4464vw),17px);
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+
+.overview-main .wc-stat-main,
+.stats-main .wc-stat-main,
+.wc-stat-main{
+  min-width:0;
+  overflow:hidden;
+}
+
+.overview-main .wc-stat-name,
+.stats-main .wc-stat-name,
+.wc-stat-name{
+  color:#e8edf0;
+  font-weight:800;
+  font-size:clamp(13px,calc(11.5714px + 0.4464vw),15px);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.16;
+  letter-spacing:-.018em;
+}
+
+.overview-main .wc-stat-sub,
+.stats-main .wc-stat-sub,
+.wc-stat-sub{
+  color:var(--muted);
+  font-size:clamp(11px,calc(9.9286px + 0.3348vw),12.5px);
+  font-weight:650;
+  margin-top:clamp(4px,1.15vw,7px);
+  line-height:1.28;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.overview-main .wc-stat-val,
+.stats-main .wc-stat-val,
+.wc-stat-val{
+  text-align:right;
+  color:#e8edf0;
+  font-weight:900;
+  font-size:clamp(14px,calc(12.5714px + 0.4464vw),16px);
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+
+.overview-main .stat-game-name,
+.stats-main .stat-game-name,
+.stat-game-name{
+  display:flex;
+  align-items:center;
+  gap:clamp(5px,1.4vw,8px);
+  min-width:0;
+}
+
+.overview-main .stat-game-name .crest,
+.overview-main .stat-game-name .crest[style],
+.stats-main .stat-game-name .crest,
+.stats-main .stat-game-name .crest[style],
+.stat-game-name .crest,
+.stat-game-name .crest[style]{
+  --cs:clamp(19px,5.05vw,24px)!important;
+  flex:0 0 var(--cs);
+}
+
+.overview-main .stat-game-text,
+.stats-main .stat-game-text,
+.stat-game-text{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* ── STATISZTIKÁK TAB — WC26 alapritmus ─────────────────────────── */
+.stats-main .stat-kpi-row,
+.stat-kpi-row{
+  display:flex;
+  gap:clamp(10px,2.8vw,16px);
+  margin-bottom:clamp(15px,3.6vw,22px);
+}
+
+.stats-main .stat-kpi,
+.stat-kpi{
+  flex:1;
+  background:#0a1015;
+  border-radius:clamp(12px,3vw,16px);
+  padding:clamp(13px,3.4vw,20px) clamp(9px,2.5vw,15px);
+  text-align:center;
+  min-height:clamp(76px,18vw,104px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
   justify-content:center;
-  color:#253540;
-  font-size:clamp(13px,.82vw,18px)!important;
-  padding-right:2px;
 }
 
-/* â”€â”€ MÉRKŐZÉSEK MOBIL FINOMHANGOLÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-@media (max-width: 520px){
-  .main{padding-left:clamp(8px,2.4vw,12px);padding-right:clamp(8px,2.4vw,12px)}
-  .matches-section{gap:clamp(6px,1.8vw,9px)}
-  .round-header{padding:clamp(6px,1.6vw,8px) clamp(8px,2.2vw,11px);font-size:clamp(9px,2.35vw,11px)}
-  .round-comp{padding:clamp(4px,1.2vw,6px) clamp(8px,2.2vw,11px);font-size:clamp(8px,2.05vw,9.5px);gap:clamp(4px,1.2vw,6px)}
-  .round-comp .rc-logo{width:clamp(12px,3.1vw,15px);height:clamp(12px,3.1vw,15px)}
-  .match-row{
-    grid-template-columns:clamp(52px,14vw,64px) 1px minmax(0,1fr) clamp(28px,7.4vw,36px) clamp(21px,5.8vw,28px);
-    min-height:clamp(58px,15.5vw,72px);
-  }
-  .mr-date{
-    gap:clamp(2px,.7vw,4px);
-    padding-right:clamp(5px,1.5vw,8px);
-    font-size:clamp(11px,3vw,14px);
-  }
-  .mr-date span{font-size:clamp(7.5px,2vw,9.5px)}
-  .mr-tip{font-size:clamp(6.8px,1.8vw,8px);margin-top:1px}
-  .mr-sep{margin:7px 0}
-  .mr-teams{
-    gap:clamp(4px,1.15vw,6px);
-    padding:clamp(6px,1.7vw,9px) clamp(5px,1.5vw,8px);
-    min-width:0;
-  }
-  .mr-team{
-    gap:clamp(4px,1.1vw,6px);
-    font-size:clamp(10.5px,2.8vw,13px);
-    min-height:clamp(20px,5.3vw,25px);
-    font-weight:720;
-  }
-  .mr-team .crest{--cs:clamp(17px,4.6vw,22px)}
-  .mr-scores{
-    gap:clamp(4px,1.15vw,6px);
-    padding:clamp(6px,1.7vw,9px) 0;
-    font-size:clamp(11px,3vw,14px);
-  }
-  .mr-bell{font-size:clamp(10px,2.8vw,13px)}
+.stats-main .stat-kpi-val,
+.stat-kpi-val{
+  font-size:clamp(24px,6.4vw,34px);
+  font-weight:800;
+  color:#e8edf0;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
 }
 
-@media (max-width: 360px){
-  .match-row{grid-template-columns:48px 1px minmax(0,1fr) 26px 20px;min-height:56px}
-  .mr-team{font-size:10px;gap:4px}
-  .mr-team .crest{--cs:16px}
-  .mr-date{font-size:10.5px;padding-right:5px}
-  .mr-date span{font-size:7px}
-  .mr-teams{padding-left:5px;padding-right:4px}
-  .mr-scores{font-size:10.5px}
+.stats-main .stat-kpi-lbl,
+.stat-kpi-lbl{
+  font-size:clamp(10px,2.65vw,13px);
+  color:var(--muted);
+  margin-top:clamp(5px,1.3vw,8px);
+  font-weight:600;
+  line-height:1.2;
 }
 
+.stats-main .stat-section-title,
+.stat-section-title{
+  font-size:clamp(13px,3.25vw,16px);
+  font-weight:700;
+  color:var(--muted2);
+  margin:clamp(13px,3.2vw,20px) 0 clamp(7px,1.8vw,10px);
+}
 
-/* â”€â”€ TÁBLÁZAT MOBIL ICI-PICI NAGYÍTÁS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-@media (max-width: 520px){
-  .standings .grid.short{
-    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) clamp(28px,7.1vw,34px) clamp(38px,9.2vw,46px) clamp(38px,9.2vw,46px);
-    column-gap:clamp(5px,1.45vw,8px);
+.stats-main .stat-result-labels,
+.stat-result-labels{
+  display:flex;
+  font-size:clamp(12px,3vw,15px);
+  color:#c8d2d7;
+  font-weight:600;
+  margin-bottom:4px;
+  line-height:1.25;
+}
+
+.stats-main .stat-bar-row,
+.stat-bar-row{
+  display:flex;
+  align-items:center;
+  gap:clamp(7px,2vw,10px);
+  margin-bottom:clamp(11px,2.8vw,16px);
+}
+
+.stats-main .stat-bar-track,
+.stat-bar-track{
+  flex:1;
+  height:clamp(9px,2.25vw,13px);
+  background:#111a20;
+  border-radius:99px;
+  overflow:hidden;
+}
+
+.stats-main .stat-bar-fill,
+.stat-bar-fill{
+  height:100%;
+  border-radius:99px;
+  transition:width .4s ease;
+}
+
+.stats-main .stat-bar-val,
+.stat-bar-val{
+  font-size:var(--fz-sm);
+  color:var(--muted2);
+  font-weight:700;
+  min-width:40px;
+  text-align:right;
+}
+
+.stats-main .stat-phase-grid,
+.stat-phase-grid{
+  display:flex;
+  flex-direction:column;
+  gap:clamp(11px,2.8vw,17px);
+}
+
+.stats-main .stat-phase-card,
+.stat-phase-card{
+  background:#0a1015;
+  border-radius:clamp(12px,3vw,16px);
+  padding:clamp(13px,3.25vw,20px);
+}
+
+.stats-main .stat-phase-name,
+.stat-phase-name{
+  font-size:clamp(15px,3.7vw,19px);
+  font-weight:700;
+  color:#dde4e8;
+  margin-bottom:5px;
+  line-height:1.18;
+}
+
+.stats-main .stat-phase-row,
+.stat-phase-row{
+  display:flex;
+  justify-content:space-between;
+  font-size:var(--fz-xs);
+  color:var(--muted);
+  margin-bottom:7px;
+  gap:10px;
+}
+
+.stats-main .stat-phase-avg,
+.stat-phase-avg{
+  font-weight:700;
+  color:var(--muted2);
+}
+
+.stats-main .stat-mini-bars,
+.stat-mini-bars{
+  display:flex;
+  height:clamp(8px,2vw,12px);
+  border-radius:99px;
+  overflow:hidden;
+  gap:1px;
+}
+
+.stats-main .stat-mini-bar,
+.stat-mini-bar{
+  min-width:2px;
+  transition:flex .3s;
+}
+
+.stats-main .stat-mini-legend,
+.stat-mini-legend{
+  display:flex;
+  gap:clamp(8px,2.2vw,14px);
+  margin-top:5px;
+  font-size:var(--fz-xs);
+  font-weight:700;
+  color:var(--muted);
+}
+
+/* ── MOBILE: maradjon WC26-sűrű, ne legyen hatalmas fal ─────────── */
+@media(max-width:560px){
+  .overview-main .wc-info-grid,
+  .wc-info-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    padding:0 var(--pp) var(--pp);
   }
-  .standings .grid.full{
-    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) repeat(4,clamp(24px,5.9vw,30px)) clamp(42px,10vw,50px) clamp(34px,8.2vw,42px);
-    column-gap:clamp(4px,1.15vw,7px);
+  .overview-main .wc-info,
+  .wc-info{
+    min-height:68px;
+    padding:11px 12px;
   }
-  .standings .grid.formv{
-    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) clamp(118px,32vw,174px) clamp(34px,8.2vw,42px);
-    column-gap:clamp(5px,1.45vw,8px);
+  .overview-main .wc-team-chip,
+  .wc-team-chip{
+    gap:8px;
+    padding:7px 9px;
+    border-radius:7px;
   }
-  .standings .row{
-    height:clamp(43px,10.4vw,56px);
-    font-size:clamp(12px,3.05vw,14.5px);
+  .overview-main .wc-team-chip .crest,
+  .overview-main .wc-team-chip .crest[style],
+  .wc-team-chip .crest,
+  .wc-team-chip .crest[style]{
+    --cs:21px!important;
   }
-  .standings .thead{
-    font-size:clamp(8.8px,2.18vw,10.8px);
-    min-height:clamp(17px,4.1vw,22px);
+  .overview-main .wc-team-chip span,
+  .wc-team-chip span{
+    font-size:clamp(12.2px,3.15vw,14px);
   }
-  .standings .tc{gap:clamp(8px,2.15vw,11px)}
-  .standings .crest{--cs:clamp(21px,5.45vw,28px)}
-  .standings .tname{
-    font-size:clamp(12px,3.05vw,14.5px);
-    font-weight:740;
+  .overview-main .wc-stat-list,
+  .stats-main .wc-stat-list,
+  .wc-stat-list{
+    padding:0 clamp(3px,.9vw,5px) clamp(7px,1.8vw,10px);
+    gap:clamp(9px,2.45vw,12px);
   }
-  .standings .rank,
-  .standings .num{
-    font-size:clamp(11.8px,2.95vw,14px);
-    font-weight:760;
+  .overview-main .wc-stat-row,
+  .stats-main .wc-stat-row,
+  .wc-stat-row{
+    grid-template-columns:clamp(28px,7.5vw,35px) minmax(0,1fr) clamp(54px,14.5vw,68px);
+    gap:clamp(7px,1.9vw,10px);
+    padding:clamp(11px,3vw,14px) clamp(10px,2.7vw,13px);
+    border-radius:clamp(10px,2.7vw,13px);
+    min-height:clamp(64px,17vw,78px);
+  }
+  .overview-main .stat-match-list .wc-stat-row,
+  .stats-main .stat-match-list .wc-stat-row{
+    grid-template-columns:clamp(29px,7.7vw,35px) minmax(0,1fr) clamp(56px,14.8vw,68px);
+    min-height:clamp(68px,18vw,82px);
+  }
+  .overview-main .stat-game-name .crest,
+  .overview-main .stat-game-name .crest[style],
+  .stats-main .stat-game-name .crest,
+  .stats-main .stat-game-name .crest[style]{
+    --cs:clamp(19px,5.05vw,24px)!important;
+  }
+  .stats-main .stat-kpi-row,
+  .stat-kpi-row{
+    gap:clamp(8px,2.2vw,11px);
+  }
+  .stats-main .stat-kpi,
+  .stat-kpi{
+    min-height:clamp(70px,18.5vw,88px);
+    padding:clamp(12px,3.2vw,15px) clamp(7px,2vw,10px);
+  }
+  .stats-main .stat-kpi-val,
+  .stat-kpi-val{
+    font-size:clamp(23px,6.2vw,30px);
+  }
+  .stats-main .stat-kpi-lbl,
+  .stat-kpi-lbl{
+    font-size:clamp(9.5px,2.55vw,11.5px);
+  }
+  .stats-main .stat-mini-legend,
+  .stat-mini-legend{
+    flex-wrap:wrap;
   }
 }
 
-@media (max-width: 360px){
-  .standings .grid.short{grid-template-columns:20px minmax(0,1fr) 27px 36px 36px}
-  .standings .row{height:42px;font-size:11.5px}
-  .standings .crest{--cs:20px}
-  .standings .tname{font-size:11.5px}
-  .standings .rank,.standings .num{font-size:11.3px}
+@media(max-width:360px){
+  .overview-main .wc-stat-row,
+  .stats-main .wc-stat-row,
+  .wc-stat-row{
+    grid-template-columns:27px minmax(0,1fr) 52px;
+    padding:10px 9px;
+    gap:6px;
+    min-height:60px;
+  }
+  .overview-main .wc-info,
+  .wc-info{
+    padding:10px;
+  }
+  .overview-main .wc-info b,
+  .wc-info b{
+    font-size:21px;
+  }
 }
 
-
-/* â”€â”€ STATISZTIKÁK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media(min-width:768px) and (orientation:portrait), (min-width:900px){
+  .overview-main .ov-season-logo,
+  .ov-season-logo{
+    width:62px;
+    height:62px;
+    border-radius:14px;
+  }
+  .overview-main .stat-kpi,
+  .stats-main .stat-kpi,
+  .stat-kpi{
+    padding:18px;
+    border-radius:14px;
+  }
+}
