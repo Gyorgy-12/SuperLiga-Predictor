@@ -9,6 +9,5 @@
 @import url("./08-responsive-balance.css");
 @import url("./09-live-match-states.css");
 
-/* Must be last: targeted WC26 responsive/clamp lock + SuperLiga polish.
-   Do NOT import the old 10-wc26-v178-exact-lock.css anymore. */
+/* Last layer is now only surgical; WC26 sizing lives in 00/03/04/08. */
 @import url("./10-superliga-wc26-clean-lock.css");

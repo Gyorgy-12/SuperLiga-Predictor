@@ -1,28 +1,40 @@
-/* Final responsive balance pass: compact mobile cards, exact form alignment, wider table round selector. */
+/* Final responsive balance pass: exact WC26 sizing where components are shared. */
 
-/* Overview: the season status block was too tall on phones. Keep the WC26 card vibe, but use a compact 2x2 grid. */
+/* Overview: use WC26 card rhythm, not the earlier compressed SuperLiga shrink. */
 .overview-main .wc-info-grid{
+  display:grid!important;
   grid-template-columns:repeat(2,minmax(0,1fr))!important;
-  gap:clamp(7px,1.7vw,11px)!important;
-  padding:0!important;
+  gap:10px!important;
+  padding:0 var(--pp) var(--pp)!important;
 }
 .overview-main .wc-info{
-  min-height:clamp(58px,15vw,82px)!important;
-  padding:clamp(9px,2.2vw,13px) clamp(10px,2.4vw,15px)!important;
-  border-radius:clamp(10px,2.6vw,14px)!important;
+  background:#111a20!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  padding:13px 14px!important;
+  min-height:76px!important;
 }
 .overview-main .wc-info b{
-  font-size:clamp(23px,6.4vw,31px)!important;
-  margin-bottom:clamp(5px,1.2vw,8px)!important;
+  display:block!important;
+  color:var(--text)!important;
+  font-size:clamp(19px,calc(17px + 0.625vw),29px)!important;
+  line-height:1!important;
+  margin-bottom:7px!important;
 }
 .overview-main .wc-info span{
-  font-size:clamp(11.5px,3.1vw,14px)!important;
-  line-height:1.18!important;
+  color:var(--muted)!important;
+  font-size:clamp(11px,calc(10.5px + 0.1562vw),13.5px)!important;
+  font-weight:650!important;
+  line-height:1.35!important;
 }
 .overview-main .card .updated{
-  margin-top:clamp(9px,2.2vw,14px)!important;
-  font-size:clamp(11.5px,2.85vw,14px)!important;
-  line-height:1.28!important;
+  margin-top:clamp(7px,1.8vw,10px)!important;
+  font-size:clamp(11.5px,.72vw,14px)!important;
+  line-height:1.45!important;
+}
+@media(max-width:560px){
+  .overview-main .wc-info-grid{gap:8px!important;padding:0!important;}
+  .overview-main .wc-info{min-height:68px!important;padding:11px 12px!important;}
 }
 
 /* Table controls: the round selector may use the free space instead of being squeezed to a tiny pill. */
