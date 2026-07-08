@@ -1164,3 +1164,133 @@
     font-size:clamp(11.2px,3.1vw,12.8px)!important;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────
+   STEP 8 — desktop arány / szélesség / kontrollsáv végső fix
+   A screenshot alapján a SuperLiga desktop még 720px-es mobil-tablet ritmusban maradt,
+   miközben a WC26 desktop 980px-es page rhythm-et használ.
+   Scope: desktop shell width + match/list proportions only.
+   ────────────────────────────────────────────────────────────── */
+@media (min-width:900px){
+  :root{
+    --page-max:min(92vw,980px)!important;
+  }
+
+  #ctrlWrap{
+    top:var(--top-h,148px)!important;
+  }
+
+  .ctrl-inner,
+  .kc-inner{
+    width:min(92vw,980px)!important;
+    max-width:min(92vw,980px)!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    justify-content:flex-start!important;
+    padding-left:0!important;
+    padding-right:0!important;
+  }
+
+  .main{
+    width:min(92vw,980px)!important;
+    max-width:min(92vw,980px)!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    padding-left:0!important;
+    padding-right:0!important;
+    padding-top:calc(var(--ctrl-h,0px) + 12px)!important;
+  }
+
+  .overview-main,
+  .matches-main,
+  .standings-main,
+  .stats-main,
+  .baraj-main,
+  .community-main{
+    width:100%!important;
+    max-width:none!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+
+  .matches-main .matches-section,
+  .matches-main .round-card{
+    width:100%!important;
+    max-width:none!important;
+  }
+
+  .matches-main .round-card{
+    border-radius:clamp(16px,1.08vw,22px)!important;
+  }
+
+  .matches-main .round-header{
+    font-size:clamp(14px,1.15vw,17px)!important;
+    padding:clamp(11px,.82vw,15px) clamp(18px,1.18vw,24px)!important;
+  }
+
+  .matches-main .round-comp{
+    font-size:clamp(13px,.84vw,16px)!important;
+    padding:clamp(9px,.62vw,13px) clamp(18px,1.18vw,24px)!important;
+    gap:clamp(7px,.58vw,12px)!important;
+  }
+
+  .matches-main .round-comp .rc-logo{
+    width:clamp(20px,1.32vw,26px)!important;
+    height:clamp(20px,1.32vw,26px)!important;
+  }
+
+  .matches-main .match-row{
+    grid-template-columns:82px 1px minmax(0,1fr) 48px 42px!important;
+    min-height:72px!important;
+  }
+
+  .matches-main .mr-date{
+    font-size:clamp(14px,.92vw,18px)!important;
+    padding-right:12px!important;
+  }
+
+  .matches-main .mr-date span{
+    font-size:clamp(9.2px,.62vw,12px)!important;
+  }
+
+  .matches-main .mr-tip,
+  .matches-main .mr-live-state{
+    font-size:clamp(8.6px,.58vw,10.6px)!important;
+    line-height:1.12!important;
+  }
+
+  .matches-main .mr-teams{
+    padding:9px 12px!important;
+    gap:6px!important;
+  }
+
+  .matches-main .mr-team{
+    font-size:clamp(14.7px,.94vw,18px)!important;
+    min-height:26px!important;
+    gap:8px!important;
+  }
+
+  .matches-main .mr-team .crest,
+  .matches-main .mr-team .crest[style]{
+    --cs:28px!important;
+  }
+
+  .matches-main .mr-scores{
+    font-size:clamp(17px,1.08vw,21px)!important;
+    padding:9px 0!important;
+    gap:6px!important;
+  }
+
+  .matches-main .mr-bell{
+    font-size:15px!important;
+  }
+}
+
+@media (min-width:1441px){
+  .ctrl-inner,
+  .kc-inner,
+  .main{
+    width:980px!important;
+    max-width:980px!important;
+  }
+}
