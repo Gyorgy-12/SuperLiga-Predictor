@@ -1,8 +1,19 @@
-/* SuperLiga WC26 sizing lock v10
-   Base tokens/components now live in 00/03/04/08. This final layer is deliberately surgical:
-   it only prevents old responsive-tuning drift and protects SuperLiga-only tabs. */
+/* SuperLiga WC26 parity lock v11.1
+   Final layer after community/live styles. It restores WC26 shared sizing where later files drift. */
 
 :root{
+  --bg:#05090b;
+  --surface:#0f161a;
+  --surface2:#151d23;
+  --surface3:#1c2530;
+  --text:#e8edf0;
+  --muted:#7e8c96;
+  --muted2:#a4b0b8;
+  --green:#28d16c;
+  --blue:#6ec6ff;
+  --cyan:#17ceca;
+  --orange:#f59500;
+  --red:#f04050;
   --logo:clamp(19px,calc(14.0345px + 1.5517vw),28px);
   --row-h:clamp(40px,calc(33.3793px + 2.069vw),52px);
   --card-r:clamp(12px,calc(9.7931px + 0.6897vw),16px);
@@ -19,111 +30,96 @@
   --line:rgba(255,255,255,.08);
 }
 
-/* Control bar must follow the JS-updated navbar height. Do NOT lock --top-h here. */
-#ctrlWrap{
-  position:fixed!important;
-  left:0!important;
-  right:0!important;
-  top:var(--top-h,148px)!important;
-  z-index:500!important;
-}
-.ctrl-bar,.kc-bar{
-  position:static!important;
-  top:auto!important;
-  background:#0d1419!important;
-  border-bottom:1px solid #1c2730!important;
-}
-.main{
-  max-width:var(--page-max)!important;
-  margin:0 auto!important;
-  padding:calc(clamp(10px,2.6vw,14px) + var(--ctrl-h,0px) + 12px) var(--pp) 64px!important;
-}
+#ctrlWrap{position:fixed!important;left:0!important;right:0!important;top:var(--top-h,148px)!important;z-index:500!important}
+.ctrl-bar,.kc-bar{position:static!important;top:auto!important;background:#0d1419!important;border-bottom:1px solid #1c2730!important}
+.ctrl-inner,.kc-inner{max-width:var(--page-max)!important;margin:0 auto!important}
+.main{max-width:var(--page-max)!important;margin:0 auto!important;padding:calc(clamp(10px,2.6vw,14px) + var(--ctrl-h,0px) + 12px) var(--pp) 64px!important}
 
-/* Shared WC26 match-card scale, scoped to the matches tab so Baraj cards are untouched. */
-.matches-main .match-row{
-  grid-template-columns:clamp(66px,17vw,88px) 1px minmax(0,1fr) clamp(34px,8.5vw,46px) clamp(28px,7vw,36px)!important;
-  min-height:clamp(58px,4vw,82px)!important;
-}
-.matches-main .round-header{
-  font-size:clamp(11.2px,2.85vw,13.6px)!important;
-  padding:clamp(7px,1.9vw,10px) clamp(10px,2.6vw,14px)!important;
-}
-.matches-main .round-comp{
-  gap:clamp(6px,.58vw,11px)!important;
-  padding:clamp(7px,.68vw,12px) clamp(11px,.95vw,18px)!important;
-  font-size:clamp(13px,calc(11.5714px + 0.4464vw),15px)!important;
-}
-.matches-main .round-comp .rc-logo{width:clamp(18px,1.25vw,27px)!important;height:clamp(18px,1.25vw,27px)!important;}
-.matches-main .mr-date{font-size:clamp(10.8px,.82vw,17px)!important;}
-.matches-main .mr-date span{font-size:clamp(7.6px,.56vw,12px)!important;}
-.matches-main .mr-team{font-size:clamp(10.8px,.86vw,17px)!important;gap:clamp(4px,.42vw,8px)!important;}
-.matches-main .mr-team .crest,.matches-main .mr-team .crest[style]{--cs:clamp(24px,6.3vw,32px)!important;}
-.matches-main .mr-scores{font-size:clamp(12.5px,1vw,19.5px)!important;}
-.matches-main .mr-bell{font-size:clamp(13px,.82vw,18px)!important;}
+/* WC26 table exact */
+.short{grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(24px,6vw,30px) clamp(34px,8.2vw,42px) clamp(34px,8.2vw,42px)!important;column-gap:clamp(4px,1.2vw,8px)!important}
+.full{grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) repeat(4,clamp(22px,5.4vw,27px)) clamp(38px,9vw,48px) clamp(30px,7.4vw,38px)!important;column-gap:clamp(3px,1vw,6px)!important}
+.formv{grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(110px,30vw,165px) clamp(30px,7.4vw,38px)!important;column-gap:clamp(4px,1.2vw,8px)!important}
+.standings .row{height:var(--row-h)!important;font-size:var(--fz-md)!important}
+.standings .thead{font-size:var(--fz-xs)!important;min-height:clamp(16px,3.8vw,21px)!important}
+.standings .tc{gap:clamp(7px,1.9vw,10px)!important}
+.standings .tc .crest,.standings .tc .crest[style]{--cs:var(--logo)!important}
+.standings .tname,.standings .rank,.standings .num{font-size:var(--fz-md)!important}
 
-/* Overview exact WC26 status-card rhythm. */
-.overview-main .ov-season-name{font-size:clamp(20px,calc(15.4706px + 0.8088vw),31px)!important;font-weight:900!important;line-height:1.1!important;}
-.overview-main .ov-season-country{font-size:clamp(12.2px,.76vw,15.5px)!important;line-height:1.24!important;}
-.overview-main .wc-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;padding:0 var(--pp) var(--pp)!important;}
-.overview-main .wc-info{min-height:76px!important;padding:13px 14px!important;border-radius:8px!important;}
-.overview-main .wc-info b{font-size:clamp(19px,calc(17px + 0.625vw),29px)!important;margin-bottom:7px!important;}
-.overview-main .wc-info span{font-size:clamp(11px,calc(10.5px + 0.1562vw),13.5px)!important;line-height:1.35!important;}
+/* WC26 match exact */
+.matches-main .match-row{grid-template-columns:clamp(66px,17vw,88px) 1px minmax(0,1fr) clamp(34px,8.5vw,46px) clamp(28px,7vw,36px)!important;min-height:clamp(58px,4vw,82px)!important}
+.matches-main .round-header{font-size:clamp(11.2px,2.85vw,13.6px)!important;padding:clamp(7px,1.9vw,10px) clamp(10px,2.6vw,14px)!important}
+.matches-main .round-comp{gap:clamp(6px,.58vw,11px)!important;padding:clamp(7px,.68vw,12px) clamp(11px,.95vw,18px)!important;font-size:clamp(13px,calc(11.5714px + 0.4464vw),15px)!important}
+.matches-main .round-comp .rc-logo{width:clamp(18px,1.25vw,27px)!important;height:clamp(18px,1.25vw,27px)!important}
+.matches-main .mr-date{font-size:clamp(10.8px,.82vw,17px)!important}
+.matches-main .mr-date span{font-size:clamp(7.6px,.56vw,12px)!important}
+.matches-main .mr-team{font-size:clamp(10.8px,.86vw,17px)!important;gap:clamp(4px,.42vw,8px)!important}
+.matches-main .mr-team .crest,.matches-main .mr-team .crest[style]{--cs:clamp(24px,6.3vw,32px)!important}
+.matches-main .mr-scores{font-size:clamp(12.5px,1vw,19.5px)!important}
+.matches-main .mr-bell{font-size:clamp(13px,.82vw,18px)!important}
 
-/* Table rows use the WC26 root tokens. */
-.standings .row{height:var(--row-h)!important;font-size:var(--fz-md)!important;}
-.standings .thead{font-size:var(--fz-xs)!important;min-height:clamp(16px,3.8vw,21px)!important;}
-.standings .tc{gap:clamp(7px,1.9vw,10px)!important;}
-.standings .tc .crest,.standings .tc .crest[style]{--cs:var(--logo)!important;}
-.standings .tname,.standings .rank,.standings .num{font-size:var(--fz-md)!important;}
+/* WC26 overview exact */
+.overview-main .ov-season-card{padding:var(--cp)!important;margin-bottom:clamp(9px,2.4vw,14px)!important;border-radius:var(--card-r)!important}
+.overview-main .ov-season-top{gap:clamp(9px,2.5vw,14px)!important;margin-bottom:clamp(10px,2.8vw,14px)!important}
+.overview-main .ov-season-logo{width:clamp(36px,9vw,46px)!important;height:clamp(36px,9vw,46px)!important;border-radius:10px!important;padding:5px!important}
+.overview-main .ov-season-name{font-size:clamp(20px,calc(15.4706px + 0.8088vw),31px)!important;font-weight:900!important;line-height:1.1!important}
+.overview-main .ov-season-country{font-size:clamp(12.2px,.76vw,15.5px)!important;line-height:1.24!important}
+.overview-main .ov-progress-dates{font-size:clamp(11.3px,.68vw,14px)!important;font-weight:760!important}
+.overview-main .wc-info-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;padding:0 var(--pp) var(--pp)!important}
+.overview-main .wc-info{background:#111a20!important;border:1px solid var(--line)!important;border-radius:8px!important;padding:13px 14px!important;min-height:76px!important}
+.overview-main .wc-info b{font-size:clamp(19px,calc(17px + 0.625vw),29px)!important;line-height:1!important;margin-bottom:7px!important}
+.overview-main .wc-info span{font-size:clamp(11px,calc(10.5px + 0.1562vw),13.5px)!important;line-height:1.35!important}
 
-/* SuperLiga-only Baraj protection: keep it compact/list-like, not oversized WC26 stat-card scale. */
-.baraj-main{padding-top:clamp(8px,2vw,14px)!important;}
-.baraj-hero{padding:clamp(12px,2.4vw,18px)!important;border-radius:var(--card-r)!important;display:block!important;}
-.baraj-hero h1{font-size:clamp(20px,calc(17px + .9vw),30px)!important;line-height:1.05!important;}
-.baraj-hero p{font-size:clamp(12px,.78vw,14px)!important;line-height:1.42!important;max-width:none!important;}
-.baraj-hero-chips{justify-content:flex-start!important;margin-top:clamp(10px,1.4vw,14px)!important;min-width:0!important;}
-.baraj-path-card{padding:clamp(12px,2.4vw,18px)!important;border-radius:var(--card-r)!important;}
-.baraj-path-head h2{font-size:clamp(16px,1.15vw,21px)!important;line-height:1.1!important;}
-.baraj-path-head p,.baraj-path-note{font-size:clamp(11.5px,.74vw,13.5px)!important;line-height:1.42!important;}
-.baraj-match-grid{gap:clamp(8px,1.3vw,12px)!important;}
-.baraj-match-card{padding:clamp(9px,1.25vw,14px)!important;border-radius:clamp(11px,.9vw,14px)!important;}
-.baraj-team{font-size:clamp(12.5px,.84vw,15px)!important;gap:clamp(6px,.7vw,10px)!important;}
-.baraj-team .crest,.baraj-team .crest[style]{--cs:clamp(20px,1.45vw,28px)!important;}
-.baraj-score{font-size:clamp(16px,1.18vw,22px)!important;}
+/* Re-apply the WC26 key desktop/tablet root/layout block after later files. */
+@media (min-width:768px) and (orientation:portrait), (min-width:900px){
+  :root{
+    --page-max:min(92vw, 980px);
+    --logo:clamp(28px,calc(-4.1429px + 3.5714vw),38px);
+    --row-h:clamp(52px,calc(13.4286px + 4.2857vw),64px);
+    --card-r:clamp(16px,calc(-3.2857px + 2.1429vw),22px);
+    --pp:clamp(18px,calc(-20.5714px + 4.2857vw),30px);
+    --cp:clamp(18px,calc(-14.1429px + 3.5714vw),28px);
+    --fz-xs:clamp(11px,calc(4.5714px + 0.7143vw),13px);
+    --fz-sm:clamp(12px,calc(2.3571px + 1.0714vw),15px);
+    --fz-md:clamp(14px,calc(4.3571px + 1.0714vw),17px);
+    --fz-lg:clamp(17px,calc(0.9286px + 1.7857vw),22px);
+    --fz-title:clamp(18px,calc(-1.2857px + 2.1429vw),24px);
+    --fz-ht:clamp(18px,calc(-1.2857px + 2.1429vw),24px);
+    --fz-sz:clamp(34px,calc(-4.5714px + 4.2857vw),46px);
+  }
+  .hdr{height:clamp(118px,10.5vw,154px)!important;padding-top:clamp(18px,1.8vw,26px)!important}
+  .top.shrunken .hdr{height:clamp(78px,7vw,98px)!important;padding-top:clamp(10px,1vw,14px)!important}
+  .li-box{width:clamp(54px,5vw,68px)!important;height:clamp(54px,5vw,68px)!important}
+  .top.shrunken .li-box{width:clamp(40px,3.8vw,50px)!important;height:clamp(40px,3.8vw,50px)!important}
+  .tabs{height:clamp(52px,4.7vw,66px)!important;gap:clamp(34px,4vw,58px)!important}
+  .tab{font-size:clamp(15.8px,1.32vw,19px)!important;padding-bottom:clamp(12px,1.1vw,16px)!important}
+  .top.shrunken .tabs{height:clamp(44px,4vw,54px)!important}
+  .top.shrunken .tab{font-size:clamp(13.8px,1.16vw,16.8px)!important;padding-bottom:clamp(8px,.8vw,12px)!important}
+  .ctrl-inner,.kc-inner{padding-top:clamp(10px,1vw,14px)!important;padding-bottom:clamp(10px,1vw,14px)!important}
+  .pill{font-size:clamp(13px,calc(11.1359px + 0.2427vw),14px)!important;padding:clamp(8px,calc(6.1359px + 0.2427vw),9px) clamp(14px,calc(10.2718px + 0.4854vw),16px)!important}
+  .view-btn{width:clamp(44px,3.6vw,54px)!important;height:clamp(36px,3vw,44px)!important}
+  .main{padding-top:calc(clamp(18px,1.8vw,28px) + var(--ctrl-h,0px) + 12px)!important;padding-bottom:90px!important}
+  .short{grid-template-columns:34px minmax(0,1fr) 54px 68px 68px!important;column-gap:14px!important}
+  .full{grid-template-columns:34px minmax(0,1fr) repeat(4,48px) 78px 64px!important;column-gap:10px!important}
+  .formv{grid-template-columns:34px minmax(0,1fr) 220px 64px!important;column-gap:14px!important}
+  .match-row{grid-template-columns:82px 1px 1fr 48px 42px!important;min-height:72px!important}
+  .matches-main .mr-team .crest{--cs:28px!important}
+  .round-comp .rc-logo{width:24px!important;height:24px!important}
+  .ov-season-logo{width:62px!important;height:62px!important;border-radius:14px!important}
+}
 
 @media(max-width:560px){
-  #ctrlWrap{top:var(--top-h,96px)!important;}
-  .main{padding-left:var(--pp)!important;padding-right:var(--pp)!important;}
-  .tabs{gap:clamp(18px,5vw,32px)!important;}
-  .tab{font-size:clamp(12.5px,3.05vw,15px)!important;}
-  .matches-main .match-row{
-    grid-template-columns:clamp(60px,16vw,70px) 1px minmax(0,1fr) clamp(38px,10.4vw,48px) clamp(18px,5vw,24px)!important;
-    min-height:clamp(58px,15vw,68px)!important;
-  }
-  .matches-main .round-comp{font-size:clamp(10.8px,2.85vw,12px)!important;padding:6px 9px!important;}
-  .matches-main .round-comp .rc-logo{width:16px!important;height:16px!important;}
-  .matches-main .mr-date{font-size:clamp(10.6px,2.9vw,12px)!important;padding-right:7px!important;}
-  .matches-main .mr-date span{font-size:clamp(7.6px,2.05vw,9px)!important;}
-  .matches-main .mr-team{font-size:clamp(10.7px,2.9vw,12px)!important;}
-  .matches-main .mr-team .crest,.matches-main .mr-team .crest[style]{--cs:clamp(18px,4.9vw,22px)!important;}
-  .matches-main .mr-scores{font-size:clamp(12px,3.2vw,14px)!important;}
-  .overview-main .wc-info-grid{gap:8px!important;padding:0!important;}
-  .overview-main .wc-info{min-height:68px!important;padding:11px 12px!important;}
-  .baraj-hero{padding:12px!important;}
-  .baraj-match-grid{grid-template-columns:1fr!important;}
+  #ctrlWrap{top:var(--top-h,96px)!important}
+  .overview-main .wc-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .baraj-match-grid{grid-template-columns:1fr!important}
 }
 
-@media(min-width:768px){
-  .matches-main .match-row{min-height:clamp(67px,5.85vw,77px)!important;}
-}
-@media(min-width:1180px){
-  .matches-main .match-row{min-height:clamp(73px,4.8vw,85px)!important;}
-}
-@media(min-width:1441px){
-  .matches-main .match-row{min-height:clamp(77px,3.75vw,93px)!important;}
-  .matches-main .mr-date{font-size:clamp(17px,.8vw,21px)!important;}
-  .matches-main .mr-date span{font-size:clamp(12px,.54vw,14.5px)!important;}
-  .matches-main .mr-team{font-size:clamp(17px,.84vw,20px)!important;}
-  .matches-main .mr-team .crest,.matches-main .mr-team .crest[style]{--cs:clamp(30px,1.34vw,38px)!important;}
-  .matches-main .mr-scores{font-size:clamp(20px,.94vw,25px)!important;}
-}
+/* SuperLiga Baraj protection: keep compact/list-like, not expanded by WC26 media. */
+.baraj-main{padding-top:clamp(8px,2vw,14px)!important}
+.baraj-hero{padding:clamp(12px,2.4vw,18px)!important;border-radius:var(--card-r)!important;display:block!important}
+.baraj-hero h1{font-size:clamp(20px,calc(17px + .9vw),30px)!important;line-height:1.05!important}
+.baraj-hero p{font-size:clamp(12px,.78vw,14px)!important;line-height:1.42!important;max-width:none!important}
+.baraj-path-card{padding:clamp(12px,2.4vw,18px)!important;border-radius:var(--card-r)!important}
+.baraj-match-card{padding:clamp(9px,1.25vw,14px)!important;border-radius:clamp(11px,.9vw,14px)!important}
+.baraj-team{font-size:clamp(12.5px,.84vw,15px)!important}
+.baraj-team .crest,.baraj-team .crest[style]{--cs:clamp(20px,1.45vw,28px)!important}
+.baraj-score{font-size:clamp(16px,1.18vw,22px)!important}
