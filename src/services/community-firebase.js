@@ -146,16 +146,18 @@ function superligaRenameModalError(msg){
 function openSuperligaRenameModal(){
   if(!superligaUser||!superligaDb)return;
   superligaCloseRenameModal();
-  let current=superligaUser.displayName||superligaUser.email||'Játékos';
+  let current=(superligaUser.displayName||superligaUser.email||'Játékos').trim();
+  let photo=superligaUser.photoURL||'';
+  let initial=(current||'J').trim().charAt(0).toUpperCase();
   let ov=document.createElement('div');
   ov.className='community-preview community-rename-preview';
   ov.dataset.communityRename='1';
-  ov.innerHTML='<div class="community-modal community-rename-modal" role="dialog" aria-modal="true" aria-labelledby="communityRenameTitle"><div class="community-modal-head"><div><h2 class="community-title" id="communityRenameTitle" style="margin:0">Név módosítása</h2><p class="community-lead">Ez jelenik meg a közösségi rangsorban és a publikus tippnézetben.</p></div><button class="community-close" type="button" data-community-rename-close="1">Bezárás</button></div><form class="community-rename-form"><label class="community-rename-label" for="communityRenameInput">Közösségi név</label><input class="community-rename-input" id="communityRenameInput" name="displayName" maxlength="42" autocomplete="nickname" value="'+esc(current)+'"><div class="community-rename-help"><span>Max. 42 karakter.</span><span class="community-rename-count">'+Math.min(42,current.length)+'/42</span></div><div class="community-rename-error" aria-live="polite"></div><div class="community-rename-actions"><button class="community-btn" type="button" data-community-rename-close="1">Mégse</button><button class="community-btn primary" type="submit">Mentés</button></div></form></div>';
+  ov.innerHTML='<div class="community-modal community-rename-modal" role="dialog" aria-modal="true" aria-labelledby="communityRenameTitle"><div class="community-rename-glow"></div><div class="community-rename-head"><div class="community-rename-avatar">'+(photo?'<img src="'+esc(photo)+'" alt="">':'<span>'+esc(initial)+'</span>')+'</div><div class="community-rename-titlebox"><div class="community-rename-kicker">Közösségi profil</div><h2 class="community-title community-rename-title" id="communityRenameTitle">Név módosítása</h2><p class="community-lead community-rename-lead">Ez a név jelenik meg a rangsorban és mások publikus tippnézetében.</p></div><button class="community-close community-rename-x" type="button" data-community-rename-close="1" aria-label="Bezárás">×</button></div><form class="community-rename-form"><div class="community-rename-current"><span>Mostani név</span><b>'+esc(current)+'</b></div><label class="community-rename-label" for="communityRenameInput">Új közösségi név</label><div class="community-rename-input-wrap"><input class="community-rename-input" id="communityRenameInput" name="displayName" maxlength="42" autocomplete="nickname" value="'+esc(current)+'"><span class="community-rename-count">'+Math.min(42,current.length)+'/42</span></div><div class="community-rename-previewline"><span>Előnézet</span><b class="community-rename-preview-name">'+esc(current)+'</b></div><div class="community-rename-error" aria-live="polite"></div><div class="community-rename-actions"><button class="community-btn community-rename-cancel" type="button" data-community-rename-close="1">Mégse</button><button class="community-btn primary community-rename-save" type="submit">Mentés</button></div></form></div>';
   document.body.appendChild(ov);
   syncModalOpenClass();
-  let input=ov.querySelector('.community-rename-input'),count=ov.querySelector('.community-rename-count'),form=ov.querySelector('.community-rename-form');
+  let input=ov.querySelector('.community-rename-input'),count=ov.querySelector('.community-rename-count'),preview=ov.querySelector('.community-rename-preview-name'),form=ov.querySelector('.community-rename-form');
   requestAnimationFrame(()=>{try{input.focus();input.select()}catch(e){}});
-  input.addEventListener('input',()=>{count.textContent=input.value.length+'/42';superligaRenameModalError('')});
+  input.addEventListener('input',()=>{let v=input.value||'';count.textContent=v.length+'/42';if(preview)preview.textContent=v.trim().replace(/\s+/g,' ')||'Játékos';superligaRenameModalError('')});
   ov.addEventListener('click',e=>{
     if(e.target===ov||e.target.closest('[data-community-rename-close]'))superligaCloseRenameModal();
   });
