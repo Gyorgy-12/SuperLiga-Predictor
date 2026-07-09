@@ -1,7 +1,13 @@
-/* WC26 rebuild R4 — clean stack. Old SuperLiga CSS imports intentionally removed. */
+/* WC26 rebuild R8 — clean stack: final imports.
+   Keep this file as imports only. Module order matters. */
+
 @import url("./foundation.css");
-@import url("./shell-controls.css");
+@import url("./shell-contols.css");
 @import url("./shared-primitives.css");
 @import url("./overview-stats.css");
 @import url("./matches.css");
 @import url("./standings.css");
+@import url("./postseason.css");
+@import url("./community.css");
+@import url("./modals.css");
+@import url("./responsive-delta.css");
