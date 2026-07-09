@@ -1,4 +1,4 @@
-/* SuperLiga Predictor — modals.css / VB26 parity v3-deep
+/* SuperLiga Predictor — modals.css / VB26 parity v5 modal-scroll-fix
    Exact WC26 bottom sheets, match/tip modal, goals, odds and penalty UI. */
 
 .overlay{
@@ -12,16 +12,32 @@
   animation:fadeIn .18s ease;
 }
 
+/* Modal scroll lock — no background jump
+   The JS stores scrollY and adds .modal-open. The old body{position:fixed}
+   recreated the viewport and made the page twitch on open/close. Keep the
+   document in its normal layout, freeze scrolling through overflow, and reserve
+   the scrollbar gutter so desktop width does not change. */
+html{
+  scrollbar-gutter:stable;
+}
+
 html.modal-open{
   overflow:hidden!important;
 }
 
 body.modal-open{
-  position:fixed!important;
-  left:0;
-  right:0;
+  position:static!important;
+  top:auto!important;
+  left:auto!important;
+  right:auto!important;
   width:100%!important;
+  min-height:100vh;
   overflow:hidden!important;
+}
+
+.overlay,.tip-overlay{
+  overscroll-behavior:contain;
+  touch-action:auto;
 }
 
 @keyframes fadeIn{
@@ -34,8 +50,12 @@ body.modal-open{
   width:min(500px,100vw);
   max-height:82vh;
   overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
   padding-bottom:32px;
   animation:slideUp .22s ease;
+  will-change:transform;
+  transform:translateZ(0);
 }
 
 @keyframes slideUp{
