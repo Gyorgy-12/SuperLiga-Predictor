@@ -1,5 +1,5 @@
-/* WC26 rebuild R8 — clean stack: final imports.
-   Keep this file as imports only. Module order matters. */
+/* SuperLiga Predictor — VB/WC26 hard parity import stack.
+   Keep this file imports-only. vb26-parity-lock-v1.css MUST stay last. */
 
 @import url("./foundation.css");
 @import url("./shell-contols.css");
@@ -11,3 +11,4 @@
 @import url("./community.css");
 @import url("./modals.css");
 @import url("./responsive-delta.css");
+@import url("./vb26-parity-lock-v1.css");
