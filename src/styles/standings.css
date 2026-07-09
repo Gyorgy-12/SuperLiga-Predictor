@@ -1,0 +1,395 @@
+/* WC26 rebuild R4 / 05 — Tabella module only
+   Scope: table card, table rows, zones, legend, form view and table toolbar alignment.
+   No matches, modals, community, baraj or JS-related styling here. */
+
+/* table control bar: keep WC26 compact grid on the Tabella/Playoff controls */
+#tblCtrl .ctrl-inner{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(74px,auto)) minmax(112px,auto) minmax(42px,max-content);
+  align-items:center;
+  gap:clamp(5px,1.2vw,10px);
+  max-width:min(var(--page-max),calc(100vw - 2 * var(--pp)));
+}
+#tblCtrl .pill{
+  justify-content:center;
+  text-align:center;
+  min-width:0;
+  height:auto;
+}
+#tblCtrl .view-wrap{margin-left:0;justify-self:stretch;width:100%}
+#tblCtrl .view-wrap:last-child{justify-self:end;width:auto}
+#tblCtrl .sel-btn{width:100%;min-width:0}
+#tblCtrl .sel-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* table card */
+.main:has(.standings) > .card,
+.table-main > .card{
+  background:var(--surface);
+  border-radius:var(--card-r);
+  padding:var(--cp);
+  margin-bottom:clamp(9px,2.4vw,14px);
+  box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025);
+}
+.main:has(.standings) > .card .card-title,
+.table-main > .card .card-title{
+  margin:0 0 clamp(8px,2vw,12px);
+  color:#dde4e8;
+  font-size:clamp(16px,1.04vw,24px);
+  font-weight:700;
+  line-height:1.16;
+  letter-spacing:-.012em;
+}
+
+/* WC26 standings grid */
+.standings{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  min-width:0;
+}
+.standings .grid{
+  display:grid;
+  align-items:center;
+  min-width:0;
+}
+.standings .grid.short,
+.standings .row.short,
+.standings .thead.short{
+  grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(24px,6vw,30px) clamp(34px,8.2vw,42px) clamp(34px,8.2vw,42px);
+  column-gap:clamp(4px,1.2vw,8px);
+}
+.standings .grid.full,
+.standings .row.full,
+.standings .thead.full{
+  grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) repeat(4,clamp(22px,5.4vw,27px)) clamp(38px,9vw,48px) clamp(30px,7.4vw,38px);
+  column-gap:clamp(3px,1vw,6px);
+}
+.standings .grid.formv,
+.standings .row.formv,
+.standings .thead.formv{
+  grid-template-columns:clamp(18px,4.6vw,24px) minmax(0,1fr) clamp(30px,7.4vw,38px) clamp(110px,30vw,165px);
+  column-gap:clamp(4px,1.2vw,8px);
+}
+.standings .thead{
+  color:var(--muted);
+  font-size:var(--fz-xs);
+  font-weight:700;
+  min-height:clamp(16px,3.8vw,21px);
+  margin-bottom:2px;
+  line-height:1;
+}
+.standings .thead > div{text-align:center}
+.standings .thead > div:nth-child(1),
+.standings .thead > div:nth-child(2),
+.standings .thead .th-team{text-align:left;padding-left:0}
+.standings .thead.formv > div:nth-child(4){text-align:left!important}
+
+.standings .row{
+  min-height:var(--row-h);
+  height:var(--row-h);
+  border-top:1px solid rgba(255,255,255,.04);
+  color:#d8dfe4;
+  font-size:var(--fz-md);
+  font-weight:600;
+  line-height:1.1;
+  align-items:center;
+}
+.standings .zone:first-child .row:first-of-type,
+.standings .thead + .zone .row:first-of-type{border-top:0}
+.standings .row.live-team{
+  background:linear-gradient(90deg,rgba(240,64,80,.09),transparent 42%);
+}
+.standings .rank{
+  color:#c0cad1;
+  text-align:center;
+  font-size:var(--fz-md);
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.standings .num{
+  color:#dbe4e9;
+  text-align:center;
+  font-size:var(--fz-md);
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+}
+.standings .num.pts,
+.standings .row.short .num:last-child,
+.standings .row.full .num:last-child,
+.standings .row.formv .num{
+  color:#f0f4f6;
+  font-weight:850;
+}
+.standings .tc{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:clamp(7px,1.9vw,10px);
+}
+.standings .tc .crest,
+.standings .tc .crest[style]{
+  --cs:var(--logo);
+  width:var(--cs);
+  height:var(--cs);
+  min-width:var(--cs);
+  max-width:var(--cs);
+  flex:0 0 var(--cs);
+}
+.standings .tc .crest img{object-fit:contain;object-position:center;transform:none}
+.standings .tname{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#dde6eb;
+  font-size:var(--fz-md);
+  font-weight:600;
+  line-height:1.15;
+}
+.standings .full .tname{padding-left:0}
+
+/* WC26 zone brackets */
+.standings .zone{
+  position:relative;
+  padding-left:0;
+}
+.standings .zone.zl{
+  --zc:var(--green);
+  margin-top:clamp(6px,1.7vw,10px);
+}
+.standings .thead + .zone.zl{margin-top:0}
+.standings .zone.zl::before{
+  content:"";
+  position:absolute;
+  left:calc(0px - var(--cp));
+  top:calc(clamp(6px,1.6vw,9px));
+  bottom:0;
+  width:clamp(9px,2.6vw,13px);
+  border-left:2.5px solid var(--zc);
+  border-top:2.5px solid var(--zc);
+  border-bottom:2.5px solid var(--zc);
+  border-right:0;
+  pointer-events:none;
+  z-index:1;
+}
+.standings .zlabel{
+  color:var(--muted);
+  font-size:clamp(11.5px,calc(10.4286px + 0.3348vw),13px);
+  font-weight:780;
+  line-height:1.22;
+  padding-left:clamp(14px,4vw,24px);
+  padding-top:clamp(6px,1.6vw,9px);
+  padding-bottom:clamp(3px,1vw,5px);
+}
+.standings .zone:first-child .zlabel{padding-top:0}
+
+/* form strip / badge view */
+.standings .fstrip{
+  display:flex;
+  justify-content:flex-start;
+  align-items:center;
+  min-width:0;
+  overflow:hidden;
+}
+.standings .fb{
+  width:clamp(21px,5.5vw,28px);
+  height:clamp(18px,4.6vw,23px);
+  display:grid;
+  place-items:center;
+  color:#060c10;
+  font-size:clamp(7.5px,1.9vw,9.5px);
+  font-weight:900;
+  line-height:1;
+}
+.standings .fb:first-child{border-radius:5px 0 0 5px}
+.standings .fb:last-child{border-radius:0 5px 5px 0}
+.standings .fb.W{background:#1bc872}
+.standings .fb.D{background:#909aa3}
+.standings .fb.L{background:#ef4f4f}
+.standings .stat-badge{
+  display:inline-grid;
+  place-items:center;
+  min-width:clamp(34px,8vw,48px);
+  border-radius:8px;
+  padding:3px 8px;
+  background:#142129;
+  color:#cfe8f6;
+  font-size:var(--fz-xs);
+  font-weight:850;
+  line-height:1.1;
+}
+
+/* legend / rules under table */
+.legend{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(6px,1.7vw,9px) clamp(8px,2.1vw,12px);
+  margin-top:clamp(10px,2.7vw,15px);
+  padding-top:clamp(9px,2.4vw,13px);
+  border-top:1px solid rgba(255,255,255,.05);
+}
+.leg{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:clamp(6px,1.6vw,9px);
+  color:var(--muted2);
+  font-size:var(--fz-xs);
+  font-weight:750;
+  line-height:1.25;
+}
+.leg-dot{
+  width:clamp(7px,1.8vw,10px);
+  height:clamp(7px,1.8vw,10px);
+  border-radius:999px;
+  flex:0 0 auto;
+}
+.main:has(.standings) .updated,
+.table-main .updated{
+  text-align:right;
+  color:var(--muted2);
+  font-size:clamp(11.5px,.72vw,14px);
+  line-height:1.45;
+  margin-top:clamp(7px,1.8vw,10px);
+}
+.rules-row{
+  margin-top:clamp(10px,2.6vw,14px);
+  background:#0a1015;
+  border-radius:10px;
+  padding:clamp(9px,2.4vw,13px);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  color:#d8e1e6;
+  font-size:var(--fz-md);
+  font-weight:700;
+}
+.rules-arr{
+  width:12px;
+  height:12px;
+  border-right:2.5px solid #c0cad1;
+  border-bottom:2.5px solid #c0cad1;
+  transform:rotate(45deg);
+  flex:0 0 auto;
+}
+
+@media(max-width:520px){
+  #tblCtrl .ctrl-inner{
+    display:flex;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    scrollbar-width:none;
+    max-width:none;
+    padding-left:clamp(7px,1.9vw,10px);
+    padding-right:clamp(7px,1.9vw,10px);
+    gap:clamp(3px,1.05vw,5px);
+  }
+  #tblCtrl .ctrl-inner::-webkit-scrollbar{display:none}
+  #tblCtrl .pill{
+    flex:0 0 auto;
+    min-width:0;
+    padding-left:clamp(7px,1.75vw,9px)!important;
+    padding-right:clamp(7px,1.75vw,9px)!important;
+    font-size:clamp(9.4px,2.55vw,10.6px)!important;
+  }
+  #tblCtrl .view-wrap:first-of-type{
+    flex:1 1 auto;
+    min-width:clamp(132px,34vw,172px);
+    width:auto;
+  }
+  #tblCtrl .view-wrap:last-child{
+    flex:0 0 auto;
+    margin-left:0;
+  }
+  #tblCtrl .sel-txt{font-size:clamp(9.7px,2.65vw,11px)}
+
+  .standings .grid.short,
+  .standings .row.short,
+  .standings .thead.short{
+    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) clamp(28px,7.1vw,34px) clamp(38px,9.2vw,46px) clamp(38px,9.2vw,46px);
+    column-gap:clamp(5px,1.45vw,8px);
+  }
+  .standings .grid.full,
+  .standings .row.full,
+  .standings .thead.full{
+    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) repeat(4,clamp(24px,5.9vw,30px)) clamp(42px,10vw,50px) clamp(34px,8.2vw,42px);
+    column-gap:clamp(4px,1.15vw,7px);
+  }
+  .standings .grid.formv,
+  .standings .row.formv,
+  .standings .thead.formv{
+    grid-template-columns:clamp(20px,5.1vw,26px) minmax(0,1fr) clamp(34px,8.2vw,42px) clamp(118px,32vw,174px);
+    column-gap:clamp(5px,1.45vw,8px);
+  }
+  .standings .row{
+    min-height:clamp(42px,10.1vw,55px);
+    height:clamp(42px,10.1vw,55px);
+    font-size:clamp(12px,3.05vw,14.5px);
+  }
+  .standings .thead{
+    font-size:clamp(8.6px,2.08vw,10.7px);
+    min-height:clamp(17px,4vw,22px);
+  }
+  .standings .tc{gap:clamp(8px,2.15vw,11px)}
+  .standings .tc .crest,
+  .standings .tc .crest[style]{--cs:clamp(21px,5.45vw,28px)}
+  .standings .tname,
+  .standings .rank,
+  .standings .num{font-size:clamp(11.8px,2.92vw,14px);font-weight:760}
+  .legend{grid-template-columns:1fr;gap:7px}
+}
+
+@media(min-width:768px) and (orientation:portrait), (min-width:900px){
+  #tblCtrl .ctrl-inner{
+    grid-template-columns:repeat(3,minmax(84px,auto)) minmax(180px,1fr) minmax(42px,max-content);
+    gap:clamp(7px,.72vw,12px);
+  }
+  .standings .grid.short,
+  .standings .row.short,
+  .standings .thead.short{
+    grid-template-columns:34px minmax(0,1fr) 54px 68px 68px;
+    column-gap:14px;
+  }
+  .standings .grid.full,
+  .standings .row.full,
+  .standings .thead.full{
+    grid-template-columns:34px minmax(0,1fr) repeat(4,48px) 78px 64px;
+    column-gap:10px;
+  }
+  .standings .grid.formv,
+  .standings .row.formv,
+  .standings .thead.formv{
+    grid-template-columns:34px minmax(0,1fr) 64px 220px;
+    column-gap:14px;
+  }
+  .standings .thead{
+    min-height:24px;
+    margin-bottom:4px;
+  }
+  .standings .tc{gap:14px}
+  .standings .tc .crest,
+  .standings .tc .crest[style]{--cs:var(--logo)}
+  .standings .fb{width:34px;height:28px;font-size:11px}
+  .standings .zone.zl{margin-top:clamp(9px,.7vw,14px)}
+  .standings .zone.zl::before{
+    left:calc(0px - var(--cp));
+    width:16px;
+    border-left-width:3px;
+    border-top-width:3px;
+    border-bottom-width:3px;
+  }
+  .standings .zlabel{
+    font-size:clamp(14px,calc(11.3333px + 0.3472vw),18px);
+    padding-left:28px;
+    padding-top:12px;
+    padding-bottom:7px;
+  }
+  .legend{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px 14px;
+    margin-top:16px;
+    padding-top:14px;
+  }
+  .rules-row{padding:16px 18px;border-radius:14px}
+}

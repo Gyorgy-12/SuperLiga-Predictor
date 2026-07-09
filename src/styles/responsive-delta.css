@@ -1,0 +1,597 @@
+/* ========================================================================== */
+/* WC26 rebuild R8 — final responsive delta / parity fixes                     */
+/* Scope: last-mile spacing, overflow guards, mobile/desktop proportions.       */
+/* Does not introduce new UI logic and does not replace module styling.         */
+/* ========================================================================== */
+
+/* Global safety rails ------------------------------------------------------- */
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  scroll-padding-top:76px;
+}
+
+body{
+  overflow-x:hidden;
+}
+
+body,
+button,
+input,
+select,
+textarea{
+  font-synthesis-weight:none;
+}
+
+img,
+svg,
+canvas,
+video{
+  max-width:100%;
+}
+
+button,
+[role="button"],
+.match-card,
+.baraj-match-card,
+.community-row,
+.sel-btn,
+.pill{
+  -webkit-tap-highlight-color:transparent;
+}
+
+.main,
+.matches-main,
+.table-main,
+.community-main,
+.baraj-main,
+.stats-main,
+.overview-main{
+  width:min(100%,1120px);
+  margin-inline:auto;
+}
+
+.card,
+.match-card,
+.stat-card,
+.community-card,
+.community-top-card,
+.baraj-hero,
+.baraj-path-card,
+.baraj-match-card,
+.modal-sheet,
+.sheet,
+.standings,
+.ko-area,
+.baraj-area{
+  min-width:0;
+}
+
+.card-title,
+.community-title,
+.community-section-title,
+.halving-title,
+.sheet-title,
+.modal-subtitle,
+.tname,
+.match-team-name,
+.community-name,
+.community-team b,
+.baraj-team span,
+.bpteam span,
+.bteam > span{
+  overflow-wrap:anywhere;
+}
+
+/* Shared horizontal controls ------------------------------------------------ */
+#tblCtrl .ctrl-inner,
+#koCtrl .kc-inner,
+.community-tabs,
+.segment-row,
+.tabs-row,
+.filter-row,
+.view-switcher{
+  scroll-behavior:smooth;
+  overscroll-behavior-x:contain;
+  scrollbar-width:none;
+}
+
+#tblCtrl .ctrl-inner::-webkit-scrollbar,
+#koCtrl .kc-inner::-webkit-scrollbar,
+.community-tabs::-webkit-scrollbar,
+.segment-row::-webkit-scrollbar,
+.tabs-row::-webkit-scrollbar,
+.filter-row::-webkit-scrollbar,
+.view-switcher::-webkit-scrollbar{
+  display:none;
+}
+
+#tblCtrl .sel-btn,
+#koCtrl .sel-btn,
+.community-tab,
+.segment-row button,
+.tabs-row button,
+.filter-row button,
+.view-switcher button{
+  touch-action:manipulation;
+  white-space:nowrap;
+}
+
+/* Crest/image last-mile normalisation --------------------------------------- */
+.crest,
+.tc .crest,
+.bteam .crest,
+.bpteam .crest,
+.baraj-team .crest,
+.community-team .crest,
+.ko-tip-team .crest,
+.ko-tip-input-team .crest,
+.modal-team .crest{
+  flex:0 0 auto;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:contain;
+}
+
+.crest img,
+.tc .crest img,
+.bteam .crest img,
+.bpteam .crest img,
+.baraj-team .crest img,
+.community-team .crest img,
+.ko-tip-team .crest img,
+.ko-tip-input-team .crest img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  display:block;
+}
+
+/* Focus polish -------------------------------------------------------------- */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.match-card:focus-visible,
+.community-row:focus-visible,
+.baraj-match-card:focus-visible{
+  outline:2px solid rgba(255,255,255,.72);
+  outline-offset:3px;
+}
+
+.modal-btn:focus-visible,
+.community-btn:focus-visible,
+.sel-btn:focus-visible,
+.pill:focus-visible{
+  outline-offset:2px;
+}
+
+/* Loading / empty states ---------------------------------------------------- */
+.empty,
+.community-empty,
+.match-empty,
+.standings-empty,
+.baraj-empty{
+  width:100%;
+  min-height:82px;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:18px;
+  border-radius:18px;
+}
+
+.loading,
+.skeleton,
+.card.is-loading{
+  position:relative;
+  overflow:hidden;
+}
+
+.loading::after,
+.skeleton::after,
+.card.is-loading::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  transform:translateX(-100%);
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+  animation:wc26DeltaShimmer 1.25s linear infinite;
+  pointer-events:none;
+}
+
+@keyframes wc26DeltaShimmer{
+  to{ transform:translateX(100%); }
+}
+
+/* Modal viewport fixes ------------------------------------------------------ */
+body.sheet-open{
+  overscroll-behavior:none;
+}
+
+.overlay,
+.tip-overlay,
+.modal-overlay,
+.ko-tip-overlay,
+.community-modal,
+.community-rename-modal{
+  overscroll-behavior:contain;
+}
+
+.sheet,
+.modal-sheet,
+.ko-tip-overlay > .sheet,
+.community-modal,
+.community-rename-modal{
+  max-width:min(100%,720px);
+}
+
+.sheet-body,
+.modal-body,
+.ko-tip-overlay .sheet-body,
+.community-preds{
+  overscroll-behavior:contain;
+}
+
+@supports (height:100dvh){
+  .overlay,
+  .tip-overlay,
+  .modal-overlay,
+  .ko-tip-overlay,
+  .community-modal,
+  .community-rename-modal{
+    min-height:100dvh;
+  }
+
+  .sheet,
+  .modal-sheet,
+  .ko-tip-overlay > .sheet{
+    max-height:calc(100dvh - 16px - env(safe-area-inset-top));
+  }
+
+  .sheet-body,
+  .modal-body,
+  .ko-tip-overlay .sheet-body{
+    max-height:calc(100dvh - 164px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
+/* Tiny phones --------------------------------------------------------------- */
+@media (max-width:370px){
+  .main,
+  .matches-main,
+  .table-main,
+  .community-main,
+  .baraj-main,
+  .stats-main,
+  .overview-main{
+    padding-inline:10px;
+  }
+
+  .card,
+  .match-card,
+  .community-card,
+  .community-top-card,
+  .baraj-hero,
+  .baraj-path-card{
+    border-radius:18px;
+  }
+
+  .card-title,
+  .community-title,
+  .baraj-hero h1,
+  .sheet-title{
+    font-size:clamp(17px,5.2vw,20px);
+    letter-spacing:-.03em;
+  }
+
+  #tblCtrl .ctrl-inner,
+  #koCtrl .kc-inner{
+    gap:6px;
+  }
+
+  #tblCtrl .sel-btn,
+  #koCtrl .sel-btn,
+  .community-tab,
+  .pill{
+    min-height:36px;
+    padding-inline:10px;
+    font-size:12px;
+  }
+
+  .standings .tc .crest[style],
+  .community-team .crest[style],
+  .baraj-team .crest[style],
+  .bpteam .crest[style],
+  .bteam .crest[style]{
+    width:24px;
+    height:24px;
+  }
+
+  .standings .tname,
+  .community-team b,
+  .baraj-team span,
+  .bpteam span,
+  .bteam > span{
+    font-size:12px;
+  }
+
+  .standings .num,
+  .standings .rank,
+  .standings .stat-badge{
+    font-size:11px;
+  }
+
+  .fstrip{
+    gap:2px;
+  }
+
+  .fb{
+    width:15px;
+    height:15px;
+    font-size:9px;
+  }
+
+  .modal-actions{
+    gap:8px;
+  }
+
+  .modal-btn{
+    min-height:42px;
+    padding-inline:12px;
+  }
+}
+
+/* Standard mobile ----------------------------------------------------------- */
+@media (max-width:520px){
+  html{
+    scroll-padding-top:64px;
+  }
+
+  .main,
+  .matches-main,
+  .table-main,
+  .community-main,
+  .baraj-main,
+  .stats-main,
+  .overview-main{
+    padding-inline:max(12px, env(safe-area-inset-left));
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .card + .card,
+  .community-card + .community-card,
+  .baraj-path-card + .baraj-path-card{
+    margin-top:12px;
+  }
+
+  .legend,
+  .rules-row,
+  .halving-list,
+  .baraj-hero-chips,
+  .community-actions,
+  .modal-actions{
+    flex-wrap:wrap;
+  }
+
+  .community-actions .community-btn,
+  .modal-actions .modal-btn{
+    flex:1 1 140px;
+  }
+
+  .match-card,
+  .baraj-match-card,
+  .community-row{
+    min-height:44px;
+  }
+
+  .baraj-match-grid,
+  .baraj-match-grid.two-leg,
+  .community-grid,
+  .community-grid-wide{
+    grid-template-columns:1fr;
+  }
+
+  .baraj-path-head,
+  .community-user,
+  .halving-meta{
+    align-items:flex-start;
+  }
+
+  .baraj-path-head,
+  .community-user,
+  .halving-meta,
+  .modal-meta{
+    gap:10px;
+  }
+
+  .sheet,
+  .modal-sheet,
+  .ko-tip-overlay > .sheet{
+    width:100%;
+    border-bottom-left-radius:0;
+    border-bottom-right-radius:0;
+  }
+
+  .sheet-x{
+    width:38px;
+    height:38px;
+  }
+
+  input.score-input,
+  .penalty-input{
+    min-height:44px;
+    font-size:18px;
+  }
+}
+
+/* Wide mobile / small tablets --------------------------------------------- */
+@media (min-width:521px) and (max-width:899px){
+  .main,
+  .matches-main,
+  .table-main,
+  .community-main,
+  .baraj-main,
+  .stats-main,
+  .overview-main{
+    padding-inline:18px;
+  }
+
+  .community-grid,
+  .community-grid-wide,
+  .baraj-match-grid.two-leg{
+    grid-template-columns:repeat(2, minmax(0,1fr));
+  }
+
+  .baraj-match-grid:not(.two-leg){
+    grid-template-columns:1fr;
+  }
+
+  .modal-sheet,
+  .ko-tip-overlay > .sheet{
+    width:min(94vw,680px);
+  }
+}
+
+/* Desktop parity ------------------------------------------------------------ */
+@media (min-width:900px){
+  html{
+    scroll-padding-top:88px;
+  }
+
+  .main,
+  .matches-main,
+  .table-main,
+  .community-main,
+  .baraj-main,
+  .stats-main,
+  .overview-main{
+    padding-inline:22px;
+    padding-bottom:34px;
+  }
+
+  .card,
+  .community-card,
+  .community-top-card,
+  .baraj-hero,
+  .baraj-path-card{
+    border-radius:26px;
+  }
+
+  .card-title,
+  .community-title,
+  .community-section-title,
+  .baraj-hero h1{
+    letter-spacing:-.035em;
+  }
+
+  .community-grid{
+    grid-template-columns:repeat(3, minmax(0,1fr));
+  }
+
+  .community-grid-wide{
+    grid-template-columns:repeat(4, minmax(0,1fr));
+  }
+
+  .baraj-match-grid.two-leg{
+    grid-template-columns:repeat(2, minmax(0,1fr));
+  }
+
+  .baraj-match-grid{
+    gap:16px;
+  }
+
+  .modal-overlay,
+  .tip-overlay,
+  .ko-tip-overlay{
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .sheet,
+  .modal-sheet,
+  .ko-tip-overlay > .sheet{
+    width:min(720px, calc(100vw - 48px));
+    border-radius:28px;
+  }
+
+  .sheet-body,
+  .modal-body,
+  .ko-tip-overlay .sheet-body{
+    padding-bottom:22px;
+  }
+}
+
+/* 15 inch laptop / common desktop sweet spot ------------------------------- */
+@media (min-width:1180px){
+  .main,
+  .matches-main,
+  .table-main,
+  .community-main,
+  .baraj-main,
+  .stats-main,
+  .overview-main{
+    width:min(100%,1180px);
+  }
+
+  .standings .row,
+  .standings .thead{
+    min-height:44px;
+  }
+
+  .baraj-match-card,
+  .community-row,
+  .match-card{
+    transition:transform .16s ease, border-color .16s ease, background .16s ease;
+  }
+
+  .baraj-match-card:hover,
+  .community-row:hover,
+  .match-card:hover{
+    transform:translateY(-1px);
+  }
+}
+
+/* Landscape phones ---------------------------------------------------------- */
+@media (max-height:520px) and (orientation:landscape){
+  .modal-overlay,
+  .tip-overlay,
+  .ko-tip-overlay,
+  .community-rename-modal{
+    align-items:flex-start;
+    padding-top:8px;
+    padding-bottom:8px;
+  }
+
+  .sheet,
+  .modal-sheet,
+  .ko-tip-overlay > .sheet{
+    max-height:calc(100vh - 16px);
+    border-radius:20px;
+  }
+
+  .sheet-body,
+  .modal-body,
+  .ko-tip-overlay .sheet-body{
+    max-height:calc(100vh - 112px);
+  }
+
+  .modal-pill,
+  .sheet::before,
+  .modal-sheet::before{
+    display:none;
+  }
+}
+
+/* Reduced motion ------------------------------------------------------------ */
+@media (prefers-reduced-motion:reduce){
+  *,
+  *::before,
+  *::after{
+    scroll-behavior:auto !important;
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}

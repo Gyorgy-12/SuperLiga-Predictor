@@ -1,12 +1,7 @@
-@import url("./00-foundation.css");
-@import url("./01-standings.css");
-@import url("./02-postseason.css");
-@import url("./03-matches.css");
-@import url("./04-overview-stats.css");
-@import url("./05-responsive-tuning.css");
-@import url("./06-predictions-export.css");
-@import url("./07-community-live-polish.css");
-@import url("./08-responsive-balance.css");
-@import url("./09-live-match-states.css");
-@import url("./10-superliga-wc26-clean-lock.css");
-@import url("./11-wc26-targeted-polish.css");
+/* WC26 rebuild R4 — clean stack. Old SuperLiga CSS imports intentionally removed. */
+@import url("./foundation.css");
+@import url("./shell-controls.css");
+@import url("./shared-primitives.css");
+@import url("./overview-stats.css");
+@import url("./matches.css");
+@import url("./standings.css");

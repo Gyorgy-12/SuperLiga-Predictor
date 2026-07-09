@@ -1,10 +1,97 @@
-/* Step 5 — postseason / baraj styles
-   Scope only: playoff/playout auxiliary postseason visuals, baraj overview cards, baraj match cards,
-   and the legacy tie-detail sheet. Shared table/match sizing stays in 01/03/10. */
+/* WC26 rebuild R5 / 06 — Playoff, Playout and Baraj module only
+   Scope: postseason table extras, halving meta, KO fallback shell, Baraj cards, Baraj match cards,
+   relegation/promotion cards and legacy tie-detail sheet.
+   No matches list, overview, stats, community, modal/tip modal or JS edits here. */
 
-/* ──────────────────────────────────────────────────────────────
-   Legacy WC26-style KO shell — kept for any compact bracket/card view
-   ────────────────────────────────────────────────────────────── */
+/* Playoff / Playout: tableHtml already uses the standings grid from 05.
+   This file only owns the postseason-specific helper blocks around those tables. */
+.main:has(.halving-meta) > .card{
+  overflow:visible;
+}
+.main:has(.halving-meta) > .card + .card{
+  margin-top:clamp(10px,2.6vw,15px);
+}
+.main:has(.halving-meta) .card-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:clamp(8px,2vw,12px);
+}
+.main:has(.halving-meta) .standings .zlabel{
+  font-size:clamp(12.6px,.84vw,16px);
+  line-height:1.26;
+  font-weight:860;
+  color:var(--muted2);
+}
+.halving-meta{
+  margin-top:clamp(10px,2.4vw,16px);
+  padding-top:clamp(9px,2vw,13px);
+  border-top:1px solid rgba(255,255,255,.06);
+  color:var(--muted2);
+  font-size:clamp(12.2px,.82vw,15.5px);
+  font-weight:760;
+  line-height:1.45;
+}
+.halving-title{
+  color:#e8edf0;
+  font-size:clamp(13px,.86vw,16.5px);
+  font-weight:900;
+  margin-bottom:clamp(5px,1vw,8px);
+}
+.halving-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:clamp(6px,1.2vw,10px) clamp(12px,2vw,18px);
+}
+.halving-list span{
+  max-width:100%;
+  white-space:nowrap;
+  color:#c5d0d7;
+}
+.halving-list b{
+  color:#e8edf0;
+  font-weight:950;
+}
+.halving-note{
+  margin-top:clamp(6px,1.2vw,9px);
+  color:var(--muted);
+  font-size:clamp(11.2px,.72vw,13.8px);
+  font-weight:720;
+}
+
+/* Control strip used by the postseason selector. Shell sizing stays in 01. */
+#koCtrl .kc-inner{
+  max-width:min(var(--page-max),calc(100vw - 2 * var(--pp)));
+}
+#koCtrl .sel-wrap{
+  flex:1 1 auto;
+  min-width:0;
+}
+#koCtrl .sel-btn{
+  width:100%;
+  min-width:0;
+}
+#koCtrl .sel-txt{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#koCtrl .expand-btn{
+  flex:0 0 auto;
+  width:clamp(36px,9.5vw,46px);
+  height:clamp(30px,8vw,38px);
+  border:0;
+  border-radius:clamp(8px,2vw,11px);
+  background:#152129;
+  color:#c9d3d9;
+  display:grid;
+  place-items:center;
+  font-size:clamp(14px,3.6vw,18px);
+  font-weight:800;
+}
+
+/* Legacy WC26-style KO shell — kept for compact bracket/fallback views. */
 .ko-area{
   background:#000;
   min-height:calc(100vh - var(--top-h) - 48px);
@@ -15,6 +102,7 @@
   align-items:stretch;
 }
 .ko-inner{
+  width:100%;
   max-width:var(--page-max);
   margin:0 auto;
   display:flex;
@@ -56,22 +144,29 @@
   align-items:start;
 }
 .bteam{
+  min-width:0;
   text-align:center;
   color:#c8d4d9;
-  font-size:clamp(9px,2.4vw,11px);
+  font-size:clamp(11.5px,calc(10.4286px + .3348vw),13px);
   font-weight:800;
   display:flex;
   flex-direction:column;
   align-items:center;
   gap:clamp(4px,1.1vw,6px);
   overflow:visible;
+  line-height:1.1;
 }
-.bteam .crest{--cs:clamp(24px,6.2vw,30px)}
-.bteam>span{
+.bteam .crest,
+.bteam .crest[style]{
+  --cs:clamp(24px,6.2vw,30px);
+}
+.bteam > span{
   line-height:1.1;
   display:block;
-  position:relative;
-  z-index:2;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 .bscore{
   text-align:center;
@@ -84,10 +179,10 @@
 }
 .bcon{
   width:2px;
+  height:clamp(18px,5vw,28px);
   background:#1e2e38;
   flex:0 0 auto;
   align-self:center;
-  height:clamp(18px,5vw,28px);
 }
 .bmatch.bfinal{
   display:flex;
@@ -110,11 +205,96 @@
   font-weight:700;
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Baraj overview — compact WC26/SofaScore rhythm, no oversized poster cards
-   ────────────────────────────────────────────────────────────── */
-.baraj-main{
-  padding-top:clamp(10px,2.6vw,14px)!important;
+/* Older compact baraj pair fallback — harmless if not rendered. */
+.baraj-area{
+  background:#000;
+  min-height:calc(100vh - var(--top-h) - 48px);
+  padding:clamp(16px,4.5vw,28px) var(--pp) 60px;
+}
+.baraj-wrap{
+  max-width:var(--page-max);
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:clamp(12px,3.5vw,24px);
+}
+.baraj-trophy{
+  font-size:clamp(40px,11vw,58px);
+  flex:0 0 auto;
+}
+.baraj-cards{
+  display:grid;
+  gap:clamp(8px,2.2vw,12px);
+  min-width:0;
+}
+.bpair{
+  appearance:none;
+  border:0;
+  width:clamp(170px,48vw,220px);
+  background:#141d24;
+  color:#dce4e8;
+  border-radius:10px;
+  padding:clamp(9px,2.4vw,12px);
+  cursor:pointer;
+  text-align:center;
+}
+.bpair-teams{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:start;
+  gap:clamp(5px,1.4vw,8px);
+}
+.bpteam{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:clamp(4px,1.1vw,6px);
+  color:#c8d4d9;
+  font-size:clamp(10.8px,2.8vw,12.5px);
+  font-weight:850;
+  line-height:1.1;
+}
+.bpteam .crest,
+.bpteam .crest[style]{
+  --cs:clamp(22px,5.8vw,28px);
+}
+.bpteam span{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.bpteam.dim{opacity:.38}
+.bpscore{
+  margin-top:clamp(6px,1.6vw,9px);
+  font-size:clamp(18px,4.7vw,24px);
+  font-weight:500;
+  color:#dce4e8;
+  letter-spacing:.05em;
+  font-variant-numeric:tabular-nums;
+}
+.baraj-foot{
+  max-width:var(--page-max);
+  margin:clamp(14px,4vw,22px) auto 0;
+  display:flex;
+  justify-content:flex-end;
+}
+.baraj-wm{
+  color:#7e8c96;
+  font-size:clamp(11px,3vw,14px);
+  font-weight:700;
+}
+
+/* Baraj overview — compact WC26/SofaScore rhythm, no poster card madness. */
+.main.baraj-main{
+  display:block;
+  width:100%;
+  max-width:var(--page-max);
+  margin-left:auto;
+  margin-right:auto;
+  padding-top:calc(clamp(10px,2.6vw,14px) + var(--ctrl-h,0px) + 12px);
 }
 .baraj-main .card,
 .baraj-hero,
@@ -127,6 +307,7 @@
   margin-bottom:clamp(9px,2.4vw,14px);
   box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.025);
 }
+.baraj-hero,
 .baraj-hero.card{
   display:flex;
   align-items:flex-start;
@@ -200,7 +381,6 @@
   white-space:nowrap;
   font-weight:850;
 }
-
 .baraj-path-card{
   position:relative;
   overflow:hidden;
@@ -282,6 +462,7 @@
   min-height:clamp(96px,11vw,122px);
   box-shadow:inset 0 0 0 1px var(--line);
   transition:background .15s ease,box-shadow .15s ease,transform .15s ease;
+  -webkit-tap-highlight-color:transparent;
 }
 .baraj-match-card:hover,
 .baraj-match-card:focus-visible{
@@ -349,7 +530,7 @@
 }
 .baraj-team .crest,
 .baraj-team .crest[style]{
-  --cs:clamp(24px,6.3vw,32px)!important;
+  --cs:clamp(24px,6.3vw,32px);
 }
 .baraj-team span{
   max-width:100%;
@@ -400,7 +581,10 @@
   color:#e8edf0;
   font-weight:850;
 }
-
+.baraj-relegated,
+.baraj-promotion{
+  overflow:hidden;
+}
 .baraj-section-title{
   display:flex;
   align-items:flex-end;
@@ -434,7 +618,7 @@
   background:#111a20;
   border:1px solid var(--line);
 }
-.baraj-relegated-tile>span{
+.baraj-relegated-tile > span{
   display:block;
   color:var(--muted);
   font-size:var(--fz-xs);
@@ -451,7 +635,7 @@
 }
 .baraj-relegated-tile .crest,
 .baraj-relegated-tile .crest[style]{
-  --cs:var(--logo)!important;
+  --cs:var(--logo);
 }
 .baraj-relegated-tile b{
   min-width:0;
@@ -468,9 +652,7 @@
   font-weight:900;
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Legacy bottom sheet for any baraj/detail fallback
-   ────────────────────────────────────────────────────────────── */
+/* Legacy bottom sheet for any old baraj/detail fallback. */
 .overlay{
   position:fixed;
   inset:0;
@@ -481,8 +663,14 @@
   justify-content:center;
   animation:fadeIn .18s ease;
 }
-html.modal-open{overflow:hidden!important}
-body.modal-open{position:fixed!important;left:0;right:0;width:100%!important;overflow:hidden!important}
+html.modal-open{overflow:hidden}
+body.modal-open{
+  position:fixed;
+  left:0;
+  right:0;
+  width:100%;
+  overflow:hidden;
+}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .sheet{
   background:#1c2730;
@@ -504,7 +692,13 @@ body.modal-open{position:fixed!important;left:0;right:0;width:100%!important;ove
   align-items:center;
   justify-content:center;
 }
-.sheet-pill{width:38px;height:4px;background:#334150;border-radius:2px;cursor:pointer}
+.sheet-pill{
+  width:38px;
+  height:4px;
+  background:#334150;
+  border-radius:2px;
+  cursor:pointer;
+}
 .sheet-x{
   position:absolute;
   right:12px;
@@ -563,8 +757,16 @@ body.modal-open{position:fixed!important;left:0;right:0;width:100%!important;ove
   font-weight:600;
   min-height:clamp(20px,5.2vw,25px);
 }
-.me-team .crest{--cs:clamp(17px,4.4vw,21px)}
-.me-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me-team .crest,
+.me-team .crest[style]{
+  --cs:clamp(17px,4.4vw,21px);
+}
+.me-name{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 .me-team.dim{opacity:.4}
 .me-score{
   display:flex;
@@ -597,7 +799,28 @@ body.modal-open{position:fixed!important;left:0;right:0;width:100%!important;ove
 }
 .sheet-verdict b{color:#dde4e8}
 
+@media (min-width:768px) and (orientation:portrait), (min-width:900px){
+  #koCtrl .expand-btn{
+    width:clamp(44px,3.6vw,54px);
+    height:clamp(36px,3vw,44px);
+  }
+  .main:has(.halving-meta) > .card + .card{
+    margin-top:clamp(13px,1.4vw,20px);
+  }
+  .baraj-main .card,
+  .baraj-hero,
+  .baraj-path-card,
+  .baraj-relegated,
+  .baraj-promotion{
+    margin-bottom:clamp(13px,1.4vw,20px);
+  }
+  .baraj-relegated-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
 @media(max-width:640px){
+  .baraj-hero,
   .baraj-hero.card{
     display:block;
   }
@@ -635,6 +858,16 @@ body.modal-open{position:fixed!important;left:0;right:0;width:100%!important;ove
   }
 }
 
+@media(max-width:420px){
+  #koCtrl .kc-inner{
+    gap:clamp(4px,1.25vw,7px);
+  }
+  #koCtrl .sel-btn{
+    padding-left:clamp(9px,2.3vw,12px);
+    padding-right:clamp(9px,2.3vw,12px);
+  }
+}
+
 @media(max-width:375px){
   .baraj-match-card{
     padding:9px 10px;
@@ -649,25 +882,26 @@ body.modal-open{position:fixed!important;left:0;right:0;width:100%!important;ove
 }
 
 @media(orientation:landscape) and (max-height:500px){
-  .ko-area{
-    padding-top:10px!important;
+  .ko-area,
+  .baraj-area{
+    padding-top:10px;
   }
   .baraj-main{
-    padding-top:8px!important;
+    padding-top:calc(8px + var(--ctrl-h,0px) + 8px);
   }
   .baraj-main .card,
   .baraj-hero,
   .baraj-path-card,
   .baraj-relegated,
   .baraj-promotion{
-    padding:9px!important;
-    margin-bottom:8px!important;
+    padding:9px;
+    margin-bottom:8px;
   }
   .baraj-match-card{
-    min-height:82px!important;
+    min-height:82px;
   }
   .baraj-team .crest,
   .baraj-team .crest[style]{
-    --cs:20px!important;
+    --cs:20px;
   }
 }
