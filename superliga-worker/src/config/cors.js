@@ -2,7 +2,7 @@ export function corsHeaders(env = {}) {
   const allowed = env.CORS_ORIGIN || '*';
   return {
     'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Admin-Secret',
     'Access-Control-Max-Age': '86400'
   };

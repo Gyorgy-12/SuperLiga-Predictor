@@ -16,11 +16,11 @@ function mergeOntoSeed(overrides = []) {
   return sortFixtures(STATIC_FIXTURES.map(f => ({ ...f, ...(byId[String(f.id)] || {}) })));
 }
 
-export async function getFixtures(env) {
-  return (await getFixturesPack(env)).fixtures;
+export async function getFixtures(env, opts = {}) {
+  return (await getFixturesPack(env, opts)).fixtures;
 }
 
-export async function getFixturesPack(env) {
+export async function getFixturesPack(env, opts = {}) {
   const publicDoc = await getDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.fixtures).catch(() => null);
   if (Array.isArray(publicDoc?.fixtures) && publicDoc.fixtures.length) {
     return {
@@ -32,7 +32,7 @@ export async function getFixturesPack(env) {
     };
   }
 
-  const durableCache = await coordinatorFixtureCache(env).catch(() => null);
+  const durableCache = opts.skipCoordinatorCache ? null : await coordinatorFixtureCache(env).catch(() => null);
   if (Array.isArray(durableCache?.fixtures) && durableCache.fixtures.length) {
     return {
       ok: true,

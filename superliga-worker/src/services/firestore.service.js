@@ -94,11 +94,114 @@ async function signJwt(env) {
   return `${unsigned}.${b64urlBytes(sig)}`;
 }
 
-async function importPrivateKey(pemLike) {
-  const pem = String(pemLike).replace(/\\n/g, '\n');
-  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----/g, '').replace(/-----END PRIVATE KEY-----/g, '').replace(/\s+/g, '');
-  const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  return crypto.subtle.importKey('pkcs8', raw.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+async function importPrivateKey(privateKeyInput) {
+  const normalized = normalizePrivateKeyInput(privateKeyInput);
+  const b64 = extractPkcs8Base64(normalized);
+
+  let raw;
+  try {
+    raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  } catch (error) {
+    throw new Error(
+      'Firebase private key is not valid PKCS8 PEM/base64. Re-save FIREBASE_PRIVATE_KEY as the service account private_key value, not the whole JSON file. ' +
+      `Details: ${error?.message || String(error)}`
+    );
+  }
+
+  return crypto.subtle.importKey(
+    'pkcs8',
+    raw.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+}
+
+function normalizePrivateKeyInput(input) {
+  let value = String(input || '').trim();
+
+  // Wrangler sometimes stores pasted strings with surrounding quotes.
+  value = stripWrappingQuotes(value).trim();
+
+  // Accept either the raw private_key value or the whole service-account JSON.
+  const parsed = tryParseJsonish(value);
+  if (parsed && typeof parsed === 'object' && parsed.private_key) {
+    value = String(parsed.private_key || '').trim();
+  } else if (typeof parsed === 'string') {
+    value = parsed.trim();
+  }
+
+  value = stripWrappingQuotes(value).trim();
+  value = value
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim();
+
+  // Accept base64 encoded full PEM as a secret too.
+  if (!value.includes('BEGIN PRIVATE KEY') && looksLikeBase64(value)) {
+    const decoded = safeAtobToString(value);
+    if (decoded && decoded.includes('BEGIN PRIVATE KEY')) {
+      value = decoded.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    }
+  }
+
+  return value;
+}
+
+function extractPkcs8Base64(value) {
+  const pem = String(value || '').trim();
+
+  if (pem.includes('BEGIN PRIVATE KEY')) {
+    return pem
+      .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+      .replace(/-----END PRIVATE KEY-----/g, '')
+      .replace(/\s+/g, '')
+      .trim();
+  }
+
+  // Accept raw PKCS8 base64 body without PEM headers.
+  return pem.replace(/\s+/g, '').trim();
+}
+
+function stripWrappingQuotes(value) {
+  let out = String(value || '').trim();
+  for (let i = 0; i < 2; i += 1) {
+    if ((out.startsWith('"') && out.endsWith('"')) || (out.startsWith("'") && out.endsWith("'"))) {
+      out = out.slice(1, -1).trim();
+    }
+  }
+  return out;
+}
+
+function tryParseJsonish(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const variants = [raw];
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    variants.push(raw.slice(1, -1));
+  }
+  for (const variant of variants) {
+    try {
+      return JSON.parse(variant);
+    } catch {}
+  }
+  return null;
+}
+
+function looksLikeBase64(value) {
+  const compact = String(value || '').replace(/\s+/g, '');
+  return compact.length > 100 && /^[A-Za-z0-9+/]+={0,2}$/.test(compact);
+}
+
+function safeAtobToString(value) {
+  try {
+    return atob(String(value || '').replace(/\s+/g, ''));
+  } catch {
+    return null;
+  }
 }
 
 function b64urlJson(obj) {

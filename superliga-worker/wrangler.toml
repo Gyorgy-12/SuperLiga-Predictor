@@ -4,18 +4,96 @@ compatibility_date = "2026-07-01"
 workers_dev = true
 
 [vars]
-ENVIRONMENT = "dev"
+ENVIRONMENT = "production"
 APP_ID = "superliga_2026_27"
 FIREBASE_PROJECT_ID = "spuerliga-predictor"
+CORS_ORIGIN = "*"
+COORDINATOR_NAME = "superliga-main"
+
+LIVE_SCORE_APP_BASE_URL = "https://prod-public-api.livescore.com/v1/api/app"
 LIVE_SCORE_BASE_URL = "https://prod-public-api.livescore.com/v1/api/app"
 SOFASCORE_BASE_URL = "https://www.sofascore.com/api/v1"
+FIXTURE_SOURCE_URL = "https://lpf.ro/etape-liga-1/{round}"
+ODDS_SOURCE_URL = ""
+
+# B31 Flashscore/Livesport GraphQL prematch 1-X-2 odds.
+# Daily 14-day scan and the -30 minute refresh both use one complete 1-X-2
+# line from a single bookmaker. No best-odds mixing across providers.
+FLASHSCORE_ODDS_API_BASE = "https://global.ds.lsapp.eu/odds/pq_graphql"
+FLASHSCORE_ODDS_MODE = "priority"
+FLASHSCORE_ODDS_PREMATCH_MODE = "priority"
+FLASHSCORE_ODDS_BOOKMAKER_IDS = "516,592,817,623,965"
+FLASHSCORE_ODDS_MAX_BOOKMAKERS = "5"
+FLASHSCORE_ODDS_MAX_FIXTURES = "24"
+FLASHSCORE_ODDS_CONCURRENCY = "4"
+FLASHSCORE_ODDS_TIMEOUT_MS = "8000"
+# B33 EloFootball Romania country ranking.
+# The source tries the current season first and automatically falls back to
+# the previous season while the new season page still says "No data available".
+ELOFOOTBALL_BASE_URL = "https://elofootball.com/country.php"
+ELOFOOTBALL_COUNTRY_ISO = "ROU"
+ELOFOOTBALL_SEASON = ""
+ELOFOOTBALL_TIMEOUT_MS = "15000"
+TRANSFERMARKT_MARKET_SOURCE_URL = ""
+
 LIVE_WRITE_TO_FIRESTORE = "false"
 FINAL_WRITE_TO_FIRESTORE = "true"
-EDGE_CACHE_SECONDS = "20"
-RESULTS_CACHE_SECONDS = "90"
-LIVE_CACHE_SECONDS = "20"
+FIXTURE_WRITE_TO_FIRESTORE = "true"
+FIXTURE_WRITE_INDIVIDUAL_DOCS = "true"
+ODDS_WRITE_TO_FIRESTORE = "true"
+RATINGS_WRITE_TO_FIRESTORE = "true"
 
-# Set these with `wrangler secret put ...`, do NOT commit secrets:
+BOOTSTRAP_CACHE_SECONDS = "20"
+FIXTURES_CACHE_SECONDS = "60"
+RESULTS_CACHE_SECONDS = "90"
+LIVE_CACHE_SECONDS = "10"
+ODDS_CACHE_SECONDS = "300"
+RATINGS_CACHE_SECONDS = "3600"
+COMMUNITY_CACHE_SECONDS = "1800"
+EDGE_CACHE_SECONDS = "20"
+BOOTSTRAP_LIVE_TIMEOUT_MS = "850"
+
+# B28 event-driven scheduler. The daily source scan is once per local day.
+SCHEDULER_TIMEZONE = "Europe/Bucharest"
+DAILY_SCAN_HOUR_LOCAL = "6"
+DAILY_SCAN_MINUTE_LOCAL = "0"
+DAILY_FIXTURE_WINDOW_DAYS = "14"
+
+# Odds are refreshed during the daily two-week scan and once more 30 minutes
+# before each match.
+PREMATCH_ODDS_MINUTES = "30"
+
+# Live source requests only exist inside each match window. Durable Object
+# alarms provide the 30-second cadence; no all-day live cron is used.
+LIVE_SYNC_START_BEFORE_MINUTES = "5"
+LIVE_SYNC_END_AFTER_MINUTES = "120"
+LIVE_SYNC_INTERVAL_SECONDS = "30"
+
+# Weekly Elo points + Transfermarkt market values refresh.
+# Wednesday at 10:00 Europe/Bucharest local time.
+# Day: 0=Sunday, 1=Monday, ... 6=Saturday.
+WEEKLY_RATINGS_ENABLED = "true"
+WEEKLY_RATINGS_DAY = "3"
+WEEKLY_RATINGS_HOUR_LOCAL = "10"
+WEEKLY_RATINGS_MINUTE_LOCAL = "0"
+
+FLASHSCORE_FIXTURE_MAX_FEEDS = "18"
+FLASHSCORE_MID_MAX_FEEDS = "18"
+
+[triggers]
+# One daily safety wake-up only. It does not necessarily fetch anything: the
+# Durable Object calculates the next exact daily/prematch/live/weekly alarm.
+crons = ["20 2 * * *"]
+
+[[durable_objects.bindings]]
+name = "UPDATE_COORDINATOR"
+class_name = "UpdateCoordinator"
+
+[[migrations]]
+tag = "v1-update-coordinator"
+new_sqlite_classes = ["UpdateCoordinator"]
+
+# Set these with `npx wrangler secret put ...`, do NOT commit secrets:
 # FIREBASE_CLIENT_EMAIL
 # FIREBASE_PRIVATE_KEY
 # ADMIN_SECRET

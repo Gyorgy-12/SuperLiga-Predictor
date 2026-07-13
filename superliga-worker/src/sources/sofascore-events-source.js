@@ -1,48 +1,57 @@
 import { normalizeLiveMatch } from '../core/normalize-live.js';
 
-const DEFAULT_SOFASCORE_BASE = 'https://www.sofascore.com/api/v1';
+const DEFAULT_SOFASCORE_BASES = [
+  'https://www.sofascore.com/api/v1',
+  'https://api.sofascore.com/api/v1'
+];
+
 const SOFASCORE_HEADERS = {
   'accept': 'application/json, text/plain, */*',
   'accept-language': 'en-US,en;q=0.9,ro;q=0.8,hu;q=0.7',
-  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36',
+  'cache-control': 'no-cache',
+  'pragma': 'no-cache',
   'referer': 'https://www.sofascore.com/football/romania/superliga/152',
   'origin': 'https://www.sofascore.com',
-  'cache-control': 'no-cache'
+  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'empty'
 };
 
 const TEAM_ALIASES = {
   'universitatea cluj': ['u cluj', 'u. cluj', 'fc universitatea cluj', 'universitatea cluj'],
   'universitatea craiova': ['u craiova', 'u. craiova', 'cs universitatea craiova', 'universitatea craiova'],
-  'farul constanta': ['farul', 'fc farul constanta', 'farul constanta', 'farul constanța'],
-  'rapid bucuresti': ['rapid', 'rapid bucuresti', 'rapid bucurești', 'fc rapid bucuresti'],
+  'farul constanta': ['farul', 'fc farul constanta', 'fcv farul constanta', 'farul constanta', 'farul constanța'],
+  'rapid bucuresti': ['rapid', 'rapid bucuresti', 'rapid bucurești', 'fc rapid bucuresti', 'fc rapid 1923'],
   'fc voluntari': ['voluntari', 'fc voluntari'],
   'fc botosani': ['botosani', 'botoșani', 'fc botosani', 'fc botoșani'],
   'otelul galati': ['otelul', 'oțelul', 'otelul galati', 'oțelul galați'],
   'petrolul ploiesti': ['petrolul', 'petrolul ploiesti', 'petrolul ploiești'],
-  'cfr cluj': ['cfr', 'cfr cluj'],
+  'cfr cluj': ['cfr', 'cfr cluj', 'cfr 1907 cluj'],
   'fcsb': ['fcsb', 'fc fcsb'],
-  'fc arges': ['arges', 'argeș', 'fc arges', 'fc argeș'],
+  'fc arges': ['arges', 'argeș', 'fc arges', 'fc argeș', 'fc arges pitesti', 'acs champions fc arges'],
   'uta arad': ['uta', 'uta arad'],
-  'dinamo': ['dinamo', 'dinamo bucuresti', 'dinamo bucurești'],
+  'dinamo': ['dinamo', 'dinamo bucuresti', 'dinamo bucurești', 'fc dinamo bucuresti'],
   'sepsi osk': ['sepsi', 'sepsi osk', 'acs sepsi osk'],
   'csikszereda': ['csikszereda', 'fk csikszereda', 'miercurea ciuc', 'csikszereda miercurea ciuc'],
   'corvinul hunedoara': ['corvinul', 'corvinul hunedoara', 'cs corvinul hunedoara']
 };
 
 /**
- * SofaScore event-master adapter.
+ * SofaScore incidents adapter.
  *
- * Main goal: enrich LiveScore score snapshots with event incidents:
- *   - scorers
- *   - yellow cards
- *   - red cards
- *   - second-yellow red cards
+ * Intended role:
+ *   - NOT score master. LiveScore should remain score/status/minute master.
+ *   - SofaScore is an optional event/incidents layer for goals + cards.
  *
- * It deliberately does not have to be the score master. If SofaScore fails,
- * LiveScore can still keep /live-results alive.
+ * Fetch strategy:
+ *   1) use existing fixture.sofascoreId/sourceIds.sofascore if present;
+ *   2) try scheduled-events by date;
+ *   3) if scheduled-events is blocked/empty, try SofaScore search endpoints per active fixture;
+ *   4) for every mapped event id, fetch /event/{id}/incidents.
  */
 export async function fetchSofaScoreEvents(env, fixtures = [], opts = {}) {
-  const base = resolveBase(env, opts);
+  const bases = resolveBases(env, opts);
   const warnings = [];
   const urls = [];
   const results = {};
@@ -52,15 +61,34 @@ export async function fetchSofaScoreEvents(env, fixtures = [], opts = {}) {
   }
 
   const targetFixtures = (fixtures || []).filter(Boolean);
-  if (!targetFixtures.length) return { ok: true, source: 'sofascore-empty-fixtures', results: {}, count: 0, matched: [], unmatched: [] };
+  if (!targetFixtures.length) {
+    return { ok: true, source: 'sofascore-empty-fixtures', results: {}, count: 0, matched: [], unmatched: [] };
+  }
 
-  const scheduledPack = await fetchScheduledEvents(base, targetFixtures, opts);
+  const explicitEvents = buildExplicitEvents(targetFixtures, opts);
+  let events = [...explicitEvents];
+
+  const scheduledPack = await fetchScheduledEvents(bases, targetFixtures, opts);
   urls.push(...scheduledPack.urls);
   warnings.push(...scheduledPack.warnings);
+  events.push(...scheduledPack.events);
+  events = dedupeEvents(events);
 
-  const mapped = mapFixturesToSofaEvents(targetFixtures, scheduledPack.events, opts);
+  let mapped = mapFixturesToSofaEvents(targetFixtures, events, opts);
+
+  const missingAfterScheduled = targetFixtures.filter(f => !mapped.has(f.id));
+  let searchPack = { events: [], urls: [], warnings: [] };
+  if (missingAfterScheduled.length && String(opts.skipSearch || env.SOFASCORE_SKIP_SEARCH || '').toLowerCase() !== 'true') {
+    searchPack = await fetchSearchEvents(bases, missingAfterScheduled, opts);
+    urls.push(...searchPack.urls);
+    warnings.push(...searchPack.warnings);
+    events = dedupeEvents([...events, ...searchPack.events]);
+    mapped = mapFixturesToSofaEvents(targetFixtures, events, opts);
+  }
+
   const matched = [];
   const unmatched = [];
+  const incidentDebug = [];
 
   for (const fixture of targetFixtures) {
     const event = mapped.get(fixture.id);
@@ -78,47 +106,81 @@ export async function fetchSofaScoreEvents(env, fixtures = [], opts = {}) {
       sofaHome: event.homeTeam,
       sofaAway: event.awayTeam,
       tournament: event.tournament || null,
+      uniqueTournamentId: event.uniqueTournamentId || null,
+      category: event.category || null,
+      origin: event.origin || null,
       status: event.status || null
     });
 
-    const incidentPack = await fetchEventIncidents(base, event.id, opts).catch(error => ({ ok: false, incidents: [], url: null, error: error?.message || String(error) }));
-    if (incidentPack.url) urls.push(incidentPack.url);
+    const skipPrematchIncidents = (opts.skipPrematchIncidents === true || opts.skipPrematchIncidents === '1')
+      && !event.started
+      && !event.finished
+      && !isStartedSofaStatus(event.status);
+    const incidentPack = skipPrematchIncidents
+      ? { ok: true, skipped: true, incidents: [], urls: [], error: null }
+      : await fetchEventIncidents(bases, event.id, opts).catch(error => ({
+          ok: false,
+          incidents: [],
+          urls: [],
+          error: error?.message || String(error)
+        }));
+    urls.push(...(incidentPack.urls || []));
+    if (incidentPack.warning) warnings.push(incidentPack.warning);
     if (incidentPack.error) warnings.push(`event ${event.id}: ${incidentPack.error}`);
+    incidentDebug.push({
+      id: fixture.id,
+      sofascoreId: event.id,
+      ok: !!incidentPack.ok,
+      skipped: !!incidentPack.skipped,
+      reason: incidentPack.skipped ? 'prematch_request_budget_guard' : null,
+      count: incidentPack.incidents?.length || 0,
+      error: incidentPack.error || null
+    });
 
     const raw = sofaEventToRaw(event, incidentPack.incidents || []);
     const hasEventData = raw.events.length || raw.scorers.length || raw.yellowCards.length || raw.redCards.length || raw.doubleYellowCards.length;
     const hasScoreData = raw.h != null || raw.a != null || raw.started || raw.finished;
 
-    // In normal sync, only return a match if it has useful incident data or can be a score fallback.
-    // In source-test?schedule=1 / scheduled=1, include mapped scheduled events as diagnostics too.
-    if (!hasEventData && !hasScoreData && !opts.includeScheduled && !opts.scheduled) continue;
+    if (!hasEventData && !hasScoreData && !opts.includeScheduled && !opts.scheduled && !opts.force) continue;
 
     const normalized = normalizeLiveMatch(
       fixture.id,
-      { ...raw, eventSource: 'sofascore', source: 'sofascore' },
+      { ...raw, eventSource: 'sofascore', source: 'sofascore-b26-budgeted' },
       fixture,
-      { eventSource: 'sofascore', source: 'sofascore' }
+      { eventSource: 'sofascore', source: 'sofascore-b26-budgeted' }
     );
     if (normalized) results[fixture.id] = normalized;
   }
 
   return {
     ok: true,
-    source: 'sofascore',
-    base,
+    source: 'sofascore-b26-budgeted',
+    bases,
     urls: [...new Set(urls)],
-    rawEventCount: scheduledPack.events.length,
+    rawEventCount: events.length,
+    scheduledRawEventCount: scheduledPack.events.length,
+    searchRawEventCount: searchPack.events.length,
     count: Object.keys(results).length,
     matched,
     unmatched: unmatched.slice(0, Number(opts.unmatchedLimit || 24)),
-    warnings: [...new Set(warnings)].slice(0, 30),
+    incidentDebug,
+    warnings: [...new Set(warnings)].slice(0, 50),
     results
   };
 }
 
-function resolveBase(env, opts = {}) {
-  const raw = opts.base || opts.sofascoreBase || env.SOFASCORE_BASE_URL || DEFAULT_SOFASCORE_BASE;
-  return String(raw || DEFAULT_SOFASCORE_BASE).replace(/\/$/, '');
+function resolveBases(env, opts = {}) {
+  const values = [];
+  if (opts.base || opts.sofascoreBase) values.push(opts.base || opts.sofascoreBase);
+  if (opts.url) values.push(opts.url);
+  if (env.SOFASCORE_BASE_URL) values.push(env.SOFASCORE_BASE_URL);
+  if (env.SOFASCORE_API_BASE_URL) values.push(env.SOFASCORE_API_BASE_URL);
+  values.push(...DEFAULT_SOFASCORE_BASES);
+  const bases = [...new Set(values.map(v => String(v || '').replace(/\/$/, '')).filter(Boolean))];
+  if (opts.singleBase === true || opts.singleBase === '1' || opts.baseOnly === true || opts.baseOnly === '1') {
+    return bases.slice(0, 1);
+  }
+  return bases;
 }
 
 function candidateDates(fixtures = [], opts = {}) {
@@ -128,49 +190,141 @@ function candidateDates(fixtures = [], opts = {}) {
     const date = String(f?.date || '').slice(0, 10);
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) dates.add(date);
   }
-  if (!dates.size) {
-    const now = new Date();
-    dates.add(now.toISOString().slice(0, 10));
-  }
+  if (!dates.size) dates.add(new Date().toISOString().slice(0, 10));
   const max = Number(opts.maxDates || opts.sofascoreMaxDates || 8);
   return [...dates].filter(Boolean).slice(0, max);
 }
 
-async function fetchScheduledEvents(base, fixtures, opts = {}) {
+function buildExplicitEvents(fixtures, opts = {}) {
+  const events = [];
+  const explicitParam = opts.eventId || opts.sofascoreId || opts.sofaScoreId;
+  const oneFixtureOnly = fixtures.length === 1 && explicitParam;
+
+  for (const fixture of fixtures) {
+    const id = oneFixtureOnly
+      ? explicitParam
+      : fixture.sofascoreId || fixture.sofaScoreId || fixture.sourceIds?.sofascore || fixture.sourceIds?.sofaScore;
+    if (!id) continue;
+    events.push({
+      id: String(id),
+      date: String(fixture.date || '').slice(0, 10) || null,
+      homeTeam: fixture.h || '',
+      awayTeam: fixture.a || '',
+      homeTeamId: null,
+      awayTeamId: null,
+      tournament: 'Liga 1',
+      category: 'Romania',
+      uniqueTournamentId: null,
+      status: 'NS',
+      h: null,
+      a: null,
+      pH: null,
+      pA: null,
+      started: false,
+      finished: false,
+      origin: 'fixture-explicit-id',
+      rawSofaEvent: null
+    });
+  }
+
+  return events;
+}
+
+async function fetchScheduledEvents(bases, fixtures, opts = {}) {
   const urls = [];
   const warnings = [];
   const events = [];
   const dates = candidateDates(fixtures, opts);
 
-  for (const date of dates) {
-    const url = `${base}/sport/football/scheduled-events/${date}`;
-    urls.push(url);
-    try {
-      const res = await fetch(url, {
-        headers: SOFASCORE_HEADERS,
-        cf: { cacheTtl: Number(opts.force ? 0 : 45), cacheEverything: false }
-      });
-      if (!res.ok) {
-        warnings.push(`${url} HTTP ${res.status}`);
+  for (const base of bases) {
+    for (const date of dates) {
+      const url = `${base}/sport/football/scheduled-events/${date}`;
+      urls.push(url);
+      const pack = await fetchJson(url, opts);
+      if (!pack.ok) {
+        warnings.push(`${url} ${pack.error}`);
         continue;
       }
-      const json = await res.json().catch(() => null);
-      if (!json) {
-        warnings.push(`${url} returned invalid JSON`);
-        continue;
-      }
-      const extracted = extractSofaEvents(json, date);
-      events.push(...extracted);
+      const extracted = extractSofaEvents(pack.json, date, 'scheduled-events');
+      events.push(...filterLikelyRomaniaLiga1(extracted, opts));
       if (!extracted.length && opts.force) warnings.push(`${url} no events extracted`);
-    } catch (error) {
-      warnings.push(`${url}: ${error?.message || String(error)}`);
     }
+    if (events.length) break;
   }
 
   return { events: dedupeEvents(events), urls, warnings };
 }
 
-function extractSofaEvents(json, fallbackDate = null) {
+async function fetchSearchEvents(bases, fixtures, opts = {}) {
+  const urls = [];
+  const warnings = [];
+  const events = [];
+  const maxQueries = Number(opts.searchLimit || opts.sofascoreSearchLimit || 12);
+  const queries = buildSearchQueries(fixtures).slice(0, maxQueries);
+
+  for (const base of bases) {
+    for (const q of queries) {
+      const paths = [
+        `/search/all?q=${encodeURIComponent(q)}`,
+        `/search/events?q=${encodeURIComponent(q)}`
+      ];
+      for (const path of paths) {
+        const url = `${base}${path}`;
+        urls.push(url);
+        const pack = await fetchJson(url, opts);
+        if (!pack.ok) {
+          warnings.push(`${url} ${pack.error}`);
+          continue;
+        }
+        const extracted = extractSofaEvents(pack.json, null, 'search');
+        events.push(...filterLikelyRomaniaLiga1(extracted, opts));
+      }
+    }
+    if (events.length) break;
+  }
+
+  return { events: dedupeEvents(events), urls, warnings };
+}
+
+function buildSearchQueries(fixtures) {
+  const queries = [];
+  for (const fixture of fixtures) {
+    const h = String(fixture.h || '').trim();
+    const a = String(fixture.a || '').trim();
+    if (h && a) queries.push(`${h} ${a}`);
+    if (h && a) queries.push(`${shortSearchName(h)} ${shortSearchName(a)}`);
+    if (h) queries.push(h);
+  }
+  return [...new Set(queries.map(q => q.replace(/\s+/g, ' ').trim()).filter(Boolean))];
+}
+
+function shortSearchName(name) {
+  const canonical = canonicalName(name);
+  const aliases = aliasesFor(canonical);
+  return aliases.sort((a, b) => a.length - b.length)[0] || name;
+}
+
+function isStartedSofaStatus(status) {
+  const value = String(status || '').toLowerCase();
+  return /inprogress|in_progress|live|first half|second half|halftime|extra time|penalties|started/.test(value);
+}
+
+async function fetchJson(url, opts = {}) {
+  try {
+    const res = await fetch(url, {
+      headers: SOFASCORE_HEADERS,
+      cf: { cacheTtl: Number(opts.force ? 0 : 30), cacheEverything: false }
+    });
+    if (!res.ok) return { ok: false, status: res.status, error: `HTTP ${res.status}` };
+    const json = await res.json().catch(() => null);
+    if (!json) return { ok: false, status: res.status, error: 'invalid JSON' };
+    return { ok: true, status: res.status, json };
+  } catch (error) {
+    return { ok: false, status: 0, error: error?.message || String(error) };
+  }
+}
+
+function extractSofaEvents(json, fallbackDate = null, origin = null) {
   const output = [];
   const queue = [json];
   const seen = new WeakSet();
@@ -181,7 +335,7 @@ function extractSofaEvents(json, fallbackDate = null) {
     if (seen.has(node)) continue;
     seen.add(node);
 
-    if (looksLikeSofaEvent(node)) output.push(normalizeSofaEvent(node, fallbackDate));
+    if (looksLikeSofaEvent(node)) output.push(normalizeSofaEvent(node, fallbackDate, origin));
 
     if (Array.isArray(node)) {
       for (const child of node) queue.push(child);
@@ -202,12 +356,12 @@ function looksLikeSofaEvent(node) {
     (node.id || node.eventId) &&
     node.homeTeam &&
     node.awayTeam &&
-    (node.homeTeam.name || node.homeTeam.shortName) &&
-    (node.awayTeam.name || node.awayTeam.shortName)
+    (node.homeTeam.name || node.homeTeam.shortName || node.homeTeam.slug) &&
+    (node.awayTeam.name || node.awayTeam.shortName || node.awayTeam.slug)
   );
 }
 
-function normalizeSofaEvent(ev, fallbackDate = null) {
+function normalizeSofaEvent(ev, fallbackDate = null, origin = null) {
   const start = ev.startTimestamp ? new Date(Number(ev.startTimestamp) * 1000) : null;
   const statusType = ev.status?.type || ev.status?.description || ev.status?.code || null;
   const statusDesc = ev.status?.description || ev.status?.type || ev.status?.code || null;
@@ -230,8 +384,20 @@ function normalizeSofaEvent(ev, fallbackDate = null) {
     pA: readSofaPenaltyScore(ev, 'away'),
     started: sofaStarted(statusType, ev),
     finished: sofaFinished(statusType, ev),
+    origin,
     rawSofaEvent: ev
   };
+}
+
+function filterLikelyRomaniaLiga1(events, opts = {}) {
+  if (opts.noTournamentFilter || opts.noSofaTournamentFilter) return events;
+  return (events || []).filter(ev => {
+    const txt = normalizeLoose(`${ev.tournament || ''} ${ev.category || ''} ${ev.uniqueTournamentId || ''}`);
+    if (String(ev.uniqueTournamentId || '') === String(opts.tournamentId || opts.uniqueTournamentId || '152')) return true;
+    if (/romania|romanian|superliga|liga 1|liga i/.test(txt)) return true;
+    // Keep search results with empty tournament metadata. Pair matching will decide later.
+    return !ev.tournament && !ev.category && !ev.uniqueTournamentId;
+  });
 }
 
 function readSofaScore(ev, side) {
@@ -278,7 +444,8 @@ function dedupeEvents(events) {
   const map = new Map();
   for (const event of events) {
     if (!event?.id) continue;
-    map.set(event.id, event);
+    const current = map.get(event.id);
+    if (!current || event.origin === 'fixture-explicit-id' || event.tournament || event.rawSofaEvent) map.set(event.id, event);
   }
   return [...map.values()];
 }
@@ -350,23 +517,27 @@ function nameScore(a, b) {
 }
 
 function aliasesFor(canonical) {
-  const base = [canonical];
+  const base = [canonical].filter(Boolean);
   for (const [key, list] of Object.entries(TEAM_ALIASES)) {
-    const normKey = canonicalName(key);
-    const normalizedList = list.map(canonicalName);
+    const normKey = canonicalNameRaw(key);
+    const normalizedList = list.map(canonicalNameRaw);
     if (canonical === normKey || normalizedList.includes(canonical)) return [...new Set([normKey, ...normalizedList])];
   }
   return base;
 }
 
 function canonicalName(value) {
-  const norm = normalizeLoose(value);
+  const norm = canonicalNameRaw(value);
   for (const [key, list] of Object.entries(TEAM_ALIASES)) {
-    const normKey = normalizeLoose(key);
-    const normalizedList = list.map(normalizeLoose);
+    const normKey = canonicalNameRaw(key);
+    const normalizedList = list.map(canonicalNameRaw);
     if (norm === normKey || normalizedList.includes(norm)) return normKey;
   }
   return norm;
+}
+
+function canonicalNameRaw(value) {
+  return normalizeLoose(value);
 }
 
 function normalizeLoose(value) {
@@ -380,26 +551,39 @@ function normalizeLoose(value) {
     .replace(/â/g, 'a')
     .replace(/î/g, 'i')
     .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\b(fc|sc|acs|as|clubul|club|fotbal|fotbalistic|sportiv|cs|csm)\b/g, ' ')
+    .replace(/\b(fc|sc|acs|as|clubul|club|fotbal|fotbalistic|sportiv|cs|csm|osk|afc)\b/g, ' ')
+    .replace(/\b(1923|1948|2013|52)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-async function fetchEventIncidents(base, eventId, opts = {}) {
-  if (!eventId) return { ok: false, incidents: [], error: 'missing event id' };
-  const url = `${base}/event/${eventId}/incidents`;
-  const res = await fetch(url, {
-    headers: SOFASCORE_HEADERS,
-    cf: { cacheTtl: Number(opts.force ? 0 : 15), cacheEverything: false }
-  });
-  if (!res.ok) return { ok: false, incidents: [], url, error: `HTTP ${res.status}` };
-  const json = await res.json().catch(() => null);
-  const incidents = json?.incidents || json?.data?.incidents || [];
-  return { ok: true, url, incidents: Array.isArray(incidents) ? incidents : [] };
+async function fetchEventIncidents(bases, eventId, opts = {}) {
+  if (!eventId) return { ok: false, incidents: [], urls: [], error: 'missing event id' };
+  const urls = [];
+  const warnings = [];
+
+  for (const base of bases) {
+    const url = `${base}/event/${eventId}/incidents`;
+    urls.push(url);
+    const pack = await fetchJson(url, opts);
+    if (!pack.ok) {
+      warnings.push(`${url} ${pack.error}`);
+      continue;
+    }
+    const incidents = pack.json?.incidents || pack.json?.data?.incidents || [];
+    return {
+      ok: true,
+      urls,
+      incidents: Array.isArray(incidents) ? incidents : [],
+      warning: warnings.length ? warnings.join(' | ') : null
+    };
+  }
+
+  return { ok: false, incidents: [], urls, error: warnings.join(' | ') || 'all incident endpoints failed' };
 }
 
 function sofaEventToRaw(event, incidents = []) {
-  const parsed = incidentsToRaw(incidents);
+  const parsed = incidentsToRaw(incidents, event);
   return {
     h: event.h,
     a: event.a,
@@ -417,7 +601,7 @@ function sofaEventToRaw(event, incidents = []) {
   };
 }
 
-function incidentsToRaw(incidents = []) {
+function incidentsToRaw(incidents = [], event = null) {
   const events = [];
   const scorers = [];
   const yellowCards = [];
@@ -430,7 +614,7 @@ function incidentsToRaw(incidents = []) {
     const incidentClass = lower(item.incidentClass || item.class || item.cardType || item.reason || item.description || item.text);
     const player = readIncidentPlayer(item);
     const minute = readIncidentMinute(item);
-    const team = item.isHome === false ? 'a' : 'h';
+    const team = readIncidentTeam(item, event);
     const base = { team, minute, player };
 
     if (isGoalIncident(incidentType, incidentClass, item)) {
@@ -467,8 +651,19 @@ function lower(value) {
   return String(value || '').toLowerCase();
 }
 
+function readIncidentTeam(item, event) {
+  if (item.isHome === true) return 'h';
+  if (item.isHome === false) return 'a';
+  const teamId = item.team?.id || item.player?.team?.id || item.teamId;
+  if (teamId && event?.homeTeamId && String(teamId) === String(event.homeTeamId)) return 'h';
+  if (teamId && event?.awayTeamId && String(teamId) === String(event.awayTeamId)) return 'a';
+  const side = lower(item.homeAway || item.side || item.teamSide);
+  if (side.includes('away')) return 'a';
+  return 'h';
+}
+
 function readIncidentPlayer(item) {
-  return item.player?.name || item.player?.shortName || item.playerName || item.name || item.person?.name || '';
+  return item.player?.name || item.player?.shortName || item.playerName || item.name || item.person?.name || item.assist1?.name || '';
 }
 
 function readIncidentMinute(item) {
@@ -496,7 +691,7 @@ function isCardIncident(type, klass, item) {
 }
 
 function isSecondYellow(type, klass, item) {
-  return klass.includes('yellowred') || klass.includes('yellow red') || klass.includes('second') || type.includes('yellowred') || item.cardType === 'yellowRed' || item.secondYellow;
+  return klass.includes('yellowred') || klass.includes('yellow red') || klass.includes('second') || type.includes('yellowred') || item.cardType === 'yellowRed' || item.cardType === 'yellow-red' || item.secondYellow;
 }
 
 function isRedCard(type, klass, item) {

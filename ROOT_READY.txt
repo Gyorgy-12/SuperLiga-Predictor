@@ -1,2 +1,0 @@
-Extract these files directly into the SuperLiga-Predictor repository root.
-The frontend entry is ./index.html and the Cloudflare Worker is ./superliga-worker/.

@@ -4,7 +4,7 @@ import { getFixtures } from './fixtures.service.js';
 import { fetchFixtureRefresh } from '../sources/fixture-refresh-source.js';
 
 export async function refreshFixtures(env, opts = {}) {
-  const current = await getFixtures(env);
+  const current = await getFixtures(env, { skipCoordinatorCache: true });
   const pack = await fetchFixtureRefresh(env, current, opts);
   if (!pack.ok) return { ...pack, written: false };
 
