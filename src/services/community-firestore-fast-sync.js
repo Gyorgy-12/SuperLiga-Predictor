@@ -1,21 +1,21 @@
-// SuperLiga Predictor F2 — eager Firebase auth, reliable dual Firestore save,
-// cached one-shot community preload and deduplicated realtime refresh.
+// SuperLiga Predictor F7 — strict Firestore user storage, cross-device restore,
+// community cache and deduplicated dual writes.
 //
 // Load this classic script immediately AFTER community-firebase.js.
 
-(function superligaFirestoreFastSyncF2(){
+(function superligaFirestoreStrictSyncF7(){
   'use strict';
 
-  const VERSION='f2-firestore-fast-sync';
-  const COMMUNITY_CACHE_KEY='superliga_community_cache_f2';
+  const VERSION='f7-firestore-strict-cross-device';
+  const COMMUNITY_CACHE_KEY='superliga_community_cache_f7';
   const COMMUNITY_CACHE_TTL_MS=Math.max(
     Number(typeof SUPERLIGA_COMMUNITY_TTL_MS!=='undefined'?SUPERLIGA_COMMUNITY_TTL_MS:0)||0,
     2*60*1000
   );
   const COMMUNITY_LIMIT=80;
   const AUTOSAVE_DELAY_MS=Math.min(
-    Number(typeof SUPERLIGA_AUTOSAVE_MS!=='undefined'?SUPERLIGA_AUTOSAVE_MS:800)||800,
-    800
+    Number(typeof SUPERLIGA_AUTOSAVE_MS!=='undefined'?SUPERLIGA_AUTOSAVE_MS:350)||350,
+    350
   );
 
   let authResolved=false;
@@ -31,6 +31,9 @@
   let savedEditVersion=0;
   let communityDataHash='';
   let communityCacheRestored=false;
+  let pendingMigrationSnapshot=null;
+  let authGeneration=0;
+  const originalSavePredRef=typeof savePred==='function'?savePred:null;
 
   const debug=window.SUPERLIGA_FIRESTORE_SYNC_DEBUG={
     version:VERSION,
@@ -53,6 +56,11 @@
     communityCount:0,
     communitySource:null,
     communityListener:false,
+    storageMode:'auth-pending-memory',
+    migrationSource:null,
+    privateReadError:null,
+    communityReadError:null,
+    localPredictionKeysPresent:false,
     error:null
   };
 
@@ -70,6 +78,7 @@
     debug.ownTipsLoadFailed=!!superligaOwnTipsLoadFailed;
     debug.communityCount=Array.isArray(superligaCommunityItems)?superligaCommunityItems.length:0;
     debug.communityListener=!!superligaCommunityUnsub;
+    debug.localPredictionKeysPresent=predictionLocalKeysPresent();
   }
 
   function safeRenderCommunity(){
@@ -102,6 +111,84 @@
       ko:{...(remote&&remote.ko||{}),...(local&&local.ko||{})}
     };
   }
+
+
+  function currentMemorySnapshot(){
+    return {
+      pred:superligaCleanTips(typeof PRED!=='undefined'?PRED:{}),
+      ko:superligaCleanTips(typeof KO_PRED!=='undefined'?KO_PRED:{})
+    };
+  }
+
+  function readLocalSnapshot(){
+    try{
+      const local=superligaReadLocalPreds();
+      return {
+        pred:superligaCleanTips(local&&local.pred),
+        ko:superligaCleanTips(local&&local.ko)
+      };
+    }catch(_e){
+      return {pred:{},ko:{}};
+    }
+  }
+
+  function payloadHasTips(payload){
+    return !!(
+      payload &&
+      (
+        superligaHasTips(payload.pred||{}) ||
+        superligaHasTips(payload.ko||{})
+      )
+    );
+  }
+
+  function predictionLocalKeys(){
+    const keys=[];
+    try{
+      if(typeof SUPERLIGA_CACHE_KEYS!=='undefined'){
+        [
+          SUPERLIGA_CACHE_KEYS.predictions,
+          SUPERLIGA_CACHE_KEYS.postseason,
+          SUPERLIGA_CACHE_KEYS.legacyPredictions,
+          SUPERLIGA_CACHE_KEYS.legacyPostseason
+        ].filter(Boolean).forEach(key=>keys.push(String(key)));
+      }
+    }catch(_e){}
+    [
+      'superliga_predictions_v2',
+      'superliga_postseason_predictions_v2',
+      'superliga_predictions_v1',
+      'superliga_postseason_predictions_v1'
+    ].forEach(key=>{
+      if(!keys.includes(key))keys.push(key);
+    });
+    return keys;
+  }
+
+  function predictionLocalKeysPresent(){
+    try{
+      return predictionLocalKeys().some(key=>localStorage.getItem(key)!=null);
+    }catch(_e){
+      return false;
+    }
+  }
+
+  function clearPredictionLocalState(){
+    try{superligaClearLocalPreds()}catch(_e){}
+    try{
+      predictionLocalKeys().forEach(key=>localStorage.removeItem(key));
+    }catch(_e){}
+  }
+
+  function settledDoc(result){
+    return result&&result.status==='fulfilled'?result.value:null;
+  }
+
+  function settledError(result){
+    return result&&result.status==='rejected'?errText(result.reason):null;
+  }
+
+  pendingMigrationSnapshot=mergeTips(readLocalSnapshot(),currentMemorySnapshot());
 
   function timestampMs(value){
     try{
@@ -216,7 +303,7 @@
   }
 
   // Faster SDK startup: app first, then auth + Firestore in parallel.
-  loadSuperligaFirebase=async function loadSuperligaFirebaseF2(opts={}){
+  loadSuperligaFirebase=async function loadSuperligaFirebaseF7(opts={}){
     if(FROZEN_MODE||!superligaFirebaseConfigured())return false;
     if(!superligaFirebaseRuntimeOk()){
       superligaBackendError='A Firebase bejelentkezés és közösségi szinkron csak http/https alatt működik.';
@@ -235,8 +322,8 @@
           const base='https://www.gstatic.com/firebasejs/'+v+'/';
           await superligaLoadScript(base+'firebase-app-compat.js');
           await Promise.all([
-            firebase.auth?Promise.resolve():superligaLoadScript(base+'firebase-auth-compat.js'),
-            firebase.firestore?Promise.resolve():superligaLoadScript(base+'firebase-firestore-compat.js')
+            window.firebase&&firebase.auth?Promise.resolve():superligaLoadScript(base+'firebase-auth-compat.js'),
+            window.firebase&&firebase.firestore?Promise.resolve():superligaLoadScript(base+'firebase-firestore-compat.js')
           ]);
           initSuperligaFirebase();
           updateDebug({firebaseReady:true,error:null});
@@ -254,9 +341,12 @@
     return ok;
   };
 
-  loadOwnTipsFromFirebase=async function loadOwnTipsFromFirebaseF2(){
+  loadOwnTipsFromFirebase=async function loadOwnTipsFromFirebaseF7(){
     if(!superligaDb||!superligaUser)return false;
     if(ownLoadPromise)return ownLoadPromise;
+
+    const generation=authGeneration;
+    const uid=superligaUser.uid;
 
     ownLoadPromise=(async()=>{
       hydratingOwnTips=true;
@@ -264,58 +354,91 @@
       superligaOwnTipsLoadFailed=false;
       updateDebug({hydratingOwnTips:true,error:null});
 
-      const editsBeforeLoad=localEditVersion;
-      const inMemory={
-        pred:superligaCleanTips(PRED),
-        ko:superligaCleanTips(KO_PRED)
-      };
+      const memoryAtStart=currentMemorySnapshot();
+      const hadUnsavedMemory=localEditVersion>savedEditVersion;
 
       try{
-        const uid=superligaUser.uid;
         const privateRef=superligaDb.collection(SUPERLIGA_COLLECTIONS.privatePredictions).doc(uid);
         const communityRef=superligaDb.collection(SUPERLIGA_COLLECTIONS.community).doc(uid);
 
-        let doc=await privateRef.get();
-        let source='private';
-        if(!doc.exists){
-          doc=await communityRef.get();
-          source=doc.exists?'community-legacy':'none';
+        const [privateResult,communityResult]=await Promise.allSettled([
+          privateRef.get(),
+          communityRef.get()
+        ]);
+
+        if(generation!==authGeneration||!superligaUser||superligaUser.uid!==uid)return false;
+
+        const privateDoc=settledDoc(privateResult);
+        const communityDoc=settledDoc(communityResult);
+        const privateError=settledError(privateResult);
+        const communityError=settledError(communityResult);
+
+        let source='none';
+        let doc=null;
+
+        if(privateDoc&&privateDoc.exists){
+          source='private';
+          doc=privateDoc;
+        }else if(communityDoc&&communityDoc.exists){
+          source='community-fallback';
+          doc=communityDoc;
         }
 
-        let remote={pred:{},ko:{}};
-        if(doc.exists)remote=cleanPayloadFromDoc(doc.data()||{});
+        let next=doc?cleanPayloadFromDoc(doc.data()||{}):{pred:{},ko:{}};
+        let mustPublish=false;
+        let migrationSource=null;
 
-        const editedWhileAuthPending=editsBeforeLoad>0;
-        const next=editedWhileAuthPending?mergeTips(remote,inMemory):remote;
+        if(!doc&&payloadHasTips(pendingMigrationSnapshot)){
+          next=mergeTips(next,pendingMigrationSnapshot);
+          mustPublish=true;
+          migrationSource='legacy-local-to-firestore';
+        }
+
+        if(hadUnsavedMemory){
+          next=mergeTips(next,memoryAtStart);
+          mustPublish=true;
+          migrationSource=migrationSource||'auth-pending-memory';
+        }
+
+        if(source==='community-fallback'){
+          mustPublish=true;
+          migrationSource=migrationSource||'community-to-private';
+        }
 
         PRED=superligaCleanTips(next.pred);
         KO_PRED=superligaCleanTips(next.ko);
-        superligaClearLocalPreds();
 
-        superligaRemoteDocExists=doc.exists;
+        // Once Firebase confirms a logged-in user, prediction localStorage is forbidden.
+        clearPredictionLocalState();
+
+        superligaRemoteDocExists=!!doc;
         superligaOwnTipsLoaded=true;
         superligaOwnTipsLoadFailed=false;
-        superligaLastPublishedHash=editedWhileAuthPending?'':superligaTipsHash();
+        superligaLastPublishedHash=mustPublish?'':superligaTipsHash();
 
         updateDebug({
           privateReadSource:source,
+          privateReadError:privateError,
+          communityReadError:communityError,
+          migrationSource,
+          storageMode:'firestore-user',
           ownTipsLoaded:true,
           ownTipsLoadFailed:false,
-          error:null
+          error:(!doc&&privateError&&communityError)
+            ?'Mindkét Firestore tippolvasás sikertelen volt.'
+            :null
         });
-        safeRequestRender('own-tips-f2');
 
-        // Migrate the old community-only document to the private collection,
-        // or persist tips entered while auth was resolving.
-        if(source==='community-legacy'||editedWhileAuthPending){
-          queueCommunityAutosave();
-        }
-        return doc.exists;
+        safeRequestRender('own-tips-f7');
+
+        if(mustPublish)queueCommunityAutosave();
+        return !!doc;
       }catch(error){
         superligaOwnTipsLoadFailed=true;
         superligaBackendError=errText(error);
         updateDebug({
           ownTipsLoadFailed:true,
+          storageMode:'firestore-user',
           error:superligaBackendError
         });
         return false;
@@ -329,33 +452,58 @@
     return ownLoadPromise;
   };
 
-  handleSuperligaAuthState=async function handleSuperligaAuthStateF2(user){
+  handleSuperligaAuthState=async function handleSuperligaAuthStateF7(user){
+    authGeneration++;
     superligaUser=user||null;
     superligaOwnTipsLoaded=false;
     superligaOwnTipsLoadFailed=false;
     superligaRemoteDocExists=false;
     authResolved=true;
+
     if(authResolve){
       authResolve(superligaUser);
       authResolve=null;
     }
-    updateDebug({authResolved:true,uid:superligaUser&&superligaUser.uid||null});
+
+    updateDebug({
+      authResolved:true,
+      uid:superligaUser&&superligaUser.uid||null
+    });
 
     try{
       if(superligaUser){
-        superligaClearLocalPreds();
+        // Capture any old guest/local tips once, then immediately remove all
+        // prediction keys. Logged-in operation is Firestore-only.
+        pendingMigrationSnapshot=mergeTips(
+          pendingMigrationSnapshot||{pred:{},ko:{}},
+          mergeTips(readLocalSnapshot(),currentMemorySnapshot())
+        );
+        clearPredictionLocalState();
+
         await Promise.allSettled([
           saveSuperligaUserProfile(superligaUser),
           loadOwnTipsFromFirebase()
         ]);
+
         if(localEditVersion>savedEditVersion)queueCommunityAutosave();
       }else{
+        // Auth is resolved as guest. Only guests may use localStorage.
+        if(localEditVersion>savedEditVersion&&originalSavePredRef){
+          originalSavePredRef();
+          savedEditVersion=localEditVersion;
+        }
+
         const local=superligaReadLocalPreds();
         PRED=superligaCleanTips(local.pred);
         KO_PRED=superligaCleanTips(local.ko);
         superligaOwnTipsLoaded=true;
         superligaLastPublishedHash='';
-        safeRequestRender('auth-guest-f2');
+        updateDebug({
+          storageMode:'guest-local',
+          migrationSource:null,
+          error:null
+        });
+        safeRequestRender('auth-guest-f7');
       }
 
       if(superligaCommunityActive){
@@ -376,23 +524,28 @@
     }
   };
 
-  const originalSavePred=typeof savePred==='function'?savePred:null;
-  if(originalSavePred){
-    savePred=function savePredF2(){
+  if(originalSavePredRef){
+    savePred=function savePredF7(){
       if(FROZEN_MODE)return;
       localEditVersion++;
 
-      const firebaseExpected=superligaFirebaseConfigured()&&superligaFirebaseRuntimeOk();
-      if(firebaseExpected&&(!authResolved||superligaUser)){
-        if(superligaUser)superligaClearLocalPreds();
-        queueCommunityAutosave();
-        return;
+      if(authResolved&&!superligaUser){
+        const result=originalSavePredRef.apply(this,arguments);
+        savedEditVersion=localEditVersion;
+        updateDebug({storageMode:'guest-local'});
+        return result;
       }
-      return originalSavePred.apply(this,arguments);
+
+      // Auth-pending edits stay only in memory. Logged-in edits go only to Firestore.
+      clearPredictionLocalState();
+      updateDebug({
+        storageMode:superligaUser?'firestore-user':'auth-pending-memory'
+      });
+      queueCommunityAutosave();
     };
   }
 
-  queueCommunityAutosave=function queueCommunityAutosaveF2(){
+  queueCommunityAutosave=function queueCommunityAutosaveF7(){
     if(FROZEN_MODE||READONLY_MODE)return;
     publishDirty=true;
     clearTimeout(superligaAutosaveTimer);
@@ -408,7 +561,7 @@
     },AUTOSAVE_DELAY_MS);
   };
 
-  publishCommunityTips=async function publishCommunityTipsF2(silent,opts={}){
+  publishCommunityTips=async function publishCommunityTipsF7(silent,opts={}){
     if(FROZEN_MODE||READONLY_MODE)return false;
     if(!(await ensureFirebaseUser()))return false;
 
@@ -450,7 +603,7 @@
         ko:payload.ko,
         updatedAt:serverTime,
         version:5,
-        storage:'firebase-private-f2'
+        storage:'firebase-private-f7'
       };
       const communityData={
         uid,
@@ -461,7 +614,7 @@
         summary:communitySummary(payload.pred,payload.ko),
         updatedAt:serverTime,
         version:5,
-        storage:'firebase-community-f2'
+        storage:'firebase-community-f7'
       };
 
       const [privateWrite,communityWrite]=await Promise.allSettled([
@@ -499,10 +652,13 @@
         updateDebug({error:null});
       }
 
-      superligaRemoteDocExists=communityOk||superligaRemoteDocExists;
+      superligaRemoteDocExists=privateOk||communityOk||superligaRemoteDocExists;
       superligaOwnTipsLoaded=true;
       superligaLastPublishedHash=hash;
       savedEditVersion=Math.max(savedEditVersion,editVersionAtStart);
+      pendingMigrationSnapshot={pred:{},ko:{}};
+      clearPredictionLocalState();
+      updateDebug({storageMode:'firestore-user'});
 
       if(communityOk)upsertOwnCommunityItem({
         ...communityData,
@@ -525,7 +681,7 @@
     return publishInFlight;
   };
 
-  loadCommunityTips=async function loadCommunityTipsF2(opts={}){
+  loadCommunityTips=async function loadCommunityTipsF7(opts={}){
     if(!superligaDb){
       restoreCommunityCache();
       return false;
@@ -569,7 +725,7 @@
     return communityLoadInFlight;
   };
 
-  listenCommunityTips=function listenCommunityTipsF2(){
+  listenCommunityTips=function listenCommunityTipsF7(){
     if(!superligaDb||superligaCommunityUnsub)return;
     clearTimeout(communityListenTimer);
 
@@ -598,14 +754,14 @@
   };
 
   const originalStopCommunityTips=stopCommunityTips;
-  stopCommunityTips=function stopCommunityTipsF2(){
+  stopCommunityTips=function stopCommunityTipsF7(){
     clearTimeout(communityListenTimer);
     communityListenTimer=null;
     originalStopCommunityTips();
     updateDebug({communityListener:false});
   };
 
-  setCommunityActive=function setCommunityActiveF2(active){
+  setCommunityActive=function setCommunityActiveF7(active){
     superligaCommunityActive=!!active;
     restoreCommunityCache();
 
