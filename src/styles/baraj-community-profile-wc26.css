@@ -705,3 +705,470 @@
     --cs:22px!important;
   }
 }
+/* ═══════════════════════════════════════════════════════════════
+   F4 FINAL SIZING
+   - Baraj: fully clamped desktop/mobile scale and balanced layout
+   - Community profile: exact current WC26 modal sizing
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Baraj container and section rhythm ─────────────────────── */
+
+.baraj-main{
+  width:100%!important;
+  max-width:clamp(760px,78vw,1280px)!important;
+  margin-inline:auto!important;
+  padding:
+    clamp(8px,1vw,14px)
+    clamp(10px,1.25vw,18px)
+    clamp(52px,5vw,78px)!important;
+}
+
+.baraj-main .baraj-hero.card,
+.baraj-main .baraj-lock-card,
+.baraj-main .baraj-path-card,
+.baraj-main .baraj-relegated,
+.baraj-main .baraj-promotion{
+  width:100%!important;
+  margin-inline:auto!important;
+}
+
+.baraj-main .baraj-hero.card{
+  padding:
+    clamp(13px,1.25vw,19px)
+    clamp(14px,1.5vw,22px)!important;
+  margin-bottom:clamp(8px,.85vw,13px)!important;
+  border-radius:clamp(12px,1vw,17px)!important;
+}
+
+.baraj-main .baraj-hero h1{
+  font-size:clamp(20px,1.5vw,29px)!important;
+  line-height:1.08!important;
+}
+
+.baraj-main .baraj-hero p{
+  margin-top:clamp(5px,.42vw,8px)!important;
+  font-size:clamp(12px,.82vw,15px)!important;
+  line-height:1.42!important;
+}
+
+.baraj-main .baraj-lock-card{
+  display:flex!important;
+  align-items:center!important;
+  gap:clamp(6px,.55vw,10px)!important;
+  min-height:clamp(38px,3vw,50px)!important;
+  padding:
+    clamp(8px,.75vw,12px)
+    clamp(12px,1.2vw,18px)!important;
+  margin-bottom:clamp(8px,.85vw,13px)!important;
+  border-radius:clamp(11px,.9vw,16px)!important;
+  font-size:clamp(11.5px,.78vw,14px)!important;
+}
+
+.baraj-main .baraj-lock-card b{
+  font-size:clamp(12px,.82vw,14.5px)!important;
+  flex:0 0 auto!important;
+}
+
+.baraj-main .baraj-lock-card b::after{
+  content:" ";
+  white-space:pre;
+}
+
+.baraj-main .baraj-path-card{
+  padding:
+    clamp(14px,1.35vw,21px)
+    clamp(14px,1.5vw,22px)
+    clamp(16px,1.55vw,24px)!important;
+  margin-bottom:clamp(9px,.95vw,15px)!important;
+  border-radius:clamp(13px,1.05vw,18px)!important;
+}
+
+.baraj-main .baraj-path-head{
+  margin-bottom:clamp(9px,.85vw,13px)!important;
+}
+
+.baraj-main .baraj-path-head h2,
+.baraj-main .baraj-section-title h2{
+  font-size:clamp(19px,1.45vw,28px)!important;
+  line-height:1.1!important;
+  letter-spacing:-.015em!important;
+}
+
+.baraj-main .baraj-path-head p,
+.baraj-main .baraj-section-title p{
+  margin-top:clamp(4px,.38vw,7px)!important;
+  font-size:clamp(11.5px,.8vw,14.5px)!important;
+  line-height:1.42!important;
+}
+
+.baraj-main .baraj-match-grid,
+.baraj-main .baraj-match-grid.two-leg{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:clamp(8px,.8vw,13px)!important;
+  margin-top:clamp(9px,.85vw,14px)!important;
+}
+
+.baraj-main .baraj-match-card{
+  min-width:0!important;
+  min-height:clamp(132px,9.6vw,172px)!important;
+  padding:
+    clamp(11px,1vw,15px)
+    clamp(12px,1.15vw,18px)!important;
+  border-radius:clamp(10px,.8vw,14px)!important;
+}
+
+.baraj-main .baraj-match-top,
+.baraj-main .baraj-match-bottom{
+  min-height:clamp(15px,1.15vw,20px)!important;
+  font-size:clamp(10.5px,.72vw,13px)!important;
+  line-height:1.25!important;
+  gap:clamp(6px,.55vw,10px)!important;
+}
+
+.baraj-main .baraj-match-body{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) clamp(52px,4.5vw,72px) minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:clamp(7px,.8vw,13px)!important;
+  min-height:clamp(72px,5.5vw,98px)!important;
+  padding:clamp(8px,.8vw,13px) 0!important;
+}
+
+.baraj-main .baraj-team{
+  min-width:0!important;
+  gap:clamp(5px,.45vw,8px)!important;
+}
+
+.baraj-main .baraj-team .crest,
+.baraj-main .baraj-team .crest[style]{
+  --cs:clamp(29px,2.35vw,42px)!important;
+  width:var(--cs)!important;
+  height:var(--cs)!important;
+  min-width:var(--cs)!important;
+  max-width:var(--cs)!important;
+  flex-basis:var(--cs)!important;
+}
+
+.baraj-main .baraj-team-name,
+.baraj-main .baraj-team span{
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:clamp(12px,.92vw,17px)!important;
+  line-height:1.15!important;
+  font-weight:850!important;
+}
+
+.baraj-main .baraj-score{
+  min-width:clamp(50px,4.3vw,70px)!important;
+  min-height:clamp(42px,3.6vw,58px)!important;
+  border-radius:clamp(8px,.65vw,11px)!important;
+  font-size:clamp(19px,1.55vw,29px)!important;
+  line-height:1!important;
+}
+
+.baraj-main .baraj-aggregate{
+  margin-top:clamp(7px,.7vw,11px)!important;
+  padding-top:clamp(7px,.7vw,11px)!important;
+  font-size:clamp(10.5px,.7vw,12.5px)!important;
+  line-height:1.35!important;
+}
+
+.baraj-main .baraj-relegated,
+.baraj-main .baraj-promotion{
+  padding:
+    clamp(14px,1.35vw,21px)
+    clamp(14px,1.5vw,22px)!important;
+  border-radius:clamp(13px,1.05vw,18px)!important;
+}
+
+.baraj-main .baraj-relegated-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:clamp(8px,.8vw,13px)!important;
+  margin-top:clamp(9px,.85vw,14px)!important;
+}
+
+.baraj-main .baraj-relegated-tile{
+  min-height:clamp(76px,5.6vw,104px)!important;
+  padding:clamp(10px,.9vw,14px)!important;
+  border-radius:clamp(10px,.8vw,14px)!important;
+}
+
+.baraj-main .baraj-relegated-tile .crest,
+.baraj-main .baraj-relegated-tile .crest[style]{
+  --cs:clamp(27px,2.2vw,39px)!important;
+}
+
+.baraj-main .baraj-relegated-tile span{
+  font-size:clamp(11.5px,.85vw,15.5px)!important;
+  line-height:1.18!important;
+}
+
+@media(max-width:760px){
+  .baraj-main{
+    max-width:none!important;
+    padding:
+      clamp(7px,2vw,10px)
+      clamp(8px,2.5vw,12px)
+      clamp(48px,12vw,68px)!important;
+  }
+
+  .baraj-main .baraj-match-grid,
+  .baraj-main .baraj-match-grid.two-leg,
+  .baraj-main .baraj-relegated-grid{
+    grid-template-columns:1fr!important;
+  }
+
+  .baraj-main .baraj-match-card{
+    min-height:clamp(126px,32vw,154px)!important;
+  }
+
+  .baraj-main .baraj-match-body{
+    grid-template-columns:minmax(0,1fr) clamp(48px,14vw,62px) minmax(0,1fr)!important;
+    min-height:clamp(70px,19vw,88px)!important;
+  }
+
+  .baraj-main .baraj-team .crest,
+  .baraj-main .baraj-team .crest[style]{
+    --cs:clamp(27px,8vw,35px)!important;
+  }
+
+  .baraj-main .baraj-team-name,
+  .baraj-main .baraj-team span{
+    font-size:clamp(11.5px,3.3vw,14.5px)!important;
+  }
+
+  .baraj-main .baraj-score{
+    min-width:clamp(46px,13vw,58px)!important;
+    min-height:clamp(40px,11vw,50px)!important;
+    font-size:clamp(18px,5.3vw,23px)!important;
+  }
+}
+
+
+/* ── Community profile modal: exact current WC26 sizing ─────── */
+
+.community-preview[data-community-view-id]{
+  padding:
+    calc(var(--top-h,148px) + clamp(9px,.75vw,12px))
+    clamp(10px,2vw,24px)
+    clamp(14px,1.2vw,18px)!important;
+}
+
+.community-preview[data-community-view-id] .community-modal{
+  box-sizing:border-box!important;
+  width:min(1060px,96vw)!important;
+  min-width:0!important;
+  max-width:min(1060px,96vw)!important;
+  max-height:calc(100vh - var(--top-h,148px) - 28px)!important;
+  padding:clamp(16px,2vw,24px)!important;
+  border-radius:clamp(17px,1.28vw,22px)!important;
+}
+
+.community-preview[data-community-view-id] .community-modal-head{
+  margin-bottom:clamp(10px,.9vw,14px)!important;
+}
+
+.community-preview[data-community-view-id] .community-title,
+.community-preview[data-community-view-id] .community-modal .community-title{
+  font-size:clamp(24px,2vw,34px)!important;
+  line-height:1.05!important;
+}
+
+.community-preview[data-community-view-id] .community-lead{
+  font-size:clamp(12px,.9vw,14px)!important;
+  line-height:1.35!important;
+}
+
+.community-preview[data-community-view-id] .community-close{
+  padding:
+    clamp(7px,.56vw,10px)
+    clamp(10px,.75vw,14px)!important;
+  border-radius:clamp(10px,.72vw,12px)!important;
+  font-size:clamp(12px,.7vw,14px)!important;
+}
+
+.community-preview[data-community-view-id] .community-grid{
+  gap:clamp(8px,.72vw,10px)!important;
+  margin-top:clamp(12px,1vw,16px)!important;
+}
+
+.community-preview[data-community-view-id] .community-stat{
+  min-height:clamp(82px,6.2vw,108px)!important;
+  padding:clamp(12px,1vw,14px)!important;
+  border-radius:clamp(12px,.9vw,14px)!important;
+}
+
+.community-preview[data-community-view-id] .community-stat b{
+  font-size:clamp(22px,2.4vw,32px)!important;
+  line-height:1.02!important;
+}
+
+.community-preview[data-community-view-id] .community-stat span{
+  margin-top:clamp(4px,.32vw,6px)!important;
+  font-size:clamp(10.5px,.72vw,12px)!important;
+  line-height:1.28!important;
+}
+
+.community-preview[data-community-view-id] .community-tabs{
+  gap:clamp(7px,.55vw,9px)!important;
+  margin:
+    clamp(14px,1.2vw,18px)
+    0
+    clamp(10px,.8vw,13px)!important;
+}
+
+.community-preview[data-community-view-id] .community-tabs button{
+  padding:
+    clamp(8px,.65vw,10px)
+    clamp(11px,.9vw,14px)!important;
+  font-size:clamp(11px,.78vw,13px)!important;
+}
+
+.community-preview[data-community-view-id] .community-list{
+  gap:clamp(7px,.6vw,9px)!important;
+}
+
+.community-preview[data-community-view-id] .community-pred{
+  min-height:clamp(72px,7.4vw,92px)!important;
+  padding:
+    clamp(12px,1.4vw,16px)
+    clamp(12px,1.4vw,16px)!important;
+  gap:clamp(12px,2vw,18px)!important;
+}
+
+.community-preview[data-community-view-id] .community-match-line{
+  gap:clamp(8px,1vw,14px)!important;
+}
+
+.community-preview[data-community-view-id] .community-pred .community-team{
+  max-width:min(43%,380px)!important;
+  gap:clamp(7px,.62vw,10px)!important;
+  font-size:clamp(15.2px,1.04vw,19.5px)!important;
+  line-height:1.12!important;
+}
+
+.community-preview[data-community-view-id] .community-pred .community-team .crest,
+.community-preview[data-community-view-id] .community-pred .community-team .crest[style]{
+  --cs:clamp(22px,1.56vw,31px)!important;
+  width:var(--cs)!important;
+  height:var(--cs)!important;
+  min-width:var(--cs)!important;
+  max-width:var(--cs)!important;
+  flex-basis:var(--cs)!important;
+}
+
+.community-preview[data-community-view-id] .community-pred .community-teams small{
+  margin-top:clamp(5px,.48vw,8px)!important;
+  font-size:clamp(11.8px,.76vw,14px)!important;
+  line-height:1.25!important;
+}
+
+.community-preview[data-community-view-id] .community-vs{
+  font-size:clamp(12px,.82vw,15px)!important;
+}
+
+.community-preview[data-community-view-id] .community-result{
+  min-width:clamp(118px,9.5vw,158px)!important;
+  gap:
+    clamp(5px,.54vw,9px)
+    clamp(18px,1.6vw,28px)!important;
+}
+
+.community-preview[data-community-view-id] .community-pred .community-result span{
+  font-size:clamp(9.4px,.58vw,10.8px)!important;
+}
+
+.community-preview[data-community-view-id] .community-pred .community-result b{
+  font-size:clamp(17px,1.2vw,23.5px)!important;
+  line-height:1!important;
+}
+
+.community-preview[data-community-view-id] .community-pred .community-result small{
+  font-size:clamp(10px,.64vw,11.8px)!important;
+  line-height:1.2!important;
+}
+
+@media(max-width:720px){
+  .community-preview[data-community-view-id]{
+    padding:
+      calc(var(--top-h,96px) + 8px)
+      8px
+      12px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-modal{
+    width:100%!important;
+    max-width:100%!important;
+    max-height:calc(100vh - var(--top-h,96px) - 18px)!important;
+    padding:10px!important;
+    border-radius:16px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-title,
+  .community-preview[data-community-view-id] .community-modal .community-title{
+    font-size:22px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-grid-wide{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-stat{
+    min-height:64px!important;
+    padding:9px!important;
+    border-radius:12px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-stat b{
+    font-size:20px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-stat span{
+    font-size:11.5px!important;
+    line-height:1.2!important;
+  }
+
+  .community-preview[data-community-view-id] .community-tabs button{
+    padding:7px 10px!important;
+    font-size:10.8px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-pred{
+    grid-template-columns:1fr!important;
+    min-height:58px!important;
+    padding:9px!important;
+    gap:8px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-match-line{
+    gap:7px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-pred .community-team{
+    max-width:calc(50% - 12px)!important;
+    gap:6px!important;
+    font-size:14px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-pred .community-team .crest,
+  .community-preview[data-community-view-id] .community-pred .community-team .crest[style]{
+    --cs:21px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-pred .community-teams small{
+    margin-top:5px!important;
+    font-size:10.8px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-pred .community-result b{
+    font-size:17px!important;
+  }
+
+  .community-preview[data-community-view-id] .community-pred .community-result span,
+  .community-preview[data-community-view-id] .community-pred .community-result small{
+    font-size:11px!important;
+  }
+}
