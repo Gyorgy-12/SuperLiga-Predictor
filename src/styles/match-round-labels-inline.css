@@ -1,0 +1,136 @@
+/* SuperLiga UI F5 — left-side, single-line match round indicators.
+   Load after all previous frontend styles. */
+
+.main.matches-main .match-row,
+.matches-main .match-row{
+  grid-template-columns:
+    clamp(108px,7.4vw,136px)
+    1px
+    minmax(0,1fr)
+    clamp(44px,3.3vw,58px)
+    clamp(30px,2.3vw,42px)!important;
+}
+
+.main.matches-main .mr-date,
+.matches-main .mr-date{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:clamp(2px,.22vw,4px)!important;
+  min-width:0!important;
+  padding:
+    clamp(7px,.62vw,11px)
+    clamp(5px,.42vw,8px)
+    clamp(7px,.62vw,11px)
+    clamp(12px,.9vw,17px)!important;
+  text-align:left!important;
+  line-height:1.05!important;
+}
+
+.main.matches-main .mr-date>span,
+.matches-main .mr-date>span{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+  text-align:left!important;
+  font-size:clamp(10.5px,.72vw,13px)!important;
+  line-height:1.12!important;
+}
+
+.main.matches-main .mr-date>b,
+.main.matches-main .mr-date>em,
+.matches-main .mr-date>b,
+.matches-main .mr-date>em{
+  display:block!important;
+  width:auto!important;
+  max-width:100%!important;
+  margin:0!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+  text-align:left!important;
+  line-height:1.12!important;
+}
+
+.main.matches-main .mr-date .mr-tip,
+.main.matches-main .mr-date .mr-live-state,
+.matches-main .mr-date .mr-tip,
+.matches-main .mr-date .mr-live-state{
+  font-size:clamp(9.8px,.64vw,12px)!important;
+}
+
+/* The competition header also stays on one clean line. */
+.main.matches-main .round-comp,
+.matches-main .round-comp{
+  min-width:0!important;
+  flex-wrap:nowrap!important;
+}
+
+.main.matches-main .round-comp>b,
+.matches-main .round-comp>b{
+  min-width:0!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+}
+
+@media(max-width:760px){
+  .main.matches-main .match-row,
+  .matches-main .match-row{
+    grid-template-columns:
+      clamp(82px,23vw,96px)
+      1px
+      minmax(0,1fr)
+      clamp(34px,9vw,44px)
+      clamp(26px,7vw,34px)!important;
+  }
+
+  .main.matches-main .mr-date,
+  .matches-main .mr-date{
+    padding:
+      clamp(6px,1.7vw,8px)
+      4px
+      clamp(6px,1.7vw,8px)
+      clamp(8px,2.4vw,11px)!important;
+    gap:2px!important;
+    font-size:clamp(10.8px,3vw,13px)!important;
+  }
+
+  .main.matches-main .mr-date>span,
+  .matches-main .mr-date>span{
+    font-size:clamp(8.7px,2.45vw,10.5px)!important;
+  }
+
+  .main.matches-main .mr-date .mr-tip,
+  .main.matches-main .mr-date .mr-live-state,
+  .matches-main .mr-date .mr-tip,
+  .matches-main .mr-date .mr-live-state{
+    font-size:clamp(8.2px,2.3vw,9.8px)!important;
+  }
+}
+
+@media(min-width:1441px){
+  .main.matches-main .match-row,
+  .matches-main .match-row{
+    grid-template-columns:
+      clamp(118px,7.1vw,144px)
+      1px
+      minmax(0,1fr)
+      clamp(54px,3.2vw,68px)
+      clamp(36px,2.2vw,46px)!important;
+  }
+
+  .main.matches-main .mr-date,
+  .matches-main .mr-date{
+    padding-left:clamp(14px,.95vw,20px)!important;
+  }
+
+  .main.matches-main .mr-date>span,
+  .matches-main .mr-date>span{
+    font-size:clamp(11.5px,.72vw,13.5px)!important;
+  }
+}

@@ -1,0 +1,195 @@
+/* SuperLiga UI F6
+   1) table-round dropdown scrolls internally and never scrolls the page behind it
+   2) mobile Forma table uses the real DOM order: rank | team | Pts | Forma
+   Load after every previous frontend stylesheet.
+*/
+
+/* ── Round dropdown: viewport-contained internal scroller ───── */
+
+html.tbl-round-drop-open,
+body.tbl-round-drop-open{
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+
+#tblRoundDrop{
+  position:fixed!important;
+  z-index:60000!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-gutter:stable!important;
+  touch-action:pan-y!important;
+  border:1px solid rgba(255,255,255,.075)!important;
+  box-shadow:0 14px 40px rgba(0,0,0,.48)!important;
+}
+
+#tblRoundDrop.open{
+  display:block!important;
+}
+
+#tblRoundDrop button{
+  display:block!important;
+  width:100%!important;
+  min-height:clamp(40px,3vw,48px)!important;
+  padding:
+    clamp(9px,.72vw,12px)
+    clamp(13px,1vw,17px)!important;
+  white-space:nowrap!important;
+}
+
+#tblRoundDrop button.active{
+  position:sticky!important;
+  top:0!important;
+  z-index:2!important;
+}
+
+/* ── Forma view: correct column order and mobile geometry ───── */
+
+/* Renderer order is:
+   1 rank
+   2 team
+   3 points
+   4 five-match form strip
+*/
+.standings .grid.formv{
+  width:100%!important;
+  min-width:0!important;
+  grid-template-columns:
+    clamp(20px,1.55vw,25px)
+    minmax(0,1fr)
+    clamp(34px,2.7vw,44px)
+    clamp(108px,9.1vw,138px)!important;
+  column-gap:clamp(3px,.35vw,6px)!important;
+  align-items:center!important;
+}
+
+.standings .grid.formv>*{
+  min-width:0!important;
+}
+
+.standings .grid.formv>:nth-child(3){
+  grid-column:3!important;
+  text-align:center!important;
+  justify-self:stretch!important;
+}
+
+.standings .grid.formv>:nth-child(4){
+  grid-column:4!important;
+  min-width:0!important;
+}
+
+.standings .grid.formv.thead>:nth-child(3),
+.standings .grid.formv.thead>:nth-child(4){
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  text-align:center!important;
+}
+
+.standings .grid.formv .tc{
+  min-width:0!important;
+  overflow:hidden!important;
+}
+
+.standings .grid.formv .tname{
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+
+.standings .grid.formv .fstrip{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  align-items:center!important;
+  justify-content:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  border-radius:clamp(4px,.38vw,6px)!important;
+}
+
+.standings .grid.formv .fb{
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:clamp(18px,1.65vw,23px)!important;
+  padding:0!important;
+  font-size:clamp(7px,.58vw,9px)!important;
+  line-height:1!important;
+}
+
+@media(max-width:560px){
+  #tblRoundDrop{
+    border-radius:10px!important;
+  }
+
+  #tblRoundDrop button{
+    min-height:42px!important;
+    padding:10px 13px!important;
+    font-size:11px!important;
+  }
+
+  .standings .grid.formv{
+    grid-template-columns:
+      clamp(18px,5vw,21px)
+      minmax(0,1fr)
+      clamp(27px,7.6vw,31px)
+      clamp(88px,27vw,108px)!important;
+    column-gap:clamp(2px,.8vw,4px)!important;
+  }
+
+  .standings .grid.formv .tc{
+    gap:clamp(5px,1.5vw,7px)!important;
+  }
+
+  .standings .grid.formv .crest,
+  .standings .grid.formv .crest[style]{
+    --cs:clamp(18px,5.5vw,22px)!important;
+    width:var(--cs)!important;
+    height:var(--cs)!important;
+    min-width:var(--cs)!important;
+    max-width:var(--cs)!important;
+    flex-basis:var(--cs)!important;
+  }
+
+  .standings .grid.formv .tname{
+    font-size:clamp(10.7px,3vw,12.2px)!important;
+  }
+
+  .standings .grid.formv .rank,
+  .standings .grid.formv .num{
+    font-size:clamp(10px,2.8vw,11.5px)!important;
+  }
+
+  .standings .grid.formv .fstrip{
+    border-radius:4px!important;
+  }
+
+  .standings .grid.formv .fb{
+    height:clamp(17px,4.8vw,20px)!important;
+    font-size:clamp(6.4px,1.8vw,7.5px)!important;
+  }
+}
+
+@media(max-width:360px){
+  .standings .grid.formv{
+    grid-template-columns:
+      18px
+      minmax(0,1fr)
+      26px
+      clamp(82px,25vw,90px)!important;
+    column-gap:2px!important;
+  }
+
+  .standings .grid.formv .crest,
+  .standings .grid.formv .crest[style]{
+    --cs:18px!important;
+  }
+
+  .standings .grid.formv .tname{
+    font-size:10.4px!important;
+  }
+}
