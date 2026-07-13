@@ -29,13 +29,45 @@ function decimal(value) {
     : null;
 }
 
+function isValidFlashscoreMid(value) {
+  return /^[A-Za-z0-9]{8}$/.test(asText(value));
+}
+
+function fixtureMidInfo(fixture) {
+  const candidates = [
+    ['flashscoreMid', fixture?.flashscoreMid],
+    ['flashscoreEventId', fixture?.flashscoreEventId],
+    ['sourceIds.flashscoreMid', fixture?.sourceIds?.flashscoreMid],
+    ['sourceIds.flashscoreEventId', fixture?.sourceIds?.flashscoreEventId]
+  ];
+
+  for (const [field, rawValue] of candidates) {
+    const value = asText(rawValue);
+    if (!value) continue;
+
+    if (isValidFlashscoreMid(value)) {
+      return {
+        mid: value,
+        field,
+        invalidCandidates: []
+      };
+    }
+  }
+
+  return {
+    mid: null,
+    field: null,
+    invalidCandidates: candidates
+      .map(([field, rawValue]) => ({
+        field,
+        value: asText(rawValue)
+      }))
+      .filter(row => row.value)
+  };
+}
+
 function fixtureMid(fixture) {
-  return asText(
-    fixture?.flashscoreMid
-      || fixture?.sourceIds?.flashscoreMid
-      || fixture?.sourceIds?.flashscoreEventId
-      || fixture?.sourceIds?.flashscore
-  );
+  return fixtureMidInfo(fixture).mid;
 }
 
 function parseBookmakerIds(value) {
@@ -248,16 +280,24 @@ function priorityResult(rows) {
 }
 
 async function fetchFixtureOdds(env, fixture, config, opts = {}) {
-  const mid = fixtureMid(fixture);
+  const midInfo = fixtureMidInfo(fixture);
+  const mid = midInfo.mid;
+
   if (!mid) {
+    const hasInvalidDedicatedMid = midInfo.invalidCandidates.length > 0;
+
     return {
       ok: false,
       fixtureId: String(fixture?.id || ''),
       mid: null,
+      midField: null,
+      invalidMidCandidates: midInfo.invalidCandidates,
       mode: config.mode,
       requestCount: 0,
       rows: [],
-      error: 'missing_flashscore_mid'
+      error: hasInvalidDedicatedMid
+        ? 'invalid_flashscore_mid'
+        : 'missing_flashscore_mid'
     };
   }
 
@@ -331,7 +371,7 @@ async function fetchFixtureOdds(env, fixture, config, opts = {}) {
         ? new Date(selected.feedTimestamp * 1000).toISOString()
         : null,
       updatedAt,
-      oddsSource: 'flashscore-graphql-single-bookmaker-b31a'
+      oddsSource: 'flashscore-graphql-single-bookmaker-b34'
     }
   };
 }
@@ -428,6 +468,7 @@ export async function fetchOdds(env, fixtures = [], opts = {}) {
       unmatched.push({
         fixtureId: result?.fixtureId || null,
         flashscoreMid: result?.mid || null,
+        invalidMidCandidates: result?.invalidMidCandidates || [],
         error: result?.error || 'unknown_error',
         requestCount: result?.requestCount || 0,
         probes: (result?.rows || []).map(row => ({
@@ -458,7 +499,11 @@ export async function fetchOdds(env, fixtures = [], opts = {}) {
   }
 
   if (unmatched.some(row => row.error === 'missing_flashscore_mid')) {
-    warnings.push('Some fixtures have no flashscoreMid yet, so their odds were skipped.');
+    warnings.push('Some fixtures have no flashscoreMid yet, so their odds were skipped without a request.');
+  }
+
+  if (unmatched.some(row => row.error === 'invalid_flashscore_mid')) {
+    warnings.push('Invalid dedicated flashscoreMid values were rejected before the odds API request.');
   }
 
   if (!count && targetFixtures.length) {
@@ -467,7 +512,7 @@ export async function fetchOdds(env, fixtures = [], opts = {}) {
 
   return {
     ok: true,
-    source: 'flashscore-graphql-odds-b31a',
+    source: 'flashscore-graphql-odds-b34-strict-mid-guard',
     odds,
     count,
     fetched: requestCount,
