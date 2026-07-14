@@ -1,0 +1,42 @@
+/* v3 mobile matchcard score-gap patch
+   Goal: increase the vertical spacing between the two right-side score indicators
+   on mobile match cards, without affecting desktop full team names. */
+
+@media (max-width: 820px) {
+  .match-row {
+    grid-template-columns: clamp(66px,17vw,88px) 1px minmax(0,1fr) clamp(40px,10vw,52px) !important;
+  }
+
+  .mr-scores {
+    gap: clamp(12px, 3.2vw, 18px) !important;
+    justify-content: center !important;
+    align-items: center !important;
+    min-width: clamp(40px, 10vw, 52px) !important;
+    padding: clamp(10px, 2.6vw, 14px) 0 !important;
+    line-height: 1 !important;
+  }
+
+  .mr-scores > * {
+    display: block !important;
+    line-height: 1 !important;
+    min-height: 1em !important;
+  }
+
+  .mr-bell {
+    display: none !important;
+  }
+}
+
+/* keep desktop full names relaxed */
+@media (min-width: 821px) {
+  .mr-team,
+  .mr-tname {
+    min-width: 0;
+  }
+
+  .mr-tname {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+}
