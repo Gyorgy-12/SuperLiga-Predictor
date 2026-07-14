@@ -1,80 +1,68 @@
-/* VB26 PARITY V5 — MOBILE SCORE/TEAM ROW LOCK
-   The two score rows use the exact same row height and vertical gap
-   as the two team-name rows. Import LAST. */
+/* VB26 PARITY V6 — EXACT TEAM/SCORE ROW ALIGNMENT
+   Verified against the actual match-card DOM:
+   .mr-teams > .mr-team x2
+   .mr-scores ... .mr-score-row x2
+   Import this file LAST. */
 
-@media (max-width: 720px){
-
-  .matches-main .mr-teams,
-  .match-card .mr-teams{
-    display:grid!important;
-    grid-template-rows:repeat(2,clamp(26px,6.5vw,34px))!important;
-    row-gap:clamp(6px,1.7vw,9px)!important;
-    align-content:center!important;
-    padding:clamp(9px,2.4vw,13px) clamp(9px,2.6vw,14px)!important;
+@media (max-width: 720px) {
+  body .match-row .mr-teams {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: clamp(6px, 1.7vw, 9px) !important;
+    padding-top: clamp(9px, 2.4vw, 13px) !important;
+    padding-bottom: clamp(9px, 2.4vw, 13px) !important;
   }
 
-  .matches-main .mr-team,
-  .match-card .mr-team{
-    height:100%!important;
-    min-height:0!important;
-    margin:0!important;
-    align-self:stretch!important;
+  body .match-row .mr-team {
+    display: flex !important;
+    align-items: center !important;
+    min-height: clamp(26px, 6.5vw, 34px) !important;
+    height: clamp(26px, 6.5vw, 34px) !important;
+    margin: 0 !important;
+    line-height: 1 !important;
   }
 
-  .matches-main .mr-scores,
-  .match-card .mr-scores{
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    padding:clamp(9px,2.4vw,13px) 0!important;
-    line-height:1!important;
+  body .match-row .mr-scores {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0 !important;
+    padding-top: clamp(9px, 2.4vw, 13px) !important;
+    padding-bottom: clamp(9px, 2.4vw, 13px) !important;
   }
 
-  .matches-main .mr-score-lines,
-  .match-card .mr-score-lines{
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    width:100%!important;
+  body .match-row .mr-score-lines,
+  body .match-row .mr-score-compare,
+  body .match-row .mr-score-tip-only,
+  body .match-row .mr-score-actual-only {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: clamp(6px, 1.7vw, 9px) !important;
+    width: 100% !important;
+    margin: 0 !important;
   }
 
-  .matches-main .mr-score-compare,
-  .matches-main .mr-score-tip-only,
-  .matches-main .mr-score-actual-only,
-  .match-card .mr-score-compare,
-  .match-card .mr-score-tip-only,
-  .match-card .mr-score-actual-only{
-    display:grid!important;
-    grid-template-rows:repeat(2,clamp(26px,6.5vw,34px))!important;
-    row-gap:clamp(6px,1.7vw,9px)!important;
-    align-content:center!important;
-    width:100%!important;
+  body .match-row .mr-score-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: clamp(26px, 6.5vw, 34px) !important;
+    height: clamp(26px, 6.5vw, 34px) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
   }
 
-  .matches-main .mr-score-row,
-  .match-card .mr-score-row{
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    height:100%!important;
-    min-height:0!important;
-    margin:0!important;
-    line-height:1!important;
-  }
-
-  .matches-main .mr-score-row > *,
-  .match-card .mr-score-row > *{
-    line-height:1!important;
-    margin:0!important;
-  }
-}
-
-/* Desktop keeps full team names. */
-@media (min-width: 721px){
-  .matches-main .mr-tname,
-  .match-card .mr-tname{
-    overflow:visible!important;
-    text-overflow:clip!important;
-    white-space:nowrap!important;
+  body .match-row .mr-score-row > span,
+  body .match-row .wc26-card-score {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    margin: 0 !important;
   }
 }
