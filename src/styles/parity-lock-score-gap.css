@@ -1,23 +1,54 @@
-/* VB26 PARITY V4 — REAL MOBILE SCORE ROW GAP
-   Fixes the actual nested score wrappers used by scoreHtml().
-   Import this file LAST. */
+/* VB26 PARITY V5 — MOBILE SCORE/TEAM ROW LOCK
+   The two score rows use the exact same row height and vertical gap
+   as the two team-name rows. Import LAST. */
 
 @media (max-width: 720px){
 
-  /* The two home/away score rows live INSIDE these wrappers.
-     This is the selector the previous patch missed. */
+  .matches-main .mr-teams,
+  .match-card .mr-teams{
+    display:grid!important;
+    grid-template-rows:repeat(2,clamp(26px,6.5vw,34px))!important;
+    row-gap:clamp(6px,1.7vw,9px)!important;
+    align-content:center!important;
+    padding:clamp(9px,2.4vw,13px) clamp(9px,2.6vw,14px)!important;
+  }
+
+  .matches-main .mr-team,
+  .match-card .mr-team{
+    height:100%!important;
+    min-height:0!important;
+    margin:0!important;
+    align-self:stretch!important;
+  }
+
+  .matches-main .mr-scores,
+  .match-card .mr-scores{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    padding:clamp(9px,2.4vw,13px) 0!important;
+    line-height:1!important;
+  }
+
+  .matches-main .mr-score-lines,
+  .match-card .mr-score-lines{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+  }
+
   .matches-main .mr-score-compare,
   .matches-main .mr-score-tip-only,
   .matches-main .mr-score-actual-only,
   .match-card .mr-score-compare,
   .match-card .mr-score-tip-only,
   .match-card .mr-score-actual-only{
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:center!important;
-    justify-content:center!important;
-    gap:clamp(15px,4.3vw,21px)!important;
-    row-gap:clamp(15px,4.3vw,21px)!important;
+    display:grid!important;
+    grid-template-rows:repeat(2,clamp(26px,6.5vw,34px))!important;
+    row-gap:clamp(6px,1.7vw,9px)!important;
+    align-content:center!important;
+    width:100%!important;
   }
 
   .matches-main .mr-score-row,
@@ -25,37 +56,25 @@
     display:flex!important;
     align-items:center!important;
     justify-content:center!important;
-    min-height:clamp(18px,4.8vw,23px)!important;
-    line-height:1!important;
+    height:100%!important;
+    min-height:0!important;
     margin:0!important;
+    line-height:1!important;
   }
 
   .matches-main .mr-score-row > *,
   .match-card .mr-score-row > *{
     line-height:1!important;
-  }
-
-  /* Keep the whole result column vertically centred. */
-  .matches-main .mr-scores,
-  .match-card .mr-scores,
-  .matches-main .mr-score-lines,
-  .match-card .mr-score-lines{
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:center!important;
-    justify-content:center!important;
+    margin:0!important;
   }
 }
 
-/* Slightly tighter on tiny phones, but still visibly larger than before. */
-@media (max-width: 390px){
-  .matches-main .mr-score-compare,
-  .matches-main .mr-score-tip-only,
-  .matches-main .mr-score-actual-only,
-  .match-card .mr-score-compare,
-  .match-card .mr-score-tip-only,
-  .match-card .mr-score-actual-only{
-    gap:14px!important;
-    row-gap:14px!important;
+/* Desktop keeps full team names. */
+@media (min-width: 721px){
+  .matches-main .mr-tname,
+  .match-card .mr-tname{
+    overflow:visible!important;
+    text-overflow:clip!important;
+    white-space:nowrap!important;
   }
 }
