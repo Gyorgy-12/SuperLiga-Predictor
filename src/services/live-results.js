@@ -49,7 +49,7 @@ function mergeLiveResults(next){
   });
   if(changed){
     saveLiveResults();
-    if(pruneNeeded)pruneStaleKoPred(true);
+    if(pruneNeeded)superligaResetPostseasonTipsIfSeedChanged();
     if(['overview','matches','table','stats','community','knockout','baraj'].includes(S.tab))superligaRequestRender('live-results');
     if(typeof refreshCommunityPreviews==='function')refreshCommunityPreviews();
   }
@@ -79,6 +79,7 @@ function applyTeamRatingsData(data){
   let changed=false,ratings=data.ratings||data.elo||{},mv=data.marketValues||data.values||{};
   Object.entries(ratings).forEach(([name,val])=>{let n=Number(val);if(Number.isFinite(n)&&TEAM_ELO[name]!==n){TEAM_ELO[name]=n;changed=true}});
   Object.entries(mv).forEach(([name,val])=>{let n=Number(val);if(Number.isFinite(n)&&TEAM_MARKET[name]!==n){TEAM_MARKET[name]=n;changed=true}});
+  if(changed&&typeof refreshOpenMatchModalModel==='function')refreshOpenMatchModalModel();
   if(changed&&['matches','table','overview','knockout','baraj','stats'].includes(S.tab))superligaRequestRender('team-ratings');
   return changed;
 }
@@ -168,6 +169,54 @@ async function syncLiveResults(opts={}){
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
 function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await syncLiveResults();scheduleLiveSync()},delay??nextLiveSyncDelay())}
 function listenMatchResults(){return syncLiveResults({force:true})}
-async function applyTeamElo(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let base=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'');let data=await fetch(base+'/team-ratings',{cache:'no-store'}).then(r=>r.ok?r.json():null);return applyTeamRatingsData(data)}catch(e){return false}}
+let superligaRatingsInFlight=null;
+async function applyTeamElo(opts={}){
+  if(FROZEN_MODE)return false;
+  if(superligaRatingsInFlight&&!opts.force)return superligaRatingsInFlight;
+
+  superligaRatingsInFlight=(async()=>{
+    let base=superligaWorkerBase();
+    let ratingsUrl=SUPERLIGA_TEAM_RATINGS_URL||(base?base+'/team-ratings':'');
+    let marketUrl=SUPERLIGA_MARKET_VALUES_URL||(base?base+'/market-values':'');
+    let stamp=Date.now();
+
+    let [ratingsData,marketData]=await Promise.all([
+      ratingsUrl
+        ? fetchWorkerJson(addParams(ratingsUrl,{fresh:1,nocache:1,t:stamp})).catch(error=>({__error:error?.message||String(error)}))
+        : Promise.resolve(null),
+      marketUrl
+        ? fetchWorkerJson(addParams(marketUrl,{fresh:1,nocache:1,t:stamp})).catch(error=>({__error:error?.message||String(error)}))
+        : Promise.resolve(null)
+    ]);
+
+    let changed=false;
+    if(ratingsData&&!ratingsData.__error)changed=applyTeamRatingsData(ratingsData)||changed;
+    if(marketData&&!marketData.__error){
+      changed=applyTeamRatingsData({
+        marketValues:marketData.marketValues||marketData.values||{}
+      })||changed;
+    }
+
+    try{
+      window.SUPERLIGA_RATINGS_DEBUG={
+        ok:!ratingsData?.__error&&!marketData?.__error,
+        ratingsError:ratingsData?.__error||null,
+        marketError:marketData?.__error||null,
+        ratingsUpdatedAt:ratingsData?.updatedAt||null,
+        marketUpdatedAt:marketData?.updatedAt||null,
+        ratingsCount:Object.keys(ratingsData?.ratings||{}).length,
+        marketCount:Object.keys(marketData?.marketValues||marketData?.values||ratingsData?.marketValues||{}).length,
+        changed,
+        fetchedAt:new Date().toISOString()
+      };
+    }catch(e){}
+
+    return changed;
+  })();
+
+  try{return await superligaRatingsInFlight}
+  finally{superligaRatingsInFlight=null}
+}
+window.superligaRefreshRatings=()=>applyTeamElo({force:true});
 async function applyOddsFromWorker(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let base=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'');let data=await fetch(base+'/odds',{cache:'no-store'}).then(r=>r.ok?r.json():null);return applyOddsMap(data&&data.odds)}catch(e){return false}}
 async function applyFixtureOverrides(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let url=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'/fixtures');let data=await fetch(addParams(url,{fresh:1,t:Date.now()}),{cache:'no-store'}).then(r=>r.ok?r.json():null);let list=data&&Array.isArray(data.fixtures)?data.fixtures:null;return applyFixtureList(list)}catch(e){return false}}

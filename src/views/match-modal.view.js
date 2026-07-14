@@ -54,7 +54,7 @@ function modalGoalRows(r,m){
 
 function superligaMarketValue(team){let v=TEAM_MARKET&&TEAM_MARKET[team];return Number.isFinite(+v)?+v:10}
 function superligaElo(team){let v=TEAM_ELO&&TEAM_ELO[team];return Number.isFinite(+v)?+v:1450}
-function superligaMarketLabel(v){v=+v||0;if(v>=100)return '€'+Math.round(v)+'M';let x=Math.round(v*10)/10;return '€'+(Number.isInteger(x)?x.toFixed(0):x.toFixed(1))+'M'}
+function superligaMarketLabel(v){v=Number(v);return '€'+(Number.isFinite(v)?v:0).toFixed(2)+'M'}
 function teamModelScore(team){let elo=superligaElo(team),mv=superligaMarketValue(team),market=Math.log(mv+10)*72;return elo+market}
 function matchProb(m){let diff=teamModelScore(m.h)-teamModelScore(m.a),draw=Math.max(.18,Math.min(.30,.27-Math.abs(diff)/2800)),homeShare=1/(1+Math.exp(-diff/285)),rem=1-draw,home=rem*homeShare,away=rem*(1-homeShare),sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff}}
 function impliedProbFromOdds(odds){if(!odds||!validOdds(odds.h)||!validOdds(odds.d)||!validOdds(odds.a))return null;let h=1/+odds.h,d=1/+odds.d,a=1/+odds.a,sum=h+d+a;if(!sum)return null;return{home:h/sum,draw:d/sum,away:a/sum}}
@@ -77,6 +77,33 @@ function modalProbCard(m,r){
     +probRow('Döntetlen',p.draw,'linear-gradient(90deg,#7e8c96,#c8d2d8)',outcome==='draw',market?market.d:null)
     +probRow(modalTeamName(m.a),p.away,'linear-gradient(90deg,#6ec6ff,#9ba7ff)',outcome==='away',market?market.a:null)
     +'</div>'
+}
+function refreshOpenMatchModalModel(){
+  let ov=document.querySelector('.tip-overlay[data-tip-id]');
+  if(!ov)return false;
+  let id=ov.dataset.tipId,isKo=ov.dataset.tipKind==='postseason';
+  let m=isKo?findKoMatch(id):findRegularMatch(id);
+  if(!m)return false;
+
+  let teams=ov.querySelectorAll('.tip-team');
+  if(teams[0]){
+    let meta=teams[0].querySelector('.tip-team-meta');
+    if(meta)meta.innerHTML=modelMeta(m.h);
+  }
+  if(teams[1]){
+    let meta=teams[1].querySelector('.tip-team-meta');
+    if(meta)meta.innerHTML=modelMeta(m.a);
+  }
+
+  let oldCard=ov.querySelector('.tip-prob-card');
+  let html=modalProbCard(m,actualFor({id}));
+  if(oldCard&&html){
+    let holder=document.createElement('div');
+    holder.innerHTML=html;
+    let next=holder.firstElementChild;
+    if(next)oldCard.replaceWith(next);
+  }
+  return true;
 }
 function modalSheetGrade(tip,r,isKo){
   if(!tip||!r||!(r.started||r.finished)||!validScore(r.h)||!validScore(r.a))return r&&r.started?' live-locked':'';
@@ -115,7 +142,10 @@ function openMatchTipModal(cfg){
   ov.onclick=e=>{if(e.target===ov||e.target.closest('[data-close-tip]'))closeTip()};
   ov.querySelector('[data-save-tip]').onclick=()=>{if(!locked)(isKo?saveKoTip(id):saveTip(id))};
   ov.querySelector('[data-clear-tip]').onclick=async()=>{if(locked)return;if(isKo){await superligaDeleteKoTip(id)}else{await superligaDeleteGroupTip(id)}closeTip();render()};
-  setTimeout(()=>{let first=ov.querySelector('input:not([type="hidden"]):not([disabled])');if(first)first.focus({preventScroll:true})},40);
+  requestAnimationFrame(()=>{
+    let sheet=ov.querySelector('.tip-sheet');
+    if(sheet)sheet.scrollTop=0;
+  });
 }
 function openTip(id){let m=findRegularMatch(id);if(m)openMatchTipModal({match:m,isKo:false})}
 async function saveTip(id){

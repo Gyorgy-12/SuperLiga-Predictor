@@ -111,23 +111,35 @@ let SUPERLIGA_MODAL_SCROLL_Y=0;
 let SUPERLIGA_MODAL_LOCKED=false;
 function syncModalOpenClass(){
   const open=!!document.querySelector('.tip-overlay,.community-preview');
+
   if(open&&!SUPERLIGA_MODAL_LOCKED){
     SUPERLIGA_MODAL_SCROLL_Y=Math.max(0,window.scrollY||document.documentElement.scrollTop||0);
     SUPERLIGA_MODAL_LOCKED=true;
+
+    document.body.style.removeProperty('top');
     document.documentElement.style.setProperty('--modal-scroll-y',SUPERLIGA_MODAL_SCROLL_Y+'px');
-    document.body.style.top='-'+SUPERLIGA_MODAL_SCROLL_Y+'px';
     document.body.classList.add('modal-open');
     document.documentElement.classList.add('modal-open');
     return;
   }
+
   if(!open&&SUPERLIGA_MODAL_LOCKED){
     const y=SUPERLIGA_MODAL_SCROLL_Y;
     SUPERLIGA_MODAL_LOCKED=false;
+
     document.body.classList.remove('modal-open');
     document.documentElement.classList.remove('modal-open');
-    document.body.style.top='';
+    document.body.style.removeProperty('top');
+    document.body.style.removeProperty('left');
+    document.body.style.removeProperty('right');
+    document.body.style.removeProperty('width');
+    document.body.style.removeProperty('height');
+    document.body.style.removeProperty('position');
     document.documentElement.style.removeProperty('--modal-scroll-y');
-    requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'instant'}));
+
+    if(Math.abs((window.scrollY||0)-y)>1){
+      requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'instant'}));
+    }
   }
 }
 function closeAllModals(){document.querySelectorAll('.tip-overlay,.community-preview').forEach(x=>x.remove());syncModalOpenClass()}

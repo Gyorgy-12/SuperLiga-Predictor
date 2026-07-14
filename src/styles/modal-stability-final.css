@@ -1,0 +1,62 @@
+/* SuperLiga Predictor — final modal stability lock
+   Must be imported AFTER parity-lock-mobile-matchcards.css. */
+
+html{
+  scrollbar-gutter:stable;
+}
+
+html.modal-open{
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+
+/* The parity layer used position:fixed on body. That recreated the page width
+   and shifted the fixed header/control bar. Keep the document in its original
+   layout and only disable scrolling. */
+body.modal-open{
+  position:static!important;
+  inset:auto!important;
+  top:auto!important;
+  left:auto!important;
+  right:auto!important;
+  width:auto!important;
+  height:auto!important;
+  min-height:100vh!important;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+  transform:none!important;
+  margin-right:0!important;
+  padding-right:0!important;
+}
+
+body.modal-open .top,
+body.modal-open #ctrlWrap{
+  transform:none!important;
+  margin-right:0!important;
+}
+
+.tip-overlay{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+  touch-action:none!important;
+}
+
+.tip-overlay>.tip-sheet{
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch;
+  overflow-anchor:none!important;
+  scrollbar-gutter:stable!important;
+}
+
+@supports not (height:100dvh){
+  .tip-overlay{
+    height:100vh!important;
+  }
+}
