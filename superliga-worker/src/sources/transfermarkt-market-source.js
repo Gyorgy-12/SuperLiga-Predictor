@@ -101,10 +101,6 @@ function extractTeamName(row) {
 function parseMarketValue(row) {
   const text = cleanText(row).replace(/\s+/g, ' ');
 
-  // Transfermarkt's /marktwerteverein page has two money columns:
-  // "Value <cut-off date>" followed by "Current value".
-  // The old parser took the first money token, which made the data look outdated.
-  // We intentionally use the LAST parsed money token in the row, because that is the current value column.
   const matches = [...text.matchAll(/(?:€|EUR)\s*([\d.,]+)\s*(bn|b|m|mil\.?|mio\.?|k|th\.?)\b/gi)];
   if (!matches.length) return null;
 
@@ -146,7 +142,6 @@ function parseLocalizedNumber(input) {
   const lastDot = s.lastIndexOf('.');
   const lastComma = s.lastIndexOf(',');
 
-  // If both exist, the last separator is decimal and the other is thousands.
   if (lastDot >= 0 && lastComma >= 0) {
     if (lastDot > lastComma) {
       s = s.replace(/,/g, '');
@@ -156,19 +151,16 @@ function parseLocalizedNumber(input) {
     return Number(s);
   }
 
-  // Single separator: Transfermarkt market values usually use decimals like 31.30m or 9,48m.
   const sep = lastDot >= 0 ? '.' : (lastComma >= 0 ? ',' : '');
   if (!sep) return Number(s);
 
   const [head, tail] = s.split(sep);
   if (!tail) return Number(head);
 
-  // 1-2 digits after the separator means decimal value, not thousands.
   if (/^\d{1,2}$/.test(tail)) {
     return Number(head.replace(/[.,]/g, '') + '.' + tail);
   }
 
-  // 3 digits after the separator is usually thousands grouping.
   if (/^\d{3}$/.test(tail)) {
     return Number(s.replace(/[.,]/g, ''));
   }
@@ -192,7 +184,6 @@ function cleanText(s) {
 
 function formatMarketValue(valueM) {
   if (valueM >= 1000) return `€${(valueM / 1000).toFixed(2)}bn`;
-  if (valueM >= 100) return `€${valueM.toFixed(1)}m`;
   if (valueM >= 1) return `€${valueM.toFixed(2)}m`;
   return `€${Math.round(valueM * 1000)}k`;
 }
