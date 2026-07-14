@@ -26,14 +26,21 @@ export async function oddsRoute(request, env, ctx) {
 
   // Admin-only one-shot source refresh.
   // Usage: /odds?refresh=1&secret=ADMIN_SECRET
+  // No fixture IDs are required: every relevant fixture is selected automatically.
+  // Missing Flashscore MIDs are discovered and persisted before odds are fetched.
   if (refresh) {
     if (!requireAdmin(request, env)) return unauthorized(env);
     const result = await refreshOdds(env, {
       force: true,
       date: url.searchParams.get('date') || undefined,
+      dateFrom: url.searchParams.get('dateFrom') || undefined,
+      dateTo: url.searchParams.get('dateTo') || undefined,
       round: url.searchParams.get('round') || undefined,
       url: url.searchParams.get('url') || undefined,
-      source: 'odds-route-refresh'
+      source: 'odds-route-refresh-all-relevant',
+      resolveMids: !boolParam(url, 'skipMidBackfill'),
+      writeMids: !boolParam(url, 'dryMidBackfill'),
+      oddsReason: url.searchParams.get('reason') || 'manual_all_relevant_refresh'
     });
     return json({ ok: !!result.ok, refreshed: true, ...result }, noStoreInit(), env);
   }

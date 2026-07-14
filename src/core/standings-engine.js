@@ -107,22 +107,27 @@ function syncTblRoundDrop(){
 function formStrip(form){return(form||[]).slice(0,5).map(f=>'<span class="fb '+f+'">'+f+'</span>').join('');}
 function sl_row(r,p){let a=ast(r),gd=(a.diff>0?'+':'')+a.diff,lc=isLiveTeam(r.name)?' live-team':'';if(S.view==='short')return'<div class="grid short row'+lc+'"><div class="rank">'+p+'</div><div class="tc">'+crest(r.name)+'<span class="tname">'+esc(tableTeamName(r,false))+'</span></div><div class="num">'+a.P+'</div><div class="num">'+gd+'</div><div class="num pts">'+a.pts+'</div></div>';if(S.view==='full')return'<div class="grid full row'+lc+'"><div class="rank">'+p+'</div><div class="tname">'+esc(tableTeamName(r,true))+'</div><div class="num">'+a.P+'</div><div class="num">'+a.w+'</div><div class="num">'+a.d+'</div><div class="num">'+a.l+'</div><div class="num">'+a.gf+':'+a.ga+'</div><div class="num pts">'+a.pts+'</div></div>';return'<div class="grid formv row'+lc+'"><div class="rank">'+p+'</div><div class="tc">'+crest(r.name)+'<span class="tname">'+esc(tableTeamName(r,false))+'</span></div><div class="num pts">'+a.pts+'</div><div class="fstrip">'+formStrip(visibleFormForRow(r))+'</div></div>';}
 function sl_zone(z,p){let h='<div class="zone '+(z.clr?'zl':'')+(z.lbl?' lbl':'')+'"'+(z.clr?' style="--zc:'+z.clr+'"':'')+'>'+( z.lbl?'<div class="zlabel">'+z.lbl+'</div>':'');z.rows.forEach((r,i)=>h+=sl_row(r,p+i));return{h:h+'</div>',n:p+z.rows.length};}
+let SUPERLIGA_MODAL_SCROLL_Y=0;
+let SUPERLIGA_MODAL_LOCKED=false;
 function syncModalOpenClass(){
-  let open=!!document.querySelector('.tip-overlay,.community-preview');
-  let wasOpen=document.body.classList.contains('modal-open');
-  if(open&&!wasOpen){
-    let y=window.scrollY||document.documentElement.scrollTop||0;
-    document.body.dataset.scrollY=String(y);
-    document.body.style.top='-'+y+'px';
+  const open=!!document.querySelector('.tip-overlay,.community-preview');
+  if(open&&!SUPERLIGA_MODAL_LOCKED){
+    SUPERLIGA_MODAL_SCROLL_Y=Math.max(0,window.scrollY||document.documentElement.scrollTop||0);
+    SUPERLIGA_MODAL_LOCKED=true;
+    document.documentElement.style.setProperty('--modal-scroll-y',SUPERLIGA_MODAL_SCROLL_Y+'px');
+    document.body.style.top='-'+SUPERLIGA_MODAL_SCROLL_Y+'px';
     document.body.classList.add('modal-open');
     document.documentElement.classList.add('modal-open');
-  }else if(!open&&wasOpen){
+    return;
+  }
+  if(!open&&SUPERLIGA_MODAL_LOCKED){
+    const y=SUPERLIGA_MODAL_SCROLL_Y;
+    SUPERLIGA_MODAL_LOCKED=false;
     document.body.classList.remove('modal-open');
     document.documentElement.classList.remove('modal-open');
-    let y=+(document.body.dataset.scrollY||0);
     document.body.style.top='';
-    delete document.body.dataset.scrollY;
-    window.scrollTo(0,y);
+    document.documentElement.style.removeProperty('--modal-scroll-y');
+    requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'instant'}));
   }
 }
 function closeAllModals(){document.querySelectorAll('.tip-overlay,.community-preview').forEach(x=>x.remove());syncModalOpenClass()}

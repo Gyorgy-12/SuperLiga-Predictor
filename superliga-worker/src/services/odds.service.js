@@ -4,6 +4,7 @@ import { getFixtures } from './fixtures.service.js';
 import { fetchOdds } from '../sources/odds-source.js';
 import { sha256Hex, stableStringify } from '../core/hash.js';
 import { coordinatorOddsCache } from './coordinator.service.js';
+import { backfillFlashscoreMids } from './flashscore-mid-backfill.service.js';
 
 export async function readOdds(env, opts = {}) {
   const publicDoc = await getDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.odds).catch(() => null);
@@ -24,15 +25,18 @@ export async function readOdds(env, opts = {}) {
 
 export async function refreshOdds(env, opts = {}) {
   const allFixtures = await getFixtures(env, { skipCoordinatorCache: true });
-  const fixtures = selectTargetFixtures(allFixtures, opts);
+  const selection = selectTargetFixtures(allFixtures, opts);
+  const fixtures = selection.fixtures;
 
   if (!fixtures.length) {
     return {
       ok: true,
       task: 'odds',
-      source: 'targeted-odds-b28',
+      source: 'automatic-relevant-odds-b35',
       skipped: true,
-      reason: 'no_target_fixtures',
+      reason: 'no_relevant_fixtures'
+      ,selectionMode: selection.mode
+      ,selectionWindow: selection.window,
       selectedCount: 0,
       selectedIds: [],
       changed: false,
@@ -41,13 +45,21 @@ export async function refreshOdds(env, opts = {}) {
     };
   }
 
-  const pack = await fetchOdds(env, fixtures, opts);
+  const midResolution = await resolveMissingFlashscoreMids(env, allFixtures, fixtures, opts);
+  const resolvedFixtures = midResolution.fixtures;
+
+  const pack = await fetchOdds(env, resolvedFixtures, opts);
   if (!pack.ok) {
     return {
       ...pack,
       task: 'odds',
+      selectionMode: selection.mode,
+      selectionWindow: selection.window,
       selectedCount: fixtures.length,
-      selectedIds: fixtures.map(f => String(f.id)),
+      selectedIds: resolvedFixtures.map(f => String(f.id)),
+      matchedIds: pack.matched?.map(row => String(row.fixtureId)) || [],
+      unmatchedIds: pack.unmatched?.map(row => String(row.fixtureId || '')).filter(Boolean) || [],
+      midResolution: publicMidResolution(midResolution),
       oddsReason: opts.oddsReason || null,
       written: false
     };
@@ -67,7 +79,10 @@ export async function refreshOdds(env, opts = {}) {
     source: pack.source,
     sourceCount: pack.count || 0,
     lastTargetIds: fixtures.map(f => String(f.id)),
-    lastTargetReason: opts.oddsReason || null
+    lastTargetReason: opts.oddsReason || null,
+    lastSelectionMode: selection.mode,
+    lastSelectionWindow: selection.window,
+    lastMidResolution: publicMidResolution(midResolution)
   };
 
   const writeEnabled = String(env.ODDS_WRITE_TO_FIRESTORE || 'true') === 'true';
@@ -82,8 +97,13 @@ export async function refreshOdds(env, opts = {}) {
     fetched: pack.fetched || 0,
     count: Object.keys(odds).length,
     sourceCount: pack.count || 0,
+    selectionMode: selection.mode,
+    selectionWindow: selection.window,
     selectedCount: fixtures.length,
-    selectedIds: fixtures.map(f => String(f.id)),
+    selectedIds: resolvedFixtures.map(f => String(f.id)),
+    matchedIds: pack.matched?.map(row => String(row.fixtureId)) || [],
+    unmatchedIds: pack.unmatched?.map(row => String(row.fixtureId || '')).filter(Boolean) || [],
+    midResolution: publicMidResolution(midResolution),
     oddsReason: opts.oddsReason || null,
     changed,
     warnings: pack.warnings || [],
@@ -92,29 +112,182 @@ export async function refreshOdds(env, opts = {}) {
   };
 }
 
-function selectTargetFixtures(allFixtures, opts = {}) {
-  if (Array.isArray(opts.activeFixtures)) {
-    const ids = new Set(opts.activeFixtures.map(f => String(f?.id || '')).filter(Boolean));
-    return allFixtures.filter(f => ids.has(String(f.id)));
+
+async function resolveMissingFlashscoreMids(env, allFixtures, selectedFixtures, opts = {}) {
+  const selected = Array.isArray(selectedFixtures) ? selectedFixtures.filter(Boolean) : [];
+  const selectedIds = new Set(selected.map(f => String(f.id)));
+  const missingBefore = selected.filter(f => !validFlashscoreMid(fixtureFlashscoreMid(f)));
+
+  const disabled =
+    opts.resolveMids === false
+    || opts.resolveMids === '0'
+    || String(env.FLASHSCORE_MID_AUTO_BACKFILL || 'true') === 'false';
+
+  if (!missingBefore.length || disabled) {
+    return {
+      attempted: false,
+      disabled,
+      fixtures: selected,
+      selectedCount: selected.length,
+      missingBeforeIds: missingBefore.map(f => String(f.id)),
+      missingAfterIds: missingBefore.map(f => String(f.id)),
+      resolvedIds: [],
+      written: false,
+      warning: disabled && missingBefore.length
+        ? 'Automatic Flashscore MID backfill is disabled.'
+        : null
+    };
   }
 
-  const rawIds = Array.isArray(opts.fixtureIds)
-    ? opts.fixtureIds
-    : String(opts.fixtureIds || opts.ids || '').split(',');
-  const ids = new Set(rawIds.map(x => String(x || '').trim()).filter(Boolean));
-  if (ids.size) return allFixtures.filter(f => ids.has(String(f.id)));
+  const writeMids =
+    opts.writeMids !== false
+    && opts.writeMids !== '0'
+    && String(env.FLASHSCORE_MID_AUTO_WRITE || 'true') !== 'false';
 
+  let result;
+  try {
+    result = await backfillFlashscoreMids(env, allFixtures, {
+      ...opts,
+      activeFixtures: missingBefore,
+      overwrite: true,
+      write: writeMids,
+      source: 'odds-auto-mid-backfill-b36'
+    });
+  } catch (error) {
+    return {
+      attempted: true,
+      disabled: false,
+      fixtures: selected,
+      selectedCount: selected.length,
+      missingBeforeIds: missingBefore.map(f => String(f.id)),
+      missingAfterIds: missingBefore.map(f => String(f.id)),
+      resolvedIds: [],
+      written: false,
+      error: error?.message || String(error)
+    };
+  }
+
+  const updatedAll = Array.isArray(result?.fixtures) ? result.fixtures : allFixtures;
+  const updatedById = new Map(
+    updatedAll
+      .filter(f => selectedIds.has(String(f?.id)))
+      .map(f => [String(f.id), f])
+  );
+
+  const resolvedFixtures = selected.map(f => updatedById.get(String(f.id)) || f);
+  const missingAfter = resolvedFixtures.filter(f => !validFlashscoreMid(fixtureFlashscoreMid(f)));
+  const missingAfterIds = new Set(missingAfter.map(f => String(f.id)));
+  const resolvedIds = missingBefore
+    .map(f => String(f.id))
+    .filter(id => !missingAfterIds.has(id));
+
+  return {
+    attempted: true,
+    disabled: false,
+    fixtures: resolvedFixtures,
+    selectedCount: selected.length,
+    targetCount: missingBefore.length,
+    missingBeforeIds: missingBefore.map(f => String(f.id)),
+    missingAfterIds: [...missingAfterIds],
+    resolvedIds,
+    changedIds: Array.isArray(result?.changedIds) ? result.changedIds.map(String) : [],
+    matched: Number(result?.matched || 0),
+    rawEventCount: Number(result?.rawEventCount || 0),
+    written: !!result?.written,
+    publicCacheWrite: result?.publicCacheWrite || null,
+    individualDocsAttempted: Number(result?.individualDocsAttempted || 0),
+    individualDocsWritten: Number(result?.individualDocsWritten || 0),
+    unmatched: Array.isArray(result?.unmatched)
+      ? result.unmatched.slice(0, 40)
+      : [],
+    ambiguous: Array.isArray(result?.ambiguous)
+      ? result.ambiguous.slice(0, 20)
+      : [],
+    warning: result?.warning || null,
+    error: result?.ok === false ? 'flashscore_mid_backfill_incomplete' : null
+  };
+}
+
+function publicMidResolution(value) {
+  if (!value) return null;
+  const { fixtures, ...publicValue } = value;
+  return publicValue;
+}
+
+function fixtureFlashscoreMid(fixture) {
+  return fixture?.flashscoreMid
+    || fixture?.flashscoreEventId
+    || fixture?.sourceIds?.flashscoreMid
+    || fixture?.sourceIds?.flashscoreEventId
+    || null;
+}
+
+function validFlashscoreMid(value) {
+  return /^[A-Za-z0-9]{8}$/.test(String(value || '').trim());
+}
+
+function selectTargetFixtures(allFixtures, opts = {}) {
+  const fixtures = Array.isArray(allFixtures) ? allFixtures.filter(Boolean) : [];
+
+  if (Array.isArray(opts.activeFixtures) && opts.activeFixtures.length) {
+    const ids = new Set(opts.activeFixtures.map(f => String(f?.id || '')).filter(Boolean));
+    return { fixtures: fixtures.filter(f => ids.has(String(f.id))), mode: 'scheduler-active-window', window: null };
+  }
+
+  const date = String(opts.date || '').slice(0, 10);
   const dateFrom = String(opts.dateFrom || '').slice(0, 10);
   const dateTo = String(opts.dateTo || '').slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
-    return allFixtures.filter(f => {
-      const date = String(f?.date || '').slice(0, 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-      if (dateFrom && date < dateFrom) return false;
-      if (dateTo && date > dateTo) return false;
-      return true;
-    });
+  const round = String(opts.round || '').trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { fixtures: fixtures.filter(f => String(f?.date || '').slice(0, 10) === date), mode: 'explicit-date', window: { dateFrom: date, dateTo: date } };
   }
 
-  return allFixtures;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+    return {
+      fixtures: fixtures.filter(f => {
+        const d = String(f?.date || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+        if (dateFrom && d < dateFrom) return false;
+        if (dateTo && d > dateTo) return false;
+        return true;
+      }),
+      mode: 'explicit-date-window',
+      window: { dateFrom: dateFrom || null, dateTo: dateTo || null }
+    };
+  }
+
+  if (round) return { fixtures: fixtures.filter(f => String(f?.r ?? '') === round), mode: 'explicit-round', window: { round } };
+
+  const now = new Date();
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
+  const daysAhead = clampInt(opts.windowDays || 21, 21, 1, 60);
+  const endDate = new Date(startDate.getTime() + (daysAhead + 1) * 86400000);
+  const startKey = startDate.toISOString().slice(0, 10);
+  const endKey = endDate.toISOString().slice(0, 10);
+
+  let selected = fixtures.filter(f => {
+    const d = String(f?.date || '').slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= startKey && d <= endKey && !isFinalFixture(f);
+  });
+
+  if (!selected.length) {
+    selected = fixtures.filter(f => !isFinalFixture(f))
+      .filter(f => /^\d{4}-\d{2}-\d{2}$/.test(String(f?.date || '').slice(0, 10)))
+      .sort((a,b) => String(a.date).localeCompare(String(b.date)))
+      .slice(0, 48);
+  }
+
+  return { fixtures: selected, mode: 'automatic-rolling-window', window: { dateFrom: startKey, dateTo: endKey, daysAhead } };
+}
+
+function isFinalFixture(fixture) {
+  const status = String(fixture?.status || fixture?.state || '').toUpperCase();
+  return ['FT','AET','PEN','FINAL','FINISHED'].includes(status) || fixture?.final === true || fixture?.finished === true;
+}
+
+function clampInt(value, fallback, min = 1, max = 320) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, Math.trunc(number)));
 }

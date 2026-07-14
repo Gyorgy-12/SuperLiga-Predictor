@@ -45,5 +45,41 @@ async function superligaPersistTipsNow(){
 }
 async function superligaDeleteGroupTip(id){delete PRED[id];await superligaPersistTipsNow()}
 async function superligaDeleteKoTip(id){delete KO_PRED[id];await superligaPersistTipsNow()}
-function koMatchesWithFinishedGroupResults(){let old=LIVE_RESULTS;try{LIVE_RESULTS=Object.fromEntries(Object.entries(old||{}).filter(([k,v])=>v&&v.finished));return buildAllPostseasonMatches()}finally{LIVE_RESULTS=old}}
-function pruneStaleKoPred(dropUnknown){if(FROZEN_MODE||!KO_PRED||!Object.keys(KO_PRED).length)return false;let byId={};koMatchesWithFinishedGroupResults().forEach(m=>byId[m.id]=m);let changed=false;Object.keys(KO_PRED).forEach(id=>{let p=KO_PRED[id]||{},m=byId[id];if(!m||!m.h||!m.a){delete KO_PRED[id];changed=true;return}if(p.hTeam||p.aTeam){if(p.hTeam!==m.h||p.aTeam!==m.a){delete KO_PRED[id];changed=true}}else if(dropUnknown){delete KO_PRED[id];changed=true}else{p.hTeam=m.h;p.aTeam=m.a;p.round=m.title;changed=true}});if(changed)savePred();return changed}
+function superligaPostseasonSeedSignature(){
+  try{
+    let sp=splitPostseason();
+    return JSON.stringify({
+      po:(sp.po||[]).map(x=>x&&x.name||''),
+      pl:(sp.pl||[]).map(x=>x&&x.name||'')
+    });
+  }catch(e){return''}
+}
+function superligaKoStoredSeedSignature(){
+  let vals=Object.values(KO_PRED||{}).map(p=>p&&p.seedSignature).filter(Boolean);
+  return vals.length?vals[0]:'';
+}
+function superligaStampKoSeedSignature(){
+  let sig=superligaPostseasonSeedSignature(),changed=false;
+  if(!sig)return false;
+  Object.values(KO_PRED||{}).forEach(p=>{if(p&&p.seedSignature!==sig){p.seedSignature=sig;changed=true}});
+  if(changed)savePred();
+  return changed;
+}
+function superligaResetAllPostseasonTips(reason){
+  if(FROZEN_MODE||!KO_PRED||!Object.keys(KO_PRED).length)return false;
+  KO_PRED={};
+  savePred();
+  try{sessionStorage.setItem('superliga_last_postseason_reset_v1',JSON.stringify({reason:reason||'seed_changed',at:new Date().toISOString()}))}catch(e){}
+  Promise.resolve(superligaPersistTipsNow()).catch(e=>{try{superligaBackendError=e&&e.message?e.message:String(e)}catch(_e){}});
+  return true;
+}
+function superligaResetPostseasonTipsIfSeedChanged(){
+  if(FROZEN_MODE||!KO_PRED||!Object.keys(KO_PRED).length)return false;
+  let current=superligaPostseasonSeedSignature();
+  let stored=superligaKoStoredSeedSignature();
+  if(!current)return false;
+  if(!stored)return superligaResetAllPostseasonTips('legacy_postseason_tips_after_finished_match');
+  if(stored!==current)return superligaResetAllPostseasonTips('postseason_seed_changed_after_finished_match');
+  return false;
+}
+function pruneStaleKoPred(){return superligaResetPostseasonTipsIfSeedChanged()}

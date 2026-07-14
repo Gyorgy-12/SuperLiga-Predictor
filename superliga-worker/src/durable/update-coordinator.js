@@ -249,19 +249,25 @@ export class UpdateCoordinator {
     });
 
     const attemptedAt = Date.now();
+    const matchedIds = new Set((result?.matchedIds || []).map(String));
+    const unmatchedIds = new Set((result?.unmatchedIds || []).map(String));
     for (const row of due) {
+      const fixtureId = String(row.fixture.id);
       const previous = state[row.key] || {};
+      const matched = matchedIds.has(fixtureId);
       state[row.key] = {
-        fixtureId: String(row.fixture.id),
+        fixtureId,
         kickoffMs: row.kickoffMs,
         targetMs: row.target,
         attempts: Number(previous.attempts || 0) + 1,
         lastAttemptAt: attemptedAt,
-        done: result?.ok !== false,
-        ok: result?.ok !== false,
+        done: matched,
+        ok: matched,
+        matched,
+        unmatched: unmatchedIds.has(fixtureId),
         sourceCount: result?.sourceCount ?? null,
         changed: result?.changed ?? null,
-        error: result?.error || null
+        error: matched ? null : (result?.error || 'odds_not_available_yet')
       };
     }
     cleanupPrematchState(state, now);

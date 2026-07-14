@@ -371,7 +371,7 @@ async function fetchFixtureOdds(env, fixture, config, opts = {}) {
         ? new Date(selected.feedTimestamp * 1000).toISOString()
         : null,
       updatedAt,
-      oddsSource: 'flashscore-graphql-single-bookmaker-b34'
+      oddsSource: 'flashscore-graphql-single-bookmaker-b35'
     }
   };
 }
@@ -415,9 +415,9 @@ export async function fetchOdds(env, fixtures = [], opts = {}) {
 
   const maxFixtures = toInt(
     opts.maxFixtures || env.FLASHSCORE_ODDS_MAX_FIXTURES,
-    24,
+    Math.max(1, selectedFixtures.length),
     1,
-    80
+    320
   );
 
   const concurrency = toInt(
@@ -494,7 +494,7 @@ export async function fetchOdds(env, fixtures = [], opts = {}) {
 
   if (targetFixtures.length < selectedFixtures.length) {
     warnings.push(
-      `Fixture limit applied: ${targetFixtures.length}/${selectedFixtures.length}.`
+      `Configured fixture limit applied: ${targetFixtures.length}/${selectedFixtures.length}.`
     );
   }
 
@@ -512,7 +512,7 @@ export async function fetchOdds(env, fixtures = [], opts = {}) {
 
   return {
     ok: true,
-    source: 'flashscore-graphql-odds-b34-strict-mid-guard',
+    source: 'flashscore-graphql-odds-b35-all-relevant',
     odds,
     count,
     fetched: requestCount,

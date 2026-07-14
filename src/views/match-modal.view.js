@@ -142,7 +142,7 @@ async function saveKoTip(id){
   if(h===''&&a===''){await superligaDeleteKoTip(id);closeTip();render();return}
   if(!validScore(h)||!validScore(a)){if(msg)msg.textContent='Adj meg két 0 és 99 közötti egész számot.';return}
   if(id.startsWith('CB-')&&+h===+a){if(msg)msg.textContent='A Konferencialiga-baraj egymeccses ágán győztest kell tippelni.';return}
-  KO_PRED[id]={h:+h,a:+a,hTeam:m.h,aTeam:m.a,round:m.title||m.r};
+  KO_PRED[id]={h:+h,a:+a,hTeam:m.h,aTeam:m.a,round:m.title||m.r,seedSignature:superligaPostseasonSeedSignature()};
   await superligaPersistTipsNow();
   closeTip();
   render();

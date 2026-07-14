@@ -8630,3 +8630,42 @@ body.modal-open{
     font-size:14.2px!important;
   }
 }
+
+
+/* F9 — stable modal viewport lock. Keep this at the end because this file is the final import. */
+html.modal-open{
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+body.modal-open{
+  position:fixed!important;
+  top:calc(-1 * var(--modal-scroll-y,0px))!important;
+  left:0!important;
+  right:0!important;
+  width:100%!important;
+  height:100%!important;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+.tip-overlay{
+  position:fixed!important;
+  inset:0!important;
+  height:100dvh!important;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+  touch-action:none!important;
+}
+.tip-overlay>.tip-sheet{
+  max-height:min(92dvh,920px)!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+  scrollbar-gutter:stable!important;
+  contain:layout paint!important;
+}
+@media (max-width:560px){
+  .tip-overlay>.tip-sheet{
+    height:min(92dvh,920px)!important;
+    max-height:92dvh!important;
+  }
+}

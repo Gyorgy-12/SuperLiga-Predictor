@@ -6,7 +6,7 @@ export function normTeam(value) {
   return stripDiacritics(value)
     .toLowerCase()
     .replace(/&amp;/g, ' and ')
-    .replace(/\b(afc|acs|acsc|as|csm|cs|fc|osk|sc|cf|clubul|fotbal|fotbalistic|sa)\b/g, ' ')
+    .replace(/\b(afc|afk|fk|acs|acsc|as|csm|cs|fc|osk|sc|cf|clubul|fotbal|fotbalistic|sa)\b/g, ' ')
     .replace(/\b(1923|1948|2013|52)\b/g, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -28,7 +28,16 @@ export const TEAM_ALIASES = {
   'FC Botoșani': ['botosani', 'fc botosani', 'botoșani'],
   'FC Voluntari': ['voluntari', 'fc voluntari'],
   'FC Argeș': ['arges', 'fc arges', 'argesh', 'arges pitesti', 'fc arges pitesti'],
-  'Csikszereda': ['csikszereda', 'csik szereda', 'miercurea ciuc', 'fk csikszereda'],
+  'Csikszereda': [
+    'csikszereda',
+    'csik szereda',
+    'miercurea ciuc',
+    'csikszereda miercurea',
+    'csikszereda miercurea ciuc',
+    'fk csikszereda',
+    'fk csikszereda miercurea ciuc',
+    'afk csikszereda miercurea ciuc'
+  ],
   'Corvinul Hunedoara': ['corvinul hunedoara', 'corvinul', 'hunedoara']
 };
 
