@@ -13,14 +13,14 @@
    - preserves match-card/modal click behavior
    - disables every prediction input and hides save/delete actions
 */
-(function superligaStandaloneExportV4(){
+(function superligaStandaloneExportPenaltySafeV5(){
 'use strict';
 
-if(window.__SUPERLIGA_STANDALONE_EXPORT_V4__)return;
-window.__SUPERLIGA_STANDALONE_EXPORT_V4__=true;
+if(window.__SUPERLIGA_STANDALONE_EXPORT_PENALTY_SAFE_V5__)return;
+window.__SUPERLIGA_STANDALONE_EXPORT_PENALTY_SAFE_V5__=true;
 
 const EXPORT_MODE=!!window.__SUPERLIGA_STANDALONE_EXPORT__;
-const VERSION='v4-existing-export-button-readonly-single-file';
+const VERSION='v5-penalty-safe-existing-export-button';
 
 function textOf(el){
   return String(el&&el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -92,12 +92,14 @@ function isBarajModal(modal){
     textOf(modal.querySelector('.sheet-subtitle')),
     textOf(modal.querySelector('.tip-date')),
     textOf(modal.querySelector('.tip-title')),
+    textOf(modal.querySelector('.tip-head')),
     textOf(modal.querySelector('.sheet-title'))
   ].filter(Boolean).join(' ');
   return /\bbaraj\b/i.test(explicit);
 }
 
 function syncBarajPenaltyBox(modal){
+  if(!EXPORT_MODE)return;
   const home=modal&&modal.querySelector('#tipH');
   const away=modal&&modal.querySelector('#tipA');
   const box=modal&&modal.querySelector('.penalty-box');
@@ -148,6 +150,7 @@ function makeModalReadonly(modal){
 }
 
 function wireModal(modal){
+  if(!EXPORT_MODE)return;
   if(!modal||modal.dataset.slStandaloneWired==='1')return;
   modal.dataset.slStandaloneWired='1';
 
@@ -503,13 +506,13 @@ function boot(){
   // Capture phase guarantees that the old exportSnapshotNav onclick cannot run.
   document.addEventListener('click',interceptExistingExportButton,true);
   bindExistingExportButton();
-  scanModals(document);
+  if(EXPORT_MODE)scanModals(document);
 
   new MutationObserver(records=>{
     records.forEach(record=>{
       record.addedNodes.forEach(node=>{
         if(node.nodeType===1){
-          scanModals(node);
+          if(EXPORT_MODE)scanModals(node);
           if(
             (node.matches&&node.matches('#exportBtn'))||
             (node.querySelector&&node.querySelector('#exportBtn'))
