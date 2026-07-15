@@ -1,68 +1,115 @@
-/* VB26 PARITY V6 — EXACT TEAM/SCORE ROW ALIGNMENT
-   Verified against the actual match-card DOM:
-   .mr-teams > .mr-team x2
-   .mr-scores ... .mr-score-row x2
-   Import this file LAST. */
+/* VB26 SCORE RAIL SYNC V8 — ACTUAL SUPERLIGA DOM
+   Fixes the real score markup used by the app:
+   .mr-pen-wrap / .mr-score-pair / .mr-actual / .win / .match-empty
+   Import LAST. */
 
 @media (max-width: 720px) {
-  body .match-row .mr-teams {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    gap: clamp(6px, 1.7vw, 9px) !important;
-    padding-top: clamp(9px, 2.4vw, 13px) !important;
-    padding-bottom: clamp(9px, 2.4vw, 13px) !important;
+  html body .main.matches-main .match-row,
+  html body .matches-main .match-row {
+    --sl-score-row-h: clamp(26px, 6.5vw, 34px);
+    --sl-score-row-gap: clamp(6px, 1.7vw, 9px);
+    --sl-score-pad-y: clamp(9px, 2.4vw, 13px);
   }
 
-  body .match-row .mr-team {
+  html body .main.matches-main .match-row .mr-teams,
+  html body .matches-main .match-row .mr-teams,
+  html body .main.matches-main .match-row .mr-scores,
+  html body .matches-main .match-row .mr-scores {
+    justify-content: center !important;
+    gap: var(--sl-score-row-gap) !important;
+    padding-top: var(--sl-score-pad-y) !important;
+    padding-bottom: var(--sl-score-pad-y) !important;
+  }
+
+  html body .main.matches-main .match-row .mr-team,
+  html body .matches-main .match-row .mr-team {
+    height: var(--sl-score-row-h) !important;
+    min-height: var(--sl-score-row-h) !important;
+    margin: 0 !important;
+  }
+
+  /* Non-live score rail: the two actual home/away rows. */
+  html body .main.matches-main .match-row .mr-scores > .mr-pen-wrap,
+  html body .main.matches-main .match-row .mr-scores > .mr-actual,
+  html body .main.matches-main .match-row .mr-scores > .win,
+  html body .main.matches-main .match-row .mr-scores > .match-empty,
+  html body .main.matches-main .match-row .mr-scores > .mr-ko-score-line,
+  html body .matches-main .match-row .mr-scores > .mr-pen-wrap,
+  html body .matches-main .match-row .mr-scores > .mr-actual,
+  html body .matches-main .match-row .mr-scores > .win,
+  html body .matches-main .match-row .mr-scores > .match-empty,
+  html body .matches-main .match-row .mr-scores > .mr-ko-score-line {
     display: flex !important;
     align-items: center !important;
-    min-height: clamp(26px, 6.5vw, 34px) !important;
-    height: clamp(26px, 6.5vw, 34px) !important;
+    justify-content: center !important;
+    height: var(--sl-score-row-h) !important;
+    min-height: var(--sl-score-row-h) !important;
     margin: 0 !important;
     line-height: 1 !important;
   }
 
-  body .match-row .mr-scores {
+  /* Live wrapper: keep the two score rows on the same rhythm as team rows. */
+  html body .main.matches-main .match-row .mr-score-wrap,
+  html body .matches-main .match-row .mr-score-wrap {
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
-    gap: 0 !important;
-    padding-top: clamp(9px, 2.4vw, 13px) !important;
-    padding-bottom: clamp(9px, 2.4vw, 13px) !important;
-  }
-
-  body .match-row .mr-score-lines,
-  body .match-row .mr-score-compare,
-  body .match-row .mr-score-tip-only,
-  body .match-row .mr-score-actual-only {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: clamp(6px, 1.7vw, 9px) !important;
     width: 100% !important;
-    margin: 0 !important;
   }
 
-  body .match-row .mr-score-row {
+  html body .main.matches-main .match-row .mr-score-lines,
+  html body .matches-main .match-row .mr-score-lines {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: stretch !important;
+    gap: var(--sl-score-row-gap) !important;
+    width: 100% !important;
+  }
+
+  html body .main.matches-main .match-row .mr-score-lines > .mr-pen-wrap,
+  html body .main.matches-main .match-row .mr-score-lines > .mr-actual,
+  html body .main.matches-main .match-row .mr-score-lines > .win,
+  html body .main.matches-main .match-row .mr-score-lines > .match-empty,
+  html body .main.matches-main .match-row .mr-score-lines > .mr-ko-score-line,
+  html body .matches-main .match-row .mr-score-lines > .mr-pen-wrap,
+  html body .matches-main .match-row .mr-score-lines > .mr-actual,
+  html body .matches-main .match-row .mr-score-lines > .win,
+  html body .matches-main .match-row .mr-score-lines > .match-empty,
+  html body .matches-main .match-row .mr-score-lines > .mr-ko-score-line {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-height: clamp(26px, 6.5vw, 34px) !important;
-    height: clamp(26px, 6.5vw, 34px) !important;
+    height: var(--sl-score-row-h) !important;
+    min-height: var(--sl-score-row-h) !important;
     margin: 0 !important;
-    padding: 0 !important;
     line-height: 1 !important;
   }
 
-  body .match-row .mr-score-row > span,
-  body .match-row .wc26-card-score {
-    display: inline-flex !important;
+  html body .matches-main .match-row .mr-score-pair,
+  html body .main.matches-main .match-row .mr-score-pair {
     align-items: center !important;
-    justify-content: center !important;
-    line-height: 1 !important;
     margin: 0 !important;
+  }
+}
+
+/* The current 412px-ish phone layout uses the compact mobile rhythm. */
+@media (max-width: 520px) {
+  html body .main.matches-main .match-row,
+  html body .matches-main .match-row {
+    --sl-score-row-h: clamp(20px, 5.3vw, 25px);
+    --sl-score-row-gap: clamp(4px, 1.15vw, 6px);
+    --sl-score-pad-y: clamp(6px, 1.7vw, 9px);
+  }
+}
+
+/* Desktop: do not CSS-truncate full club names. */
+@media (min-width: 721px) {
+  html body .main.matches-main .match-row .mr-tname,
+  html body .matches-main .match-row .mr-tname {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
   }
 }
