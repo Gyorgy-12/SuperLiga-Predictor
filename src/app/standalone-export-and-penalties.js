@@ -1,200 +1,535 @@
-/* SuperLiga Predictor — baraj-only penalties + standalone read-only HTML export
-   Load AFTER src/app/bootstrap.js. */
-(function(){
-'use strict';
-if(window.__SL_EXPORT_PEN_V2__)return;
-window.__SL_EXPORT_PEN_V2__=1;
-const EXPORT_MODE=!!window.__SUPERLIGA_STANDALONE_EXPORT__;
+/* SuperLiga Predictor — complete single-file read-only HTML export
+   Load AFTER src/app/bootstrap.js.
 
-function valid(v){return v!==''&&v!=null&&Number.isFinite(Number(v));}
-function txt(el){return String(el&&el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();}
-function isTipAction(btn){return /^(mentés|tipp törlése|tipp mentése|save|delete prediction)$/.test(txt(btn));}
+   Source app:
+   - adds a ⇩ export button
+   - does not change normal prediction behavior
+
+   Generated HTML:
+   - contains all linked CSS, including recursively resolved @imports
+   - contains all classic external JS files inline
+   - removes the Community tab
+   - bakes the current in-memory PRED / KO_PRED state into frozen data
+   - preserves match-card/modal click behavior
+   - disables every prediction input and hides save/delete actions
+*/
+(function superligaStandaloneExportV4(){
+'use strict';
+
+if(window.__SUPERLIGA_STANDALONE_EXPORT_V4__)return;
+window.__SUPERLIGA_STANDALONE_EXPORT_V4__=true;
+
+const EXPORT_MODE=!!window.__SUPERLIGA_STANDALONE_EXPORT__;
+const VERSION='v4-existing-export-button-readonly-single-file';
+
+function textOf(el){
+  return String(el&&el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+}
+
+function validScoreValue(value){
+  return value!==''&&value!=null&&Number.isFinite(Number(value));
+}
+
+function isTipAction(button){
+  const text=textOf(button);
+  return /^(mentés|tipp mentése|tipp törlése|save|save prediction|delete prediction|clear prediction)$/.test(text);
+}
+
+function clone(value,fallback){
+  try{
+    if(value===undefined)return fallback;
+    return JSON.parse(JSON.stringify(value));
+  }catch(_error){
+    return fallback;
+  }
+}
+
+function readLexical(name,fallback){
+  const allowed=new Set([
+    'PRED','KO_PRED','LIVE_RESULTS','FIXTURES','ALL_MATCHES','KO_SCHEDULE',
+    'TEAM_ELO','TEAM_ELO_POINTS','TEAM_RATINGS','TEAM_MARKET_VALUES',
+    'MARKET_VALUES','S'
+  ]);
+  if(!allowed.has(name))return fallback;
+  try{
+    // Direct eval can see classic-script global lexical bindings such as `let PRED`.
+    const value=eval('typeof '+name+'!=="undefined"?'+name+':undefined');
+    return clone(value,fallback);
+  }catch(_error){
+    return fallback;
+  }
+}
+
+function currentSnapshot(){
+  return {
+    version:VERSION,
+    createdAt:new Date().toISOString(),
+    pred:readLexical('PRED',{}),
+    ko:readLexical('KO_PRED',{}),
+    liveResults:readLexical('LIVE_RESULTS',{}),
+    fixtures:readLexical('FIXTURES',null),
+    allMatches:readLexical('ALL_MATCHES',null),
+    koSchedule:readLexical('KO_SCHEDULE',null),
+    teamElo:readLexical('TEAM_ELO',null),
+    teamEloPoints:readLexical('TEAM_ELO_POINTS',null),
+    teamRatings:readLexical('TEAM_RATINGS',null),
+    teamMarketValues:readLexical('TEAM_MARKET_VALUES',null),
+    marketValues:readLexical('MARKET_VALUES',null),
+    state:readLexical('S',null)
+  };
+}
 
 function isBarajModal(modal){
   if(!modal)return false;
-
   const explicit=[
     modal.dataset.tipStage,
     modal.dataset.stage,
     modal.dataset.round,
     modal.dataset.competition,
-    modal.dataset.matchType
+    modal.dataset.matchType,
+    textOf(modal.querySelector('.tip-meta')),
+    textOf(modal.querySelector('.tip-subtitle')),
+    textOf(modal.querySelector('.sheet-subtitle')),
+    textOf(modal.querySelector('.tip-date')),
+    textOf(modal.querySelector('.tip-title')),
+    textOf(modal.querySelector('.sheet-title'))
   ].filter(Boolean).join(' ');
-
-  const visibleText=[
-    explicit,
-    txt(modal.querySelector('.tip-meta')),
-    txt(modal.querySelector('.tip-subtitle')),
-    txt(modal.querySelector('.sheet-subtitle')),
-    txt(modal.querySelector('.tip-date')),
-    txt(modal.querySelector('.tip-title')),
-    txt(modal.querySelector('.sheet-title'))
-  ].join(' ');
-
-  return /\bbaraj\b/i.test(visibleText);
+  return /\bbaraj\b/i.test(explicit);
 }
 
-function syncPenalty(modal){
-  const h=modal.querySelector('#tipH'),a=modal.querySelector('#tipA'),box=modal.querySelector('.penalty-box');
-  if(!h||!a||!box)return;
+function syncBarajPenaltyBox(modal){
+  const home=modal&&modal.querySelector('#tipH');
+  const away=modal&&modal.querySelector('#tipA');
+  const box=modal&&modal.querySelector('.penalty-box');
+  if(!home||!away||!box)return;
 
-  const allowed=isBarajModal(modal);
-  const tied=allowed&&valid(h.value)&&valid(a.value)&&Number(h.value)===Number(a.value);
-
+  const tied=isBarajModal(modal)&&validScoreValue(home.value)&&validScoreValue(away.value)&&Number(home.value)===Number(away.value);
   box.classList.toggle('hidden',!tied);
   box.hidden=!tied;
   box.setAttribute('aria-hidden',tied?'false':'true');
 
-  box.querySelectorAll('input').forEach(i=>{
-    i.disabled=EXPORT_MODE||!tied;
-    if(!allowed&&!EXPORT_MODE)i.value='';
+  box.querySelectorAll('input').forEach(input=>{
+    input.disabled=EXPORT_MODE||!tied;
   });
 }
 
-function readonly(modal){
+function makeModalReadonly(modal){
   if(!EXPORT_MODE||!modal)return;
+
   modal.classList.add('standalone-readonly-modal');
-  modal.querySelectorAll('input,select,textarea').forEach(el=>{
-    el.disabled=true;el.setAttribute('aria-disabled','true');el.tabIndex=-1;
+  modal.querySelectorAll('input,select,textarea').forEach(input=>{
+    input.disabled=true;
+    input.readOnly=true;
+    input.setAttribute('aria-disabled','true');
+    input.tabIndex=-1;
   });
-  modal.querySelectorAll('button').forEach(btn=>{
-    if(isTipAction(btn)){btn.hidden=true;btn.disabled=true;}
+
+  modal.querySelectorAll('button').forEach(button=>{
+    if(isTipAction(button)){
+      button.hidden=true;
+      button.disabled=true;
+    }
   });
-  modal.querySelectorAll('[data-save-tip],[data-delete-tip],[data-clear-tip],.tip-save,.tip-delete')
-    .forEach(el=>el.hidden=true);
+
+  modal.querySelectorAll(
+    '[data-save-tip],[data-delete-tip],[data-clear-tip],.tip-save,.tip-delete,.tip-actions .primary'
+  ).forEach(element=>{
+    element.hidden=true;
+    if('disabled'in element)element.disabled=true;
+  });
+
   if(!modal.querySelector('.standalone-readonly-note')){
     const note=document.createElement('div');
     note.className='standalone-readonly-note';
-    note.textContent='Ez egy exportált, csak olvasható nézet. A tippek itt nem módosíthatók.';
-    const sheet=modal.querySelector('.sheet,.tip-sheet');
-    if(sheet)sheet.appendChild(note);
+    note.textContent='Exportált, csak olvasható tipp. A meccskártya és a modal működik, de az eredmény itt már nem módosítható.';
+    const sheet=modal.querySelector('.sheet,.tip-sheet')||modal;
+    sheet.appendChild(note);
   }
 }
 
-function wire(modal){
-  if(!modal||modal.dataset.slPenWired==='1')return;
-  modal.dataset.slPenWired='1';
-  const h=modal.querySelector('#tipH'),a=modal.querySelector('#tipA');
-  const update=()=>{syncPenalty(modal);readonly(modal);};
-  if(h&&a){
-    ['input','change'].forEach(ev=>{h.addEventListener(ev,update);a.addEventListener(ev,update);});
-    requestAnimationFrame(update);setTimeout(update,0);setTimeout(update,80);
+function wireModal(modal){
+  if(!modal||modal.dataset.slStandaloneWired==='1')return;
+  modal.dataset.slStandaloneWired='1';
+
+  const update=()=>{
+    syncBarajPenaltyBox(modal);
+    makeModalReadonly(modal);
+  };
+
+  const home=modal.querySelector('#tipH');
+  const away=modal.querySelector('#tipA');
+  if(home&&away){
+    ['input','change'].forEach(eventName=>{
+      home.addEventListener(eventName,update);
+      away.addEventListener(eventName,update);
+    });
   }
-  readonly(modal);
+
+  requestAnimationFrame(update);
+  setTimeout(update,0);
+  setTimeout(update,80);
 }
 
-function scan(root){
-  const s=root&&root.querySelectorAll?root:document;
-  if(s.matches&&s.matches('.tip-overlay'))wire(s);
-  s.querySelectorAll('.tip-overlay').forEach(wire);
+function scanModals(root){
+  const scope=root&&root.querySelectorAll?root:document;
+  if(scope.matches&&scope.matches('.tip-overlay'))wireModal(scope);
+  scope.querySelectorAll('.tip-overlay').forEach(wireModal);
 }
 
-function storageDump(){
-  const out={};
-  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k!=null)out[k]=localStorage.getItem(k);}}catch(e){}
-  return out;
+function absoluteUrl(value,base){
+  try{return new URL(value,base).href}catch(_error){return value}
 }
-function abs(v,b){try{return new URL(v,b).href}catch(e){return v}}
-function escScript(s){return String(s||'').replace(/<\/script/gi,'<\\/script');}
-function cssUrls(css,url){
-  return String(css||'').replace(/url\(\s*(['"]?)(?!data:|blob:|https?:|\/\/|#)([^'")]+)\1\s*\)/gi,
-    (_m,_q,v)=>'url("'+abs(v.trim(),url).replace(/"/g,'%22')+'")');
+
+function escapeScriptEnd(text){
+  return String(text||'').replace(/<\/script/gi,'<\\/script');
 }
-async function getText(url){
-  const r=await fetch(url,{cache:'no-store',credentials:'same-origin'});
-  if(!r.ok)throw new Error('HTTP '+r.status+': '+url);
-  return r.text();
+
+async function fetchText(url){
+  const response=await fetch(url,{cache:'no-store',credentials:'same-origin'});
+  if(!response.ok)throw new Error('HTTP '+response.status+': '+url);
+  return response.text();
 }
-function prelude(store){
-  const data=JSON.stringify(store).replace(/</g,'\\u003c');
-  return 'window.__SUPERLIGA_STANDALONE_EXPORT__=true;window.__SUPERLIGA_EXPORT_STORAGE__='+data+
-  ';try{Object.keys(window.__SUPERLIGA_EXPORT_STORAGE__).forEach(function(k){localStorage.setItem(k,window.__SUPERLIGA_EXPORT_STORAGE__[k]);});}catch(e){}';
+
+function rewriteCssUrls(css,sourceUrl){
+  return String(css||'').replace(
+    /url\(\s*(['"]?)(?!data:|blob:|https?:|\/\/|#)([^'")]+)\1\s*\)/gi,
+    (_match,_quote,value)=>{
+      const absolute=absoluteUrl(String(value).trim(),sourceUrl).replace(/"/g,'%22');
+      return 'url("'+absolute+'")';
+    }
+  );
 }
-function postlude(){
-return `(function(){
-function t(e){return String(e&&e.textContent||'').replace(/\\s+/g,' ').trim().toLowerCase()}
-function ro(root){
- var s=root&&root.querySelectorAll?root:document;
- s.querySelectorAll('.tip-overlay').forEach(function(m){
-  m.querySelectorAll('input,select,textarea').forEach(function(x){x.disabled=true;x.tabIndex=-1});
-  m.querySelectorAll('button').forEach(function(b){if(/^(mentés|tipp törlése|tipp mentése|save|delete prediction)$/.test(t(b))){b.hidden=true;b.disabled=true}});
-  if(!m.querySelector('.standalone-readonly-note')){
-   var n=document.createElement('div');n.className='standalone-readonly-note';
-   n.textContent='Ez egy exportált, csak olvasható nézet. A tippek itt nem módosíthatók.';
-   var sh=m.querySelector('.sheet,.tip-sheet');if(sh)sh.appendChild(n);
+
+async function inlineCssFile(url,cache,stack){
+  if(cache.has(url))return cache.get(url);
+  if(stack.has(url))return '/* circular CSS import skipped: '+url+' */';
+
+  stack.add(url);
+  let css=await fetchText(url);
+
+  const importPattern=/@import\s+(?:url\(\s*)?(['"])([^'"]+)\1\s*\)?\s*([^;]*);/gi;
+  const matches=Array.from(css.matchAll(importPattern));
+
+  for(const match of matches){
+    const full=match[0];
+    const childUrl=absoluteUrl(match[2],url);
+    const media=String(match[3]||'').trim();
+    const childCss=await inlineCssFile(childUrl,cache,stack);
+    const replacement=media
+      ? '@media '+media+'{\n'+childCss+'\n}'
+      : childCss;
+    css=css.replace(full,replacement);
+  }
+
+  css=rewriteCssUrls(css,url);
+  stack.delete(url);
+  cache.set(url,css);
+  return css;
+}
+
+function convertDomAssetUrls(doc,pageUrl){
+  const attrs=[
+    ['img','src'],['source','src'],['video','poster'],['audio','src'],
+    ['link[rel="icon"]','href'],['a[data-asset]','href']
+  ];
+
+  attrs.forEach(([selector,attribute])=>{
+    doc.querySelectorAll(selector+'['+attribute+']').forEach(element=>{
+      const value=element.getAttribute(attribute);
+      if(value&&!/^(?:data:|blob:|https?:|\/\/|#)/i.test(value)){
+        element.setAttribute(attribute,absoluteUrl(value,pageUrl));
+      }
+    });
+  });
+
+  doc.querySelectorAll('[srcset]').forEach(element=>{
+    const value=element.getAttribute('srcset')||'';
+    const rewritten=value.split(',').map(part=>{
+      const bits=part.trim().split(/\s+/);
+      if(bits[0]&&!/^(?:data:|blob:|https?:|\/\/)/i.test(bits[0])){
+        bits[0]=absoluteUrl(bits[0],pageUrl);
+      }
+      return bits.join(' ');
+    }).join(', ');
+    element.setAttribute('srcset',rewritten);
+  });
+}
+
+function safeJsonForScript(value){
+  return JSON.stringify(value).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+}
+
+function exportPrelude(snapshot){
+  return [
+    'window.__SUPERLIGA_STANDALONE_EXPORT__=true;',
+    'window.__SUPERLIGA_FROZEN__=true;',
+    'window.__SUPERLIGA_READONLY__=true;',
+    'window.__SUPERLIGA_DISABLE_COMMUNITY__=true;',
+    'window.__SUPERLIGA_EXPORT_SNAPSHOT__='+safeJsonForScript(snapshot)+';',
+    'window.__SUPERLIGA_FROZEN_DATA__={pred:window.__SUPERLIGA_EXPORT_SNAPSHOT__.pred||{},ko:window.__SUPERLIGA_EXPORT_SNAPSHOT__.ko||{}};'
+  ].join('');
+}
+
+function exportPostlude(){
+  return `(function(){
+'use strict';
+var snapshot=window.__SUPERLIGA_EXPORT_SNAPSHOT__||{};
+
+function clone(value){
+ try{return JSON.parse(JSON.stringify(value))}catch(_error){return value}
+}
+
+function restoreBinding(name,key){
+ var source=snapshot[key];
+ if(source==null)return;
+ try{
+  var target=eval('typeof '+name+'!=="undefined"?'+name+':undefined');
+  if(Array.isArray(target)&&Array.isArray(source)){
+   target.splice.apply(target,[0,target.length].concat(clone(source)));
+   return;
+  }
+  if(target&&typeof target==='object'&&source&&typeof source==='object'){
+   Object.keys(target).forEach(function(k){try{delete target[k]}catch(_error){}});
+   Object.assign(target,clone(source));
+   return;
+  }
+  eval(name+'=clone(source)');
+ }catch(_error){}
+}
+
+[
+ ['LIVE_RESULTS','liveResults'],
+ ['FIXTURES','fixtures'],
+ ['ALL_MATCHES','allMatches'],
+ ['KO_SCHEDULE','koSchedule'],
+ ['TEAM_ELO','teamElo'],
+ ['TEAM_ELO_POINTS','teamEloPoints'],
+ ['TEAM_RATINGS','teamRatings'],
+ ['TEAM_MARKET_VALUES','teamMarketValues'],
+ ['MARKET_VALUES','marketValues'],
+ ['S','state']
+].forEach(function(pair){restoreBinding(pair[0],pair[1])});
+
+document.querySelectorAll('[data-tab="community"]').forEach(function(element){element.remove()});
+document.querySelectorAll('#exportBtn').forEach(function(element){element.remove()});
+
+function textOf(el){
+ return String(el&&el.textContent||'').replace(/\\s+/g,' ').trim().toLowerCase();
+}
+
+function makeReadonly(root){
+ var scope=root&&root.querySelectorAll?root:document;
+ scope.querySelectorAll('.tip-overlay').forEach(function(modal){
+  modal.classList.add('standalone-readonly-modal');
+  modal.querySelectorAll('input,select,textarea').forEach(function(input){
+   input.disabled=true;
+   input.readOnly=true;
+   input.tabIndex=-1;
+   input.setAttribute('aria-disabled','true');
+  });
+  modal.querySelectorAll('button').forEach(function(button){
+   if(/^(mentés|tipp mentése|tipp törlése|save|save prediction|delete prediction|clear prediction)$/.test(textOf(button))){
+    button.hidden=true;
+    button.disabled=true;
+   }
+  });
+  modal.querySelectorAll('[data-save-tip],[data-delete-tip],[data-clear-tip],.tip-save,.tip-delete,.tip-actions .primary')
+   .forEach(function(element){element.hidden=true;if('disabled'in element)element.disabled=true});
+  if(!modal.querySelector('.standalone-readonly-note')){
+   var note=document.createElement('div');
+   note.className='standalone-readonly-note';
+   note.textContent='Exportált, csak olvasható tipp. A meccskártya és a modal működik, de az eredmény itt már nem módosítható.';
+   var sheet=modal.querySelector('.sheet,.tip-sheet')||modal;
+   sheet.appendChild(note);
   }
  });
 }
-document.querySelectorAll('[data-tab="community"]').forEach(function(e){e.remove()});
-new MutationObserver(function(rs){rs.forEach(function(r){r.addedNodes.forEach(function(n){if(n.nodeType===1)ro(n)})})})
-.observe(document.documentElement,{childList:true,subtree:true});
-ro(document);
+
+new MutationObserver(function(records){
+ records.forEach(function(record){
+  record.addedNodes.forEach(function(node){
+   if(node.nodeType===1)makeReadonly(node);
+  });
+ });
+}).observe(document.documentElement,{childList:true,subtree:true});
+
+try{
+ if(typeof render==='function')render();
+ else if(typeof superligaRequestRender==='function')superligaRequestRender('standalone-export-restore');
+}catch(_error){}
+
+makeReadonly(document);
 })();`;
 }
 
-async function generate(){
-  const btn=document.querySelector('[data-generate-standalone-html]');
-  const old=btn?btn.textContent:'';
-  try{
-    if(btn){btn.disabled=true;btn.textContent='…';}
-    const page=location.href.split('#')[0];
-    const html=await getText(page);
-    const doc=new DOMParser().parseFromString(html,'text/html');
-    doc.querySelectorAll('[data-tab="community"]').forEach(e=>e.remove());
-
-    const p=doc.createElement('script');
-    p.textContent=prelude(storageDump());
-    doc.head.insertBefore(p,doc.head.firstChild);
-
-    for(const link of Array.from(doc.querySelectorAll('link[rel="stylesheet"][href]'))){
-      const u=abs(link.getAttribute('href'),page);
-      const st=doc.createElement('style');
-      st.setAttribute('data-inlined-from',u);
-      st.textContent=cssUrls(await getText(u),u);
-      link.replaceWith(st);
+function removeBootstrapPrefetch(doc){
+  doc.querySelectorAll('script:not([src])').forEach(script=>{
+    if(String(script.textContent||'').includes('__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH__')){
+      script.remove();
     }
+  });
+  doc.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]').forEach(link=>link.remove());
+}
+
+async function generateStandaloneHtml(){
+  const button=document.querySelector('#exportBtn');
+  const oldText=button?button.textContent:'';
+
+  try{
+    if(button){
+      button.disabled=true;
+      button.textContent='…';
+    }
+
+    const pageUrl=location.href.split('#')[0];
+    const sourceHtml=await fetchText(pageUrl);
+    const doc=new DOMParser().parseFromString(sourceHtml,'text/html');
+    const snapshot=currentSnapshot();
+
+    doc.documentElement.setAttribute('data-superliga-standalone-export',VERSION);
+    doc.querySelectorAll('[data-tab="community"]').forEach(element=>element.remove());
+    doc.querySelectorAll('[data-generate-standalone-html]').forEach(element=>element.remove());
+    removeBootstrapPrefetch(doc);
+    convertDomAssetUrls(doc,pageUrl);
+
+    const prelude=doc.createElement('script');
+    prelude.setAttribute('data-superliga-export-prelude',VERSION);
+    prelude.textContent=exportPrelude(snapshot);
+    doc.head.insertBefore(prelude,doc.head.firstChild);
+
+    const cssCache=new Map();
+    for(const link of Array.from(doc.querySelectorAll('link[rel="stylesheet"][href]'))){
+      const url=absoluteUrl(link.getAttribute('href'),pageUrl);
+      const style=doc.createElement('style');
+      style.setAttribute('data-inlined-from',url);
+      style.textContent=await inlineCssFile(url,cssCache,new Set());
+      link.replaceWith(style);
+    }
+
     for(const script of Array.from(doc.querySelectorAll('script[src]'))){
-      const u=abs(script.getAttribute('src'),page);
+      const src=script.getAttribute('src')||'';
+      const url=absoluteUrl(src,pageUrl);
+
+      // The generated document must not contain another generator button.
+      if(/standalone-export/i.test(src)){
+        script.remove();
+        continue;
+      }
+
       const inline=doc.createElement('script');
-      inline.setAttribute('data-inlined-from',u);
+      inline.setAttribute('data-inlined-from',url);
       if(script.type)inline.type=script.type;
-      inline.textContent=escScript(await getText(u));
+      inline.textContent=escapeScriptEnd(await fetchText(url));
       script.replaceWith(inline);
     }
 
-    const st=doc.createElement('style');
-    st.textContent='[data-tab="community"]{display:none!important}.standalone-readonly-note{margin:14px 18px 18px;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#111a20;color:#9eacb5;font-size:12px;font-weight:700;text-align:center}';
-    doc.head.appendChild(st);
+    const readonlyStyle=doc.createElement('style');
+    readonlyStyle.setAttribute('data-superliga-export-style',VERSION);
+    readonlyStyle.textContent=[
+      '[data-tab="community"],#exportBtn{display:none!important}',
+      '.standalone-readonly-note{margin:14px 18px 18px;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#111a20;color:#9eacb5;font-size:12px;font-weight:700;line-height:1.45;text-align:center}',
+      '.standalone-readonly-modal input:disabled{opacity:1!important;color:inherit!important;-webkit-text-fill-color:currentColor!important}',
+      '.standalone-readonly-modal [data-save-tip],.standalone-readonly-modal [data-delete-tip],.standalone-readonly-modal [data-clear-tip]{display:none!important}'
+    ].join('');
+    doc.head.appendChild(readonlyStyle);
 
-    const tail=doc.createElement('script');tail.textContent=postlude();doc.body.appendChild(tail);
-    const blob=new Blob(['<!doctype html>\n'+doc.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
-    const url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download='superliga-2026-27-export-'+new Date().toISOString().slice(0,10)+'.html';
-    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
-  }catch(e){
-    console.error('[standalone-export]',e);
-    alert('A HTML-generálás nem sikerült: '+(e&&e.message?e.message:e));
+    const postlude=doc.createElement('script');
+    postlude.setAttribute('data-superliga-export-postlude',VERSION);
+    postlude.textContent=exportPostlude();
+    doc.body.appendChild(postlude);
+
+    const output='<!doctype html>\n'+doc.documentElement.outerHTML;
+    const blob=new Blob([output],{type:'text/html;charset=utf-8'});
+    const objectUrl=URL.createObjectURL(blob);
+    const anchor=document.createElement('a');
+    anchor.href=objectUrl;
+    anchor.download='superliga-2026-27-readonly-'+new Date().toISOString().slice(0,10)+'.html';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),2000);
+  }catch(error){
+    console.error('[superliga-standalone-export]',error);
+    alert('A teljes HTML export nem sikerült: '+(error&&error.message?error.message:String(error)));
   }finally{
-    if(btn){btn.disabled=false;btn.textContent=old||'⇩';}
+    if(button){
+      button.disabled=false;
+      button.textContent=oldText||'⇩';
+    }
   }
 }
 
-function button(){
-  if(EXPORT_MODE||document.querySelector('[data-generate-standalone-html]'))return;
-  const host=document.querySelector('.hdr-acts');if(!host)return;
-  const b=document.createElement('button');
-  b.type='button';b.className='hdr-icon standalone-export-button';b.dataset.generateStandaloneHtml='1';
-  b.textContent='⇩';b.title='Működő, egyfájlos HTML generálása';b.setAttribute('aria-label',b.title);
-  b.addEventListener('click',generate);host.insertBefore(b,host.firstChild);
+function bindExistingExportButton(){
+  const button=document.getElementById('exportBtn');
+  if(!button)return false;
+
+  button.dataset.standaloneExportBound='1';
+  button.title='Teljes, egyfájlos, csak olvasható HTML generálása';
+  button.setAttribute('aria-label',button.title);
+
+  // The original render may assign exportSnapshotNav repeatedly.
+  // Replacing onclick here keeps the already existing button but swaps its export logic.
+  button.onclick=function(event){
+    if(event){
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    generateStandaloneHtml();
+    return false;
+  };
+  return true;
 }
+
+function interceptExistingExportButton(event){
+  const target=event.target&&event.target.closest
+    ? event.target.closest('#exportBtn')
+    : null;
+  if(!target)return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+  generateStandaloneHtml();
+}
+
 function boot(){
-  const st=document.createElement('style');
-  st.textContent='.standalone-export-button{border:0;background:transparent;font:inherit;cursor:pointer}.standalone-export-button:disabled{opacity:.45;cursor:wait}.standalone-readonly-note{margin:14px 18px 18px;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#111a20;color:#9eacb5;font-size:12px;font-weight:700;text-align:center}';
-  document.head.appendChild(st);
-  button();scan(document);
-  new MutationObserver(rs=>rs.forEach(r=>r.addedNodes.forEach(n=>{if(n.nodeType===1)scan(n)})))
-    .observe(document.body,{childList:true,subtree:true});
-  if(EXPORT_MODE)document.querySelectorAll('[data-tab="community"]').forEach(e=>e.remove());
+  const style=document.createElement('style');
+  style.textContent=[
+    '#exportBtn:disabled{opacity:.45!important;cursor:wait!important}',
+    '.standalone-readonly-note{margin:14px 18px 18px;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#111a20;color:#9eacb5;font-size:12px;font-weight:700;line-height:1.45;text-align:center}'
+  ].join('');
+  document.head.appendChild(style);
+
+  // Capture phase guarantees that the old exportSnapshotNav onclick cannot run.
+  document.addEventListener('click',interceptExistingExportButton,true);
+  bindExistingExportButton();
+  scanModals(document);
+
+  new MutationObserver(records=>{
+    records.forEach(record=>{
+      record.addedNodes.forEach(node=>{
+        if(node.nodeType===1){
+          scanModals(node);
+          if(
+            (node.matches&&node.matches('#exportBtn'))||
+            (node.querySelector&&node.querySelector('#exportBtn'))
+          ){
+            queueMicrotask(bindExistingExportButton);
+          }
+        }
+      });
+    });
+  }).observe(document.body,{childList:true,subtree:true});
+
+  if(EXPORT_MODE){
+    document.querySelectorAll('[data-tab="community"]').forEach(element=>element.remove());
+    document.querySelectorAll('#exportBtn').forEach(element=>element.remove());
+  }
 }
-document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot,{once:true}):boot();
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',boot,{once:true});
+}else{
+  boot();
+}
 })();
