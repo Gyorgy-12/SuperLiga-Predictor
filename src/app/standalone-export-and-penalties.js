@@ -100,18 +100,14 @@ function isBarajModal(modal){
 
 function syncBarajPenaltyBox(modal){
   if(!EXPORT_MODE)return;
-  const home=modal&&modal.querySelector('#tipH');
-  const away=modal&&modal.querySelector('#tipA');
   const box=modal&&modal.querySelector('.penalty-box');
-  if(!home||!away||!box)return;
-
-  const tied=isBarajModal(modal)&&validScoreValue(home.value)&&validScoreValue(away.value)&&Number(home.value)===Number(away.value);
-  box.classList.toggle('hidden',!tied);
-  box.hidden=!tied;
-  box.setAttribute('aria-hidden',tied?'false':'true');
-
+  if(!box)return;
+  // The normal modal code already knows whether a one-match tie or a tied
+  // two-leg aggregate requires penalties. Export mode must only freeze it.
   box.querySelectorAll('input').forEach(input=>{
-    input.disabled=EXPORT_MODE||!tied;
+    input.disabled=true;
+    input.readOnly=true;
+    input.setAttribute('aria-disabled','true');
   });
 }
 

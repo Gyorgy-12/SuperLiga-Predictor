@@ -1384,3 +1384,29 @@
   margin-bottom:0!important;
   transform:none!important;
 }
+
+
+/* Aggregate and penalty details on the existing Baraj cards. */
+.baraj-score{flex-wrap:wrap}
+.baraj-score-pen{
+  flex:0 0 100%;
+  margin-top:-3px;
+  color:var(--orange);
+  font-size:clamp(8px,1.9vw,10px);
+  font-weight:950;
+  line-height:1;
+  text-align:center;
+}
+.baraj-aggregate{
+  flex-wrap:wrap;
+}
+.baraj-aggregate.is-tied{
+  box-shadow:inset 3px 0 0 rgba(245,149,0,.86);
+}
+.baraj-aggregate-pen{
+  flex:0 0 100%;
+  color:var(--orange);
+  font-size:var(--fz-xs);
+  font-weight:900;
+  text-align:right;
+}

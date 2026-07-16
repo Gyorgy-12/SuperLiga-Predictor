@@ -112,6 +112,62 @@ function modalSheetGrade(tip,r,isKo){
 }
 
 
+
+function modalBarajAggregateHtml(m,p){
+  if(!m||!superligaIsSurvivalBarajSecondLeg(m.id))return'';
+  return '<div class="baraj-modal-aggregate" data-baraj-aggregate>'
+    +'<div class="baraj-modal-aggregate-head"><span>Összesítés</span><small>oda-visszavágó</small></div>'
+    +'<div class="baraj-modal-first-leg" data-baraj-first-leg></div>'
+    +'<strong class="baraj-modal-aggregate-score" data-baraj-aggregate-score>–</strong>'
+    +'<div class="baraj-modal-aggregate-note" data-baraj-aggregate-note></div>'
+  +'</div>';
+}
+function modalBarajPenaltyHtml(m,p,locked){
+  if(!m||!(superligaIsConferenceBaraj(m.id)||superligaIsSurvivalBarajSecondLeg(m.id)))return'';
+  let state=superligaBarajPenaltyState(m,p?.h,p?.a),show=!!state.needed,dis=locked||!show?' disabled':'';
+  return '<div class="penalty-box'+(show?'':' hidden')+'" data-baraj-penalty-box'+(show?'':' hidden')+' aria-hidden="'+(show?'false':'true')+'">'
+    +'<div class="penalty-title"><span>Tizenegyesek</span><span>'+(superligaIsSurvivalBarajSecondLeg(m.id)?'csak összesített döntetlennél':'csak döntetlennél')+'</span></div>'
+    +'<div class="penalty-grid"><div class="pen-team">'+esc(modalTeamName(m.h))+'</div><div class="pen-inputs">'
+      +'<input id="penH" type="number" min="0" max="99" inputmode="numeric" autocomplete="off" value="'+esc(p?.pH??'')+'" aria-label="Hazai tizenegyesek"'+dis+'><span class="tip-dash">-</span>'
+      +'<input id="penA" type="number" min="0" max="99" inputmode="numeric" autocomplete="off" value="'+esc(p?.pA??'')+'" aria-label="Idegen tizenegyesek"'+dis+'>'
+    +'</div><div class="pen-team">'+esc(modalTeamName(m.a))+'</div></div>'
+    +'<div class="pen-note">'+(superligaIsSurvivalBarajSecondLeg(m.id)?'A visszavágó pályaválasztása szerinti tizenegyeseredményt add meg.':'Döntetlennél add meg a tizenegyespárbaj eredményét is.')+'</div>'
+  +'</div>';
+}
+function modalUpdateBarajState(ov,m,locked){
+  if(!ov||!m)return;
+  let h=ov.querySelector('#tipH')?.value??'',a=ov.querySelector('#tipA')?.value??'',state=superligaBarajPenaltyState(m,h,a);
+  let card=ov.querySelector('[data-baraj-aggregate]');
+  if(card){
+    let first=card.querySelector('[data-baraj-first-leg]'),score=card.querySelector('[data-baraj-aggregate-score]'),note=card.querySelector('[data-baraj-aggregate-note]'),aggregate=state.aggregate;
+    card.classList.remove('is-tied','has-winner','is-pending');
+    if(aggregate?.firstMatch&&aggregate?.firstScore&&!aggregate.firstScore.pending){
+      first.textContent='1. mérkőzés ('+(aggregate.firstScore.source==='actual'?'lezárt':'tipp')+'): '+modalTeamName(aggregate.firstMatch.h)+' '+aggregate.firstScore.h+' - '+aggregate.firstScore.a+' '+modalTeamName(aggregate.firstMatch.a);
+    }else first.textContent='Az első mérkőzéshez még nincs használható tipp vagy végeredmény.';
+    if(!aggregate?.ready){
+      score.textContent='Összesítés: –';
+      note.textContent=aggregate?.reason==='first-leg-live'?'Az első mérkőzés még folyamatban van.':'Add meg az első mérkőzés tippjét vagy várd meg a végeredményét.';
+      card.classList.add('is-pending');
+    }else{
+      score.textContent=modalTeamName(aggregate.homeTeam)+' '+aggregate.h+' - '+aggregate.a+' '+modalTeamName(aggregate.awayTeam);
+      if(aggregate.tied){note.textContent='Az összesítés döntetlen — tizenegyespárbaj szükséges.';card.classList.add('is-tied')}
+      else{note.textContent='Továbbjutó / bennmaradó: '+modalTeamName(aggregate.winner);card.classList.add('has-winner')}
+    }
+  }
+  let box=ov.querySelector('[data-baraj-penalty-box]'),penH=ov.querySelector('#penH'),penA=ov.querySelector('#penA');
+  if(box&&penH&&penA){
+    let show=!!state.needed;
+    box.classList.toggle('hidden',!show);box.hidden=!show;box.setAttribute('aria-hidden',show?'false':'true');
+    penH.disabled=locked||!show;penA.disabled=locked||!show;
+  }
+}
+function modalWireBarajState(ov,m,locked){
+  if(!ov||!m||!(superligaIsConferenceBaraj(m.id)||superligaIsSurvivalBarajSecondLeg(m.id)))return;
+  let h=ov.querySelector('#tipH'),a=ov.querySelector('#tipA'),sync=()=>modalUpdateBarajState(ov,m,locked);
+  if(h&&a){['input','change'].forEach(evt=>{h.addEventListener(evt,sync);a.addEventListener(evt,sync)})}
+  sync();
+}
+
 function openMatchTipModal(cfg){
   const m=cfg.match,isKo=!!cfg.isKo,id=m.id;
   if(FROZEN_MODE&&!READONLY_MODE)return;
@@ -135,10 +191,11 @@ function openMatchTipModal(cfg){
   ov.className='overlay tip-overlay';
   ov.dataset.tipId=id;
   ov.dataset.tipKind=isKo?'postseason':'regular';
-  ov.innerHTML='<div class="sheet tip-sheet '+grade+'"><div class="sheet-top"><div class="sheet-pill"></div><button class="sheet-x" type="button" data-close-tip>&times;</button></div><div class="sheet-title">'+esc(title)+'</div><div class="tip-head"><span>'+esc(date)+' &middot; '+esc(phase)+'</span><span class="tip-time-pill">🕒 '+esc(time)+'</span></div>'+yourTipHtml+'<div class="tip-match"><div class="tip-teams"><div class="tip-team">'+crest(m.h)+'<span>'+esc(modalTeamName(m.h))+'</span><div class="tip-team-meta">'+modelMeta(m.h)+'</div></div>'+scoreBox+superligaModalStatusHtml(r)+'<div class="tip-team">'+crest(m.a)+'<span>'+esc(modalTeamName(m.a))+'</span><div class="tip-team-meta">'+modelMeta(m.a)+'</div></div></div>'+modalGoalRows(r,m)+'</div>'+modalProbCard(m,r)+'<div class="tip-msg" id="tipMsg"></div><div class="tip-actions"><button class="tip-btn clear" type="button" data-clear-tip'+dis+'>Tipp törlése</button><button class="tip-btn save" type="button" data-save-tip'+dis+'>'+(locked?'Zárolva':'Mentés')+'</button></div>'+lockNote+'</div>';
+  ov.innerHTML='<div class="sheet tip-sheet '+grade+'"><div class="sheet-top"><div class="sheet-pill"></div><button class="sheet-x" type="button" data-close-tip>&times;</button></div><div class="sheet-title">'+esc(title)+'</div><div class="tip-head"><span>'+esc(date)+' &middot; '+esc(phase)+'</span><span class="tip-time-pill">🕒 '+esc(time)+'</span></div>'+yourTipHtml+'<div class="tip-match"><div class="tip-teams"><div class="tip-team">'+crest(m.h)+'<span>'+esc(modalTeamName(m.h))+'</span><div class="tip-team-meta">'+modelMeta(m.h)+'</div></div>'+scoreBox+superligaModalStatusHtml(r)+'<div class="tip-team">'+crest(m.a)+'<span>'+esc(modalTeamName(m.a))+'</span><div class="tip-team-meta">'+modelMeta(m.a)+'</div></div></div>'+modalGoalRows(r,m)+'</div>'+modalProbCard(m,r)+modalBarajAggregateHtml(m,p)+modalBarajPenaltyHtml(m,p,locked)+'<div class="tip-msg" id="tipMsg"></div><div class="tip-actions"><button class="tip-btn clear" type="button" data-clear-tip'+dis+'>Tipp törlése</button><button class="tip-btn save" type="button" data-save-tip'+dis+'>'+(locked?'Zárolva':'Mentés')+'</button></div>'+lockNote+'</div>';
   document.body.appendChild(ov);
   syncModalOpenClass();
   activateCrests();
+  if(isKo)modalWireBarajState(ov,m,locked);
   ov.onclick=e=>{if(e.target===ov||e.target.closest('[data-close-tip]'))closeTip()};
   ov.querySelector('[data-save-tip]').onclick=()=>{if(!locked)(isKo?saveKoTip(id):saveTip(id))};
   ov.querySelector('[data-clear-tip]').onclick=async()=>{if(locked)return;if(isKo){await superligaDeleteKoTip(id)}else{await superligaDeleteGroupTip(id)}closeTip();render()};
@@ -171,8 +228,21 @@ async function saveKoTip(id){
   let h=ov.querySelector('#tipH').value,a=ov.querySelector('#tipA').value;
   if(h===''&&a===''){await superligaDeleteKoTip(id);closeTip();render();return}
   if(!validScore(h)||!validScore(a)){if(msg)msg.textContent='Adj meg két 0 és 99 közötti egész számot.';return}
-  if(id.startsWith('CB-')&&+h===+a){if(msg)msg.textContent='A Konferencialiga-baraj egymeccses ágán győztest kell tippelni.';return}
-  KO_PRED[id]={h:+h,a:+a,hTeam:m.h,aTeam:m.a,round:m.title||m.r,seedSignature:superligaPostseasonSeedSignature()};
+  let penaltyState=superligaBarajPenaltyState(m,h,a),payload={h:+h,a:+a,hTeam:m.h,aTeam:m.a,round:m.title||m.r,seedSignature:superligaPostseasonSeedSignature()};
+  if(superligaIsSurvivalBarajSecondLeg(id)&&!penaltyState.aggregate?.ready){
+    if(msg)msg.textContent=penaltyState.aggregate?.reason==='first-leg-live'?'Az első mérkőzés még nem zárult le, ezért az összesítés nem számolható.':'A visszavágó előtt add meg az első mérkőzés tippjét vagy várd meg annak végeredményét.';
+    return;
+  }
+  if(penaltyState.aggregate?.ready){
+    Object.assign(payload,{firstLegId:penaltyState.aggregate.firstId,firstLegH:+penaltyState.aggregate.firstScore.h,firstLegA:+penaltyState.aggregate.firstScore.a,aggregateH:+penaltyState.aggregate.h,aggregateA:+penaltyState.aggregate.a,aggregateHomeTeam:penaltyState.aggregate.homeTeam,aggregateAwayTeam:penaltyState.aggregate.awayTeam,aggregateTied:!!penaltyState.aggregate.tied});
+  }
+  if(penaltyState.needed){
+    let pH=ov.querySelector('#penH')?.value??'',pA=ov.querySelector('#penA')?.value??'';
+    if(!superligaValidPenaltyScore(pH)||!superligaValidPenaltyScore(pA)){if(msg)msg.textContent=superligaIsSurvivalBarajSecondLeg(id)?'Döntetlen összesítésnél add meg a tizenegyespárbaj eredményét is.':'Döntetlennél add meg a tizenegyespárbaj eredményét is.';return}
+    if(+pH===+pA){if(msg)msg.textContent='A tizenegyespárbaj nem végződhet döntetlenre.';return}
+    payload.pH=+pH;payload.pA=+pA;payload.decidedBy='penalties';
+  }else payload.decidedBy=superligaIsSurvivalBarajSecondLeg(id)?'aggregate':'regular-time';
+  KO_PRED[id]=payload;
   await superligaPersistTipsNow();
   closeTip();
   render();
