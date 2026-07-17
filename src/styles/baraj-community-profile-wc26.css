@@ -479,29 +479,36 @@
 
 .community-preview[data-community-view-id] .community-result{
   display:grid!important;
-  grid-template-columns:repeat(2,auto)!important;
-  align-items:end!important;
-  min-width:clamp(138px,13vw,178px)!important;
-  gap:8px 24px!important;
+  grid-template-columns:repeat(2,minmax(max-content,max-content))!important;
+  justify-content:end!important;
+  align-items:start!important;
+  min-width:clamp(150px,11.4vw,176px)!important;
+  gap:4px 18px!important;
+  margin-left:auto!important;
   text-align:right!important;
+  flex:0 0 auto!important;
 }
 
 .community-preview[data-community-view-id] .community-result div{
-  display:grid!important;
-  gap:2px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-end!important;
+  gap:3px!important;
+  min-width:0!important;
 }
 
 .community-preview[data-community-view-id] .community-result span{
   color:#7f8da0!important;
-  font-size:clamp(10.5px,.76vw,12px)!important;
+  font-size:clamp(10px,.68vw,11.4px)!important;
   font-weight:900!important;
   text-transform:uppercase!important;
   letter-spacing:.04em!important;
+  line-height:1!important;
 }
 
 .community-preview[data-community-view-id] .community-result b{
   color:#fff!important;
-  font-size:clamp(18px,1.6vw,24px)!important;
+  font-size:clamp(19px,1.34vw,24px)!important;
   font-weight:950!important;
   font-variant-numeric:tabular-nums!important;
   line-height:1!important;
@@ -510,22 +517,26 @@
 .community-preview[data-community-view-id] .community-result small{
   grid-column:1/-1!important;
   display:block!important;
-  margin-top:2px!important;
+  margin-top:0!important;
   color:#b8c3d0!important;
-  font-size:clamp(10px,.82vw,12px)!important;
+  font-size:clamp(10px,.76vw,11.8px)!important;
   text-align:right!important;
   white-space:nowrap!important;
+  line-height:1.15!important;
 }
 
 .community-preview[data-community-view-id] .community-real-score{
-  position:relative!important;
   display:inline-flex!important;
   align-items:center!important;
   justify-content:flex-end!important;
+  gap:6px!important;
   color:#ff6969!important;
 }
 
 .community-preview[data-community-view-id] .community-real-value{
+  display:inline-block!important;
+  min-width:40px!important;
+  text-align:right!important;
   color:#ff6969!important;
   font-size:inherit!important;
   font-weight:950!important;
@@ -534,14 +545,15 @@
 }
 
 .community-preview[data-community-view-id] .community-live-clock{
-  position:absolute!important;
-  right:100%!important;
-  margin:0 8px 0 0!important;
+  position:static!important;
+  right:auto!important;
+  margin:0!important;
   min-width:auto!important;
   padding:2px 8px!important;
   font-size:10px!important;
   line-height:1.3!important;
   white-space:nowrap!important;
+  order:1!important;
 }
 
 @media(max-width:860px){
@@ -620,7 +632,7 @@
     flex-wrap:wrap!important;
     align-items:flex-start!important;
     min-width:0!important;
-    gap:4px 14px!important;
+    gap:4px 12px!important;
     padding-top:6px!important;
     text-align:left!important;
   }
@@ -629,8 +641,9 @@
     display:flex!important;
     flex:1 1 auto!important;
     flex-direction:column!important;
+    align-items:flex-start!important;
     gap:2px!important;
-    min-width:60px!important;
+    min-width:58px!important;
   }
 
   .community-preview[data-community-view-id] .community-result>div:first-child{
@@ -1070,24 +1083,22 @@
 }
 
 .community-preview[data-community-view-id] .community-result{
-  min-width:clamp(118px,9.5vw,158px)!important;
-  gap:
-    clamp(5px,.54vw,9px)
-    clamp(18px,1.6vw,28px)!important;
+  min-width:clamp(150px,11.4vw,176px)!important;
+  gap:clamp(4px,.42vw,8px) clamp(14px,1.2vw,20px)!important;
 }
 
 .community-preview[data-community-view-id] .community-pred .community-result span{
-  font-size:clamp(9.4px,.58vw,10.8px)!important;
+  font-size:clamp(9.6px,.56vw,10.8px)!important;
 }
 
 .community-preview[data-community-view-id] .community-pred .community-result b{
-  font-size:clamp(17px,1.2vw,23.5px)!important;
+  font-size:clamp(18px,1.14vw,23px)!important;
   line-height:1!important;
 }
 
 .community-preview[data-community-view-id] .community-pred .community-result small{
-  font-size:clamp(10px,.64vw,11.8px)!important;
-  line-height:1.2!important;
+  font-size:clamp(10px,.62vw,11.6px)!important;
+  line-height:1.15!important;
 }
 
 @media(max-width:720px){
