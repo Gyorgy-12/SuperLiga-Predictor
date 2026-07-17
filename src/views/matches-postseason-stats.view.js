@@ -145,15 +145,15 @@ function statsRoundEfficiencyHtml(){
 }
 function barajScore(m){
   let r=actualFor(m),tip=koPred(m.id),hasReal=r&&validScore(r.h)&&validScore(r.a),p=hasReal?r:tip;
-  if(!p)return'<em>–</em>';
-  let pen=superligaHasPenScore(p)?'<small class="baraj-score-pen">PEN '+esc(superligaPenPair(p))+'</small>':'';
-  return esc(p.h)+'<span>-</span>'+esc(p.a)+pen;
+  if(!p)return '<em>–</em>';
+  let pen=superligaHasPenScore(p)?'<small class="baraj-score-pen"><span>PEN</span><b>'+esc(p.pH)+'-'+esc(p.pA)+'</b></small>':'';
+  return '<div class="baraj-score-stack"><div class="baraj-score-main">'+esc(p.h)+'<span>-</span>'+esc(p.a)+'</div>'+pen+'</div>';
 }
 function barajResultSource(m){
-  let r=actualFor(m),tip=koPred(m.id),pen=superligaHasPenScore(r)||superligaHasPenScore(tip)?' · PEN':'';
-  if(r&&r.finished&&validScore(r.h)&&validScore(r.a))return 'Lezárt'+pen;
-  if(r&&r.started&&validScore(r.h)&&validScore(r.a))return (liveClockLabel(r)||'Élő')+pen;
-  if(tip)return 'Tipp'+pen;
+  let r=actualFor(m),tip=koPred(m.id);
+  if(r&&r.finished&&validScore(r.h)&&validScore(r.a))return 'Lezárt';
+  if(r&&r.started&&validScore(r.h)&&validScore(r.a))return liveClockLabel(r)||'Élő';
+  if(tip)return 'Tipp';
   if(m.locked)return 'Zárolva';
   return 'Tippelhető';
 }
@@ -168,11 +168,13 @@ function barajMiniMatch(m){
   +'</button>'
 }
 function aggregateForRows(rows){
-  let aggregate=superligaBarajAggregateForRows(rows);
-  if(!aggregate)return'';
-  let penalty=aggregate.penalty?'<small class="baraj-aggregate-pen">tizenegyesek: '+esc(aggregate.penalty.h)+'-'+esc(aggregate.penalty.a)+'</small>':'';
-  let state=aggregate.ready?(aggregate.tied&&!aggregate.penalty?' · tizenegyesek szükségesek':aggregate.winner?' · '+esc(stn(aggregate.winner)):''):' · 1. mérkőzés';
-  return '<div class="baraj-aggregate'+(aggregate.tied?' is-tied':'')+'"><span>Összesítés'+state+'</span><b>'+esc(stn(aggregate.homeTeam))+' '+aggregate.h+' - '+aggregate.a+' '+esc(stn(aggregate.awayTeam))+'</b>'+penalty+'</div>';
+  if(!rows||rows.length<2)return '';
+  let a=rows[0].h,b=rows[0].a,ga=0,gb=0,played=0,lastPlayed=null;
+  rows.forEach(m=>{let p=resultForMatch(m,true);if(!p||!validScore(p.h)||!validScore(p.a))return;played++;lastPlayed=p;if(m.h===a){ga+=+p.h;gb+=+p.a}else{ga+=+p.a;gb+=+p.h}});
+  if(!played)return '';
+  let pen='';
+  if(lastPlayed&&superligaHasPenScore(lastPlayed))pen='<small class="baraj-aggregate-pen"><span>PEN</span><b>'+esc(lastPlayed.pH)+'-'+esc(lastPlayed.pA)+'</b></small>';
+  return '<div class="baraj-aggregate"><span>Összesítés</span><div class="baraj-aggregate-right"><b>'+esc(stn(a))+' '+ga+' - '+gb+' '+esc(stn(b))+'</b>'+pen+'</div></div>'
 }
 function barajPathCard(opts){
   let rows=opts.rows||[];
