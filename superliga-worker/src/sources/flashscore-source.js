@@ -913,6 +913,43 @@ async function fetchFlashscoreFeedB19(url, opts = {}) {
   }
 }
 
+function flashscoreInitialToken(value) {
+  const s = String(value || '').trim().replace(/[’'′]+$/g, '');
+  return /^\p{L}\.?$/u.test(s) ? `${s.charAt(0).toUpperCase()}.` : '';
+}
+
+function normalizeFlashscorePlayerName(value) {
+  let text = String(value || '').replace(/\s+/g, ' ').trim();
+  let commaNormalized = false;
+  if (!text) return '';
+  if (text.includes(',')) {
+    const chunks = text.split(',').map(x => x.trim()).filter(Boolean);
+    if (chunks.length >= 2) {
+      text = `${chunks.slice(1).join(' ')} ${chunks[0]}`;
+      commaNormalized = true;
+    }
+  }
+  const parts = text.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return text;
+  const firstInitial = flashscoreInitialToken(parts[0]);
+  const lastInitial = flashscoreInitialToken(parts[parts.length - 1]);
+  if (commaNormalized) return firstInitial ? `${firstInitial} ${parts.slice(1).join(' ')}` : text;
+  if (firstInitial) return `${firstInitial} ${parts.slice(1).join(' ')}`;
+  if (lastInitial) return `${lastInitial} ${parts.slice(0, -1).join(' ')}`;
+  // Flashscore/Livesport event feeds use surname-first player labels.
+  return `${parts.slice(1).join(' ')} ${parts[0]}`;
+}
+
+function flashscoreOwnGoal(item = {}) {
+  const text = `${item.type || ''} ${item.label || ''} ${item.reason || ''}`.toLowerCase();
+  return !!(item.og === true || item.ownGoal === true || item.isOwnGoal === true || /own[ _-]?goal|autogol|öngól/.test(text));
+}
+
+function flashscorePenaltyGoal(item = {}) {
+  const text = `${item.type || ''} ${item.label || ''} ${item.reason || ''}`.toLowerCase();
+  return !!(item.penalty === true || item.pen === true || item.pk === true || item.fromPenalty === true || item.code === 10 || /penalty|spot kick|11m/.test(text));
+}
+
 function parseFlashscoreSuiFeed(raw) {
   const text = String(raw || '');
   const events = [];
@@ -983,7 +1020,7 @@ function parseFlashscoreEventBlock(block, period) {
       continue;
     }
     if (!current) continue;
-    if (key === 'IF') current.player = value;
+    if (key === 'IF') { current.player = normalizeFlashscorePlayerName(value); current.playerNameOrder = 'given-first'; }
     else if (key === 'IU') current.playerUrl = value;
     else if (key === 'IM') current.playerId = value;
     else if (key === 'IK') current.label = value;
@@ -1012,7 +1049,8 @@ function parseFlashscoreEventBlock(block, period) {
     const clean = cleanEventItem(item);
     timeline.push(clean);
     if (isGoalItem(clean)) {
-      const goal = { ...clean, type: clean.code === 10 || /penalty/i.test(clean.label || '') ? 'penalty_goal' : 'goal' };
+      const penalty = flashscorePenaltyGoal(clean);
+      const goal = { ...clean, type: penalty ? 'penalty_goal' : 'goal', penalty, og: flashscoreOwnGoal(clean), playerNameOrder: 'given-first' };
       goals.push(goal);
       lastGoal = goal;
       if (goal.type === 'penalty_goal') penalties.push({ ...goal, type: 'penalty_scored' });
@@ -1215,10 +1253,13 @@ function cleanEventItem(item) {
     type: item.type || null,
     label: item.label || item.type || null,
     player: item.player || null,
+    playerNameOrder: item.playerNameOrder || (item.player ? 'given-first' : null),
     playerUrl: item.playerUrl || null,
     playerId: item.playerId || null,
     homeScore: item.homeScore ?? null,
     awayScore: item.awayScore ?? null,
+    og: flashscoreOwnGoal(item),
+    penalty: flashscorePenaltyGoal(item),
     reason: item.reason || null,
     reasonCode: item.reasonCode || null
   };

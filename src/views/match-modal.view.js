@@ -16,6 +16,49 @@ function superligaModalStatusHtml(r){let pills=(typeof superligaStatusPills==='f
 function eventPlayerName(e){
   return String(e&&(e.player||e.playerName||e.fullName||e.displayName||e.name||e.person)||'').trim();
 }
+function playerInitialToken(token){
+  let s=String(token||'').trim().replace(/[’'′]+$/g,'');
+  return /^\p{L}\.?$/u.test(s)?s.charAt(0).toUpperCase()+'.':'';
+}
+function normalizeFlashscorePlayerName(name){
+  let s=String(name||'').replace(/\s+/g,' ').trim(),commaNormalized=false;
+  if(!s)return'';
+  if(s.includes(',')){
+    let p=s.split(',').map(x=>x.trim()).filter(Boolean);
+    if(p.length>=2){s=p.slice(1).join(' ')+' '+p[0];commaNormalized=true;}
+  }
+  let parts=s.split(/\s+/).filter(Boolean);
+  if(parts.length<2)return s;
+  let firstInitial=playerInitialToken(parts[0]),lastInitial=playerInitialToken(parts[parts.length-1]);
+  if(commaNormalized)return firstInitial?firstInitial+' '+parts.slice(1).join(' '):s;
+  if(firstInitial)return firstInitial+' '+parts.slice(1).join(' ');
+  if(lastInitial)return lastInitial+' '+parts.slice(0,-1).join(' ');
+  return parts.slice(1).join(' ')+' '+parts[0];
+}
+function canonicalEventPlayerName(e,r){
+  let name=eventPlayerName(e);
+  if(!name)return'';
+  let order=String(e?.playerNameOrder||e?.nameOrder||'').toLowerCase();
+  let source=[e?.source,e?.eventSource,r?.eventSource,r?.scoreSource,r?.source].filter(Boolean).join(' ').toLowerCase();
+  if(source.includes('flashscore')&&order!=='given-first')name=normalizeFlashscorePlayerName(name);
+  return name;
+}
+function abbreviatedPlayerName(name){
+  let s=String(name||'').replace(/\s+/g,' ').trim();
+  if(!s)return'';
+  let parts=s.split(/\s+/).filter(Boolean);
+  if(parts.length<2)return s;
+  let firstInitial=playerInitialToken(parts[0]),lastInitial=playerInitialToken(parts[parts.length-1]);
+  if(firstInitial)return firstInitial+' '+parts.slice(1).join(' ');
+  if(lastInitial)return lastInitial+' '+parts.slice(0,-1).join(' ');
+  let particles=new Set(['da','de','del','della','di','do','dos','du','la','le','van','von']);
+  let surnameStart=parts.length-1;
+  while(surnameStart>0&&particles.has(parts[surnameStart-1].toLowerCase()))surnameStart--;
+  let given=parts.slice(0,surnameStart),surname=parts.slice(surnameStart).join(' ');
+  let initials=given.map(x=>x.charAt(0).toUpperCase()+'.').join(' ');
+  return (initials?initials+' ':'')+surname;
+}
+function eventPlayerDisplayName(e,r){return abbreviatedPlayerName(canonicalEventPlayerName(e,r))}
 function eventTeam(e){return e&&(['a','away'].includes(String(e.team||'').toLowerCase())||String(e.side||'').toLowerCase()==='away'||String(e.teamSide||'').toLowerCase()==='away')?'a':'h'}
 function eventMinute(e){
   let v=(e&&(e.minute??e.matchMinute??e.elapsed??e.time??e.statusMinute))||'';
@@ -40,10 +83,10 @@ function goalScorersHtml(r,m){
   if(!events.length)return'';
   let sorted=events.sort((a,b)=>(parseInt(eventMinute(a),10)||0)-(parseInt(eventMinute(b),10)||0));
   let infoCell=s=>{
-    if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(eventPlayerName(s)):'Piros lap')+'</span>';
-    if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(eventPlayerName(s)):'2× Sárga')+'</span>';
-    if(s._kind==='yellow')return'<span class="yellow-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(eventPlayerName(s)):'Sárga lap')+'</span>';
-    let name=eventPlayerName(s)?esc(eventPlayerName(s)):'',og=isOwnGoalEvent(s)?'<span class="goal-scorer-og">(&ouml;ng.)</span>':'',pen=isPenaltyGoal(s)?'<span class="goal-scorer-pen">(11-es)</span>':'';
+    if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Piros lap')+'</span>';
+    if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'2× Sárga')+'</span>';
+    if(s._kind==='yellow')return'<span class="yellow-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Sárga lap')+'</span>';
+    let name=eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'',og=isOwnGoalEvent(s)?'<span class="goal-scorer-og">(&ouml;ng.)</span>':'',pen=isPenaltyGoal(s)?'<span class="goal-scorer-pen">(11-es)</span>':'';
     return'<span class="goal-scorer-ball">&#9917;</span><span class="goal-scorer-name">'+name+'</span>'+og+pen;
   };
   let rows=sorted.map(s=>{

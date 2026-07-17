@@ -221,3 +221,52 @@
     grid-template-columns: minmax(40px, auto) minmax(58px, 78px) !important;
   }
 }
+
+/* MODAL SCORER NAMES V10
+   Romanian display order on every viewport: given-name initial + full surname.
+   Give the away-side scorer column a little more room by moving its inner edge
+   closer to the minute pills. */
+html body .tip-sheet .goal-scorer-row {
+  grid-template-columns: minmax(0, .88fr) minmax(42px, 3.15em) minmax(0, 1.12fr) !important;
+  column-gap: clamp(6px, 1.35vw, 14px) !important;
+}
+
+html body .tip-sheet .goal-scorers-col {
+  gap: clamp(3px, .55vw, 5px) !important;
+}
+
+html body .tip-sheet .goal-scorer-name {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+html body .tip-sheet .goal-scorer-pen {
+  color: #ffd166 !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 640px) {
+  html body .tip-sheet .goal-scorer-row {
+    grid-template-columns: minmax(0, .84fr) minmax(38px, 2.95em) minmax(0, 1.16fr) !important;
+    column-gap: 4px !important;
+  }
+
+  html body .tip-sheet .goal-scorers-col {
+    font-size: clamp(11.5px, 2.75vw, 14px) !important;
+    gap: 2px !important;
+  }
+
+  html body .tip-sheet .goal-scorer-min {
+    width: 2.95em !important;
+    min-width: 2.95em !important;
+  }
+
+  html body .tip-sheet .goal-scorer-og,
+  html body .tip-sheet .goal-scorer-pen {
+    font-size: .72em !important;
+    margin-left: .18em !important;
+  }
+}
+

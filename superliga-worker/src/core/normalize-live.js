@@ -58,6 +58,42 @@ function eventPenalty(event = {}) {
   );
 }
 
+function initialToken(value) {
+  const s = String(value || '').trim().replace(/[’'′]+$/g, '');
+  return /^\p{L}\.?$/u.test(s) ? `${s.charAt(0).toUpperCase()}.` : '';
+}
+
+function normalizeFlashscorePlayerName(value) {
+  let text = String(value || '').replace(/\s+/g, ' ').trim();
+  let commaNormalized = false;
+  if (!text) return '';
+  if (text.includes(',')) {
+    const chunks = text.split(',').map(x => x.trim()).filter(Boolean);
+    if (chunks.length >= 2) {
+      text = `${chunks.slice(1).join(' ')} ${chunks[0]}`;
+      commaNormalized = true;
+    }
+  }
+  const parts = text.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return text;
+  const firstInitial = initialToken(parts[0]);
+  const lastInitial = initialToken(parts[parts.length - 1]);
+  if (commaNormalized) return firstInitial ? `${firstInitial} ${parts.slice(1).join(' ')}` : text;
+  if (firstInitial) return `${firstInitial} ${parts.slice(1).join(' ')}`;
+  if (lastInitial) return `${lastInitial} ${parts.slice(0, -1).join(' ')}`;
+  return `${parts.slice(1).join(' ')} ${parts[0]}`;
+}
+
+function normalizedEventPlayer(event = {}, sourceHint = '') {
+  const rawName = bestEventPlayer(event);
+  if (!rawName) return '';
+  const order = String(event.playerNameOrder || event.nameOrder || '').toLowerCase();
+  if (String(sourceHint || '').toLowerCase().includes('flashscore') && order !== 'given-first') {
+    return normalizeFlashscorePlayerName(rawName);
+  }
+  return rawName;
+}
+
 function normalizeTeamSide(value, fixture) {
   const raw = String(value || '').trim().toLowerCase();
   if (['h', 'home', 'home_team', '1'].includes(raw)) return 'h';
@@ -69,11 +105,12 @@ function normalizeTeamSide(value, fixture) {
   return raw === 'away' ? 'a' : 'h';
 }
 
-function normalizeEvent(event, fixture) {
+function normalizeEvent(event, fixture, sourceHint = '') {
   return {
     team: normalizeTeamSide(event.team || event.side || event.teamSide || event.homeAway, fixture),
     minute: cleanEventMinute(event.minute || event.time || event.matchMinute || event.elapsed),
-    player: bestEventPlayer(event),
+    player: normalizedEventPlayer(event, sourceHint),
+    playerNameOrder: 'given-first',
     type: event.type || event.kind || event.goalType || null,
     label: event.label || event.detail || event.reason || event.note || null,
     og: eventOwnGoal(event),
@@ -81,12 +118,13 @@ function normalizeEvent(event, fixture) {
   };
 }
 
-function normalizeCard(event, fixture) {
+function normalizeCard(event, fixture, sourceHint = '') {
   const type = String(event.type || event.card || event.eventType || event.kind || '').toLowerCase();
   return {
     team: normalizeTeamSide(event.team || event.side || event.teamSide || event.homeAway, fixture),
     minute: cleanEventMinute(event.minute || event.time || event.matchMinute || event.elapsed),
-    player: bestEventPlayer(event),
+    player: normalizedEventPlayer(event, sourceHint),
+    playerNameOrder: 'given-first',
     type: event.type || event.card || event.eventType || event.kind || null,
     red: !!(event.red || event.redCard || type.includes('red')),
     yellow: !!(event.yellow || type === 'yc' || type.includes('yellow')),
@@ -106,12 +144,13 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
   const started = !!raw.started || validScore(homeScore) || isMinuteStatus || ['LIVE', 'IN_PLAY', 'HT', '1H', '2H', 'FT', 'AET', 'PEN', 'FULL_TIME', 'COMPLETE'].includes(upper);
   const finished = !!raw.finished || ['FT', 'AET', 'PEN', 'FULL_TIME', 'COMPLETE'].includes(upper);
   const minute = cleanMinute(raw.minute ?? raw.matchMinute ?? raw.elapsed ?? raw.currentMinute ?? raw.timePlayed ?? raw.EpsL ?? (isMinuteStatus ? status : null));
+  const eventSourceHint = [raw.eventSource, raw.scoreSource, raw.source, sourceMeta.eventSource, sourceMeta.scoreSource, sourceMeta.source].filter(Boolean).join(' ');
 
   const scorers = [
     ...(raw.scorers || []),
     ...(raw.goals || []),
     ...(raw.events || []).filter(e => String(e.type || e.kind || '').toLowerCase().includes('goal'))
-  ].map(e => normalizeEvent(e, fixture)).filter(e => e.player || e.minute);
+  ].map(e => normalizeEvent(e, fixture, eventSourceHint)).filter(e => e.player || e.minute);
 
   const allCards = [
     ...(raw.cards || []),
@@ -119,7 +158,7 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
     ...(raw.yellowCards || []).map(c => ({ ...c, yellow: true })),
     ...(raw.doubleYellowCards || []).map(c => ({ ...c, yellowRed: true, red: true })),
     ...(raw.events || []).filter(e => /card|yellow|red/i.test(String(e.type || e.kind || e.eventType || '')))
-  ].map(e => normalizeCard(e, fixture));
+  ].map(e => normalizeCard(e, fixture, eventSourceHint));
 
   const redCards = allCards.filter(c => c.red || c.yellowRed);
   const yellowCards = allCards.filter(c => c.yellow && !c.red && !c.yellowRed);
