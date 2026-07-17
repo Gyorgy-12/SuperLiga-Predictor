@@ -157,11 +157,9 @@ function superligaStatusPills(r,opts={}){
   if(!pills.length)return'';
   return '<span class="wc26-state-indicators">'+pills.map(([c,t])=>'<span class="wc26-status-pill '+c+'">'+t+'</span>').join('')+'</span>';
 }
-function superligaCardTipPenHtml(p){return superligaHasPenScore(p)?'<em class="mr-tip-pen">PEN '+superligaPenPair(p)+'</em>':''}
-function superligaCompactCardScore(score){return '<span>'+esc(score)+'</span>'}
-function superligaPenaltyIndicatorHtml(obj,cls=''){
-  if(!superligaHasPenScore(obj))return'';
-  return '<span class="mr-pen-indicator'+(cls?' '+cls:'')+'"><span class="lab">PEN</span><b class="val">'+esc(obj.pH)+'-'+esc(obj.pA)+'</b></span>';
+function superligaCardTipPenHtml(p){return''}
+function superligaCardScoreValue(score,pen){
+  return '<span class="wc26-card-score">'+(validScore(pen)?'<span class="wc26-card-pen">('+esc(pen)+')</span>':'')+'<span>'+esc(score)+'</span></span>';
 }
 function superligaGradeBadge(cat){
   if(cat==='exact'||cat==='exact-pen-exact')return'<em class="mr-live-state ok">Pontos</em>';
@@ -184,24 +182,23 @@ function matchStateBadge(m,isKo){
 }
 function scoreHtml(m,isKo){
   let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),hasReal=r&&(r.started||r.finished||matchLockState({id:m.id})!=="open")&&validScore(r.h)&&validScore(r.a),clock=liveClockLabel(r),rawSt=r&&r.status?String(r.status).toUpperCase():'',isInt=rawSt.includes('INT'),lines='';
+  const tipHasPen=superligaHasPenScore(tip),realHasPen=superligaHasPenScore(r),hasAnyPen=tipHasPen||realHasPen;
   if(tip&&hasReal){
-    lines='<div class="mr-score-compare">'
-      +'<div class="mr-score-row"><span class="mr-score-real">'+superligaCompactCardScore(r.h)+'</span><span class="mr-score-tip">'+esc(tip.h)+'</span></div>'
-      +'<div class="mr-score-row"><span class="mr-score-real">'+superligaCompactCardScore(r.a)+'</span><span class="mr-score-tip">'+esc(tip.a)+'</span></div>'
+    lines='<div class="mr-score-compare'+(hasAnyPen?' has-pen':'')+'">'
+      +'<div class="mr-score-row"><span class="mr-score-real">'+superligaCardScoreValue(r.h,realHasPen?r.pH:null)+'</span><span class="mr-score-tip">'+superligaCardScoreValue(tip.h,tipHasPen?tip.pH:null)+'</span></div>'
+      +'<div class="mr-score-row"><span class="mr-score-real">'+superligaCardScoreValue(r.a,realHasPen?r.pA:null)+'</span><span class="mr-score-tip">'+superligaCardScoreValue(tip.a,tipHasPen?tip.pA:null)+'</span></div>'
       +'</div>';
   }else if(tip){
-    lines='<div class="mr-score-tip-only">'
-      +'<div class="mr-score-row single"><span class="mr-score-single">'+superligaCompactCardScore(tip.h)+'</span></div>'
-      +'<div class="mr-score-row single"><span class="mr-score-single">'+superligaCompactCardScore(tip.a)+'</span></div>'
+    lines='<div class="mr-score-tip-only'+(tipHasPen?' has-pen':'')+'">'
+      +'<div class="mr-score-row single"><span class="mr-score-single">'+superligaCardScoreValue(tip.h,tipHasPen?tip.pH:null)+'</span></div>'
+      +'<div class="mr-score-row single"><span class="mr-score-single">'+superligaCardScoreValue(tip.a,tipHasPen?tip.pA:null)+'</span></div>'
       +'</div>';
   }else if(hasReal){
-    lines='<div class="mr-score-actual-only">'
-      +'<div class="mr-score-row single"><span class="mr-score-single">'+superligaCompactCardScore(r.h)+'</span></div>'
-      +'<div class="mr-score-row single"><span class="mr-score-single">'+superligaCompactCardScore(r.a)+'</span></div>'
+    lines='<div class="mr-score-actual-only'+(realHasPen?' has-pen':'')+'">'
+      +'<div class="mr-score-row single"><span class="mr-score-single mr-score-real">'+superligaCardScoreValue(r.h,realHasPen?r.pH:null)+'</span></div>'
+      +'<div class="mr-score-row single"><span class="mr-score-single mr-score-real">'+superligaCardScoreValue(r.a,realHasPen?r.pA:null)+'</span></div>'
       +'</div>';
   }else lines='<div class="match-empty">-</div><div class="match-empty">-</div>';
-  let penObj=hasReal&&superligaHasPenScore(r)?r:(tip&&superligaHasPenScore(tip)?tip:null);
-  let scoreMain='<div class="mr-score-main'+(penObj?' has-pen':'')+'"><div class="mr-score-lines">'+lines+'</div>'+superligaPenaltyIndicatorHtml(penObj,'side')+'</div>';
   let pills=superligaStatusPills(r,{mode:'card'}),clockRow=(hasReal&&r&&!r.finished&&(clock||isInt||pills))?'<div class="mr-clock-row">'+pills+(clock?'<span class="mr-clock">'+esc(clock)+'</span>':'')+(isInt?'<span class="mr-int-badge">INT.</span>':'')+'</div>':'';
-  return clockRow?'<div class="mr-score-wrap '+(tip?'':'no-tip')+'">'+clockRow+scoreMain+'</div>':scoreMain;
+  return clockRow?'<div class="mr-score-wrap '+(tip?'':'no-tip')+'">'+clockRow+'<div class="mr-score-lines">'+lines+'</div></div>':lines;
 }

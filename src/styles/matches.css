@@ -441,50 +441,78 @@
 }
 
 
-/* Penalty indicator aligned with score rail like the WC app */
-.mr-score-main{
+/* WC26 exact match-card penalty placement: small parenthesized score beside each goal */
+.matches-main .mr-scores{
+  min-width:clamp(70px,8.2vw,96px)!important;
+}
+
+.mr-score-row{
   display:flex;
   align-items:center;
-  justify-content:flex-end;
-  gap:clamp(6px,.9vw,10px);
-}
-
-.mr-pen-indicator{
-  display:inline-flex;
-  flex-direction:column;
-  align-items:flex-end;
   justify-content:center;
-  gap:2px;
-  min-width:clamp(34px,3vw,48px);
-  line-height:1;
-  text-align:right;
-  color:#f4b241;
-  font-variant-numeric:tabular-nums;
+  gap:clamp(6px,.55vw,10px)!important;
+  min-height:1.18em;
 }
 
-.mr-pen-indicator .lab{
-  font-size:clamp(8.5px,.58vw,11px);
-  font-weight:950;
-  letter-spacing:.05em;
+.mr-score-real,
+.mr-score-tip,
+.mr-score-single{
+  display:inline-flex!important;
+  flex-direction:row!important;
+  align-items:baseline!important;
+  justify-content:center!important;
+  gap:2px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
 }
 
-.mr-pen-indicator .val{
-  font-size:clamp(10px,.7vw,13px);
-  font-weight:950;
-  color:#ffd277;
+.mr-score-real{
+  color:#ff6f84!important;
+  font-weight:950!important;
 }
 
-@media (max-width:720px){
-  .mr-score-main{
-    gap:8px;
-  }
-  .mr-pen-indicator{
-    min-width:30px;
-  }
-  .mr-pen-indicator .lab{
-    font-size:8px;
-  }
-  .mr-pen-indicator .val{
-    font-size:10px;
-  }
+.mr-score-tip{
+  color:#d7e0e6!important;
+  font-weight:900!important;
+  opacity:.96!important;
+}
+
+.mr-score-real .wc26-card-pen,
+.mr-score-tip .wc26-card-pen,
+.mr-score-single .wc26-card-pen{
+  color:#ff6f84!important;
+  font-size:.58em!important;
+  font-weight:950!important;
+  margin-left:1px!important;
+  letter-spacing:-.02em!important;
+  vertical-align:baseline!important;
+  opacity:.95!important;
+}
+
+.mr-score-compare,
+.mr-score-actual-only,
+.mr-score-tip-only{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:clamp(5px,.52vw,8px)!important;
+}
+
+.wc26-card-score{
+  display:inline-flex!important;
+  align-items:baseline!important;
+  justify-content:center!important;
+  gap:1px!important;
+  white-space:nowrap!important;
+}
+
+.wc26-card-score>span:last-child{
+  line-height:1!important;
+}
+
+.mr-date .mr-tip-pen,
+.wc26-mini-pen-label,
+.mr-pen-indicator{
+  display:none!important;
 }
