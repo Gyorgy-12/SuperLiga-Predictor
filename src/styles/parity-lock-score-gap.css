@@ -113,3 +113,111 @@
     white-space: nowrap !important;
   }
 }
+
+/* VB26 LIVE CARD PHONE PARITY V9
+   Keep the live minute/status pill beside the score rail on phones.
+   This intentionally affects only live cards on the Matches tab. */
+@media (max-width: 720px) {
+  html body .main.matches-main .match-row.live-locked,
+  html body .matches-main .match-row.live-locked {
+    grid-template-columns:
+      clamp(61px, 17vw, 72px)
+      1px
+      minmax(0, 1fr)
+      clamp(88px, 21vw, 110px)
+      clamp(8px, 2.5vw, 14px) !important;
+  }
+
+  /* The live state belongs in the right score block, not twice on the card. */
+  html body .main.matches-main .match-row.live-locked .mr-date > .mr-live-state.live,
+  html body .matches-main .match-row.live-locked .mr-date > .mr-live-state.live {
+    display: none !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-scores,
+  html body .matches-main .match-row.live-locked .mr-scores {
+    position: relative !important;
+    right: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    min-width: clamp(88px, 21vw, 110px) !important;
+    max-width: clamp(88px, 21vw, 110px) !important;
+    justify-self: end !important;
+    overflow: visible !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap {
+    display: grid !important;
+    grid-template-columns: minmax(40px, auto) minmax(30px, 42px) !important;
+    flex-direction: initial !important;
+    align-items: center !important;
+    justify-content: end !important;
+    justify-items: end !important;
+    gap: 6px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock-row,
+  html body .matches-main .match-row.live-locked .mr-clock-row {
+    justify-content: end !important;
+    min-width: 0 !important;
+    gap: 4px !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock,
+  html body .matches-main .match-row.live-locked .mr-clock,
+  html body .main.matches-main .match-row.live-locked .mr-int-badge,
+  html body .matches-main .match-row.live-locked .mr-int-badge,
+  html body .main.matches-main .match-row.live-locked .mr-clock-row .wc26-status-pill,
+  html body .matches-main .match-row.live-locked .mr-clock-row .wc26-status-pill {
+    min-width: 40px !important;
+    min-height: 20px !important;
+    padding: 3px 6px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-lines,
+  html body .matches-main .match-row.live-locked .mr-score-lines {
+    min-width: clamp(30px, 8vw, 42px) !important;
+    width: 100% !important;
+    align-items: stretch !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-row,
+  html body .main.matches-main .match-row.live-locked .mr-score-actual-only .mr-score-row,
+  html body .main.matches-main .match-row.live-locked .mr-score-tip-only .mr-score-row,
+  html body .main.matches-main .match-row.live-locked .mr-score-compare .mr-score-row,
+  html body .matches-main .match-row.live-locked .mr-score-row,
+  html body .matches-main .match-row.live-locked .mr-score-actual-only .mr-score-row,
+  html body .matches-main .match-row.live-locked .mr-score-tip-only .mr-score-row,
+  html body .matches-main .match-row.live-locked .mr-score-compare .mr-score-row {
+    justify-content: end !important;
+    text-align: right !important;
+  }
+
+  /* Live cards with predicted/actual penalty values need the same extra room as WC26. */
+  html body .main.matches-main .match-row.live-locked:has(.mr-score-compare.has-pen),
+  html body .matches-main .match-row.live-locked:has(.mr-score-compare.has-pen) {
+    grid-template-columns:
+      clamp(61px, 17vw, 72px)
+      1px
+      minmax(0, 1fr)
+      clamp(102px, 26vw, 124px)
+      clamp(8px, 2.5vw, 14px) !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked:has(.mr-score-compare.has-pen) .mr-scores,
+  html body .matches-main .match-row.live-locked:has(.mr-score-compare.has-pen) .mr-scores {
+    min-width: clamp(102px, 26vw, 124px) !important;
+    max-width: clamp(102px, 26vw, 124px) !important;
+  }
+
+  html body .main.matches-main .match-row.live-locked:has(.mr-score-compare.has-pen) .mr-score-wrap,
+  html body .matches-main .match-row.live-locked:has(.mr-score-compare.has-pen) .mr-score-wrap {
+    grid-template-columns: minmax(40px, auto) minmax(58px, 78px) !important;
+  }
+}

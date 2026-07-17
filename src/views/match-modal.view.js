@@ -13,13 +13,19 @@ function modalClockPill(r){
 }
 function superligaModalStatusHtml(r){let pills=(typeof superligaStatusPills==='function')?superligaStatusPills(r,{mode:'modal'}):'';return pills?'<div class="wc26-modal-status">'+pills+'</div>':''}
 
-function shortPlayerName(name){
-  let parts=String(name||'').trim().split(/\s+/).filter(Boolean);
-  if(parts.length<2)return name||'';
-  return parts[0].charAt(0)+'. '+parts[parts.length-1];
+function eventPlayerName(e){
+  return String(e&&(e.player||e.playerName||e.fullName||e.displayName||e.name||e.person)||'').trim();
 }
 function eventTeam(e){return e&&(['a','away'].includes(String(e.team||'').toLowerCase())||String(e.side||'').toLowerCase()==='away'||String(e.teamSide||'').toLowerCase()==='away')?'a':'h'}
-function eventMinute(e){return (e&&(e.minute??e.matchMinute??e.elapsed??e.time??e.statusMinute))||''}
+function eventMinute(e){
+  let v=(e&&(e.minute??e.matchMinute??e.elapsed??e.time??e.statusMinute))||'';
+  return String(v).replace(/[’'′]+/g,'').trim();
+}
+function isOwnGoalEvent(s){
+  let text=String(s?.type||s?.kind||s?.label||s?.detail||s?.reason||s?.note||s?.goalType||s?.code||'').toLowerCase();
+  let blob='';try{blob=JSON.stringify(s||{}).toLowerCase()}catch(e){}
+  return !!(s?.og===true||s?.ownGoal===true||s?.isOwnGoal===true||/\bown[ _-]?goal\b|\bautogol\b|\böngól\b/.test(text+' '+blob));
+}
 function isPenaltyGoal(s){
   let t=String(s?.type||s?.detail||s?.note||s?.goalType||s?.code||s?.Cd||'').toLowerCase();
   let blob='';
@@ -34,10 +40,10 @@ function goalScorersHtml(r,m){
   if(!events.length)return'';
   let sorted=events.sort((a,b)=>(parseInt(eventMinute(a),10)||0)-(parseInt(eventMinute(b),10)||0));
   let infoCell=s=>{
-    if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(shortPlayerName(s.player)):'Piros lap')+'</span>';
-    if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(shortPlayerName(s.player)):'2× Sárga')+'</span>';
-    if(s._kind==='yellow')return'<span class="yellow-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(shortPlayerName(s.player)):'Sárga lap')+'</span>';
-    let name=s.player?esc(shortPlayerName(s.player)):'',og=s.og?'<span class="goal-scorer-og">(&ouml;ng.)</span>':'',pen=isPenaltyGoal(s)?'<span class="goal-scorer-pen">(11-es)</span>':'';
+    if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(eventPlayerName(s)):'Piros lap')+'</span>';
+    if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(eventPlayerName(s)):'2× Sárga')+'</span>';
+    if(s._kind==='yellow')return'<span class="yellow-card-mark"></span><span class="goal-scorer-name">'+(s.player?esc(eventPlayerName(s)):'Sárga lap')+'</span>';
+    let name=eventPlayerName(s)?esc(eventPlayerName(s)):'',og=isOwnGoalEvent(s)?'<span class="goal-scorer-og">(&ouml;ng.)</span>':'',pen=isPenaltyGoal(s)?'<span class="goal-scorer-pen">(11-es)</span>':'';
     return'<span class="goal-scorer-ball">&#9917;</span><span class="goal-scorer-name">'+name+'</span>'+og+pen;
   };
   let rows=sorted.map(s=>{

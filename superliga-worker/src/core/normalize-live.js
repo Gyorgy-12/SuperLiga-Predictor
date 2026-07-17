@@ -10,6 +10,54 @@ function validScore(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 }
 
+function cleanEventMinute(value) {
+  if (value == null || value === '') return null;
+  return String(value).replace(/[’'′]+/g, '').trim() || null;
+}
+
+function playerNameScore(name) {
+  const text = String(name || '').trim();
+  const parts = text.split(/\s+/).filter(Boolean);
+  const initials = (text.match(/\b\p{L}\./gu) || []).length;
+  return text.length + (parts.length >= 2 ? 20 : 0) - initials * 12;
+}
+
+function bestEventPlayer(event = {}) {
+  const candidates = [
+    event.fullName, event.displayName, event.playerName, event.PlayerName, event.Pnm,
+    event.player?.fullName, event.player?.displayName, event.player?.name,
+    event.person?.fullName, event.person?.displayName, event.person?.name,
+    event.Player, event.player, event.Pn, event.Nm, event.name, event.person
+  ].filter(value => typeof value === 'string' && value.trim()).map(value => value.trim());
+  if (!candidates.length) return '';
+  candidates.sort((a, b) => playerNameScore(b) - playerNameScore(a));
+  return candidates[0];
+}
+
+function eventTextBlob(event = {}) {
+  try { return JSON.stringify(event).toLowerCase(); }
+  catch { return ''; }
+}
+
+function eventOwnGoal(event = {}) {
+  const text = String(event.type || event.kind || event.label || event.detail || event.reason || event.note || event.goalType || event.code || '').toLowerCase();
+  const blob = eventTextBlob(event);
+  return !!(
+    event.og === true || event.ownGoal === true || event.isOwnGoal === true ||
+    /\bown[ _-]?goal\b|\bautogol\b|\böngól\b/.test(`${text} ${blob}`)
+  );
+}
+
+function eventPenalty(event = {}) {
+  const text = String(event.type || event.kind || event.label || event.detail || event.reason || event.note || event.goalType || event.code || '').toLowerCase();
+  const blob = eventTextBlob(event);
+  return !!(
+    event.penalty === true || event.pen === true || event.pk === true || event.fromPenalty === true ||
+    text === 'p' || text === 'pg' || text === 'pen' || text.includes('penalty') || text.includes('spot kick') ||
+    /"(?:penalty|pen|pk|frompenalty)"\s*:\s*true/.test(blob)
+  );
+}
+
 function normalizeTeamSide(value, fixture) {
   const raw = String(value || '').trim().toLowerCase();
   if (['h', 'home', 'home_team', '1'].includes(raw)) return 'h';
@@ -24,10 +72,12 @@ function normalizeTeamSide(value, fixture) {
 function normalizeEvent(event, fixture) {
   return {
     team: normalizeTeamSide(event.team || event.side || event.teamSide || event.homeAway, fixture),
-    minute: cleanMinute(event.minute || event.time || event.matchMinute || event.elapsed),
-    player: event.player || event.playerName || event.name || event.person || '',
-    og: !!(event.og || event.ownGoal),
-    penalty: !!(event.penalty || event.pen)
+    minute: cleanEventMinute(event.minute || event.time || event.matchMinute || event.elapsed),
+    player: bestEventPlayer(event),
+    type: event.type || event.kind || event.goalType || null,
+    label: event.label || event.detail || event.reason || event.note || null,
+    og: eventOwnGoal(event),
+    penalty: eventPenalty(event)
   };
 }
 
@@ -35,8 +85,9 @@ function normalizeCard(event, fixture) {
   const type = String(event.type || event.card || event.eventType || event.kind || '').toLowerCase();
   return {
     team: normalizeTeamSide(event.team || event.side || event.teamSide || event.homeAway, fixture),
-    minute: cleanMinute(event.minute || event.time || event.matchMinute || event.elapsed),
-    player: event.player || event.playerName || event.name || event.person || '',
+    minute: cleanEventMinute(event.minute || event.time || event.matchMinute || event.elapsed),
+    player: bestEventPlayer(event),
+    type: event.type || event.card || event.eventType || event.kind || null,
     red: !!(event.red || event.redCard || type.includes('red')),
     yellow: !!(event.yellow || type === 'yc' || type.includes('yellow')),
     yellowRed: !!(event.yellowRed || event.secondYellow || type.includes('second') || type.includes('yellow-red'))

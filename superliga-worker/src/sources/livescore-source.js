@@ -445,6 +445,61 @@ function isStartedStatus(status, statusText) {
   return ['LIVE', 'HT', '1H', '2H', 'ET', 'PEN', 'IN PLAY', "'"].some(x => s.includes(x)) || /\b\d{1,3}\b/.test(s);
 }
 
+function incidentPlayerName(inc = {}) {
+  const direct = [
+    inc.FullName, inc.fullName, inc.DisplayName, inc.displayName,
+    inc.PlayerName, inc.playerName, inc.Pnm,
+    inc.Player, inc.player, inc.Pn, inc.Nm, inc.name, inc.Name,
+    inc.Scorer, inc.scorer, inc.GoalScorer, inc.goalScorer
+  ];
+  const nested = [inc.Player, inc.player, inc.Scorer, inc.scorer, inc.Athlete, inc.athlete, inc.Person, inc.person];
+  for (const obj of nested) {
+    if (!obj || typeof obj !== 'object') continue;
+    direct.push(obj.fullName, obj.displayName, obj.PlayerName, obj.name, obj.Name, obj.Nm, obj.Fn, obj.Snm, obj.Sdn);
+  }
+  const names = direct.filter(value => typeof value === 'string' && value.trim()).map(value => value.trim());
+  if (!names.length) return '';
+  names.sort((a, b) => incidentPlayerNameScore(b) - incidentPlayerNameScore(a));
+  return names[0];
+}
+
+function incidentPlayerNameScore(name) {
+  const text = String(name || '').trim();
+  const parts = text.split(/\s+/).filter(Boolean);
+  const initials = (text.match(/\b\p{L}\./gu) || []).length;
+  return text.length + (parts.length >= 2 ? 20 : 0) - initials * 12;
+}
+
+function incidentTextBlob(inc = {}) {
+  try { return JSON.stringify(inc).toUpperCase(); }
+  catch { return ''; }
+}
+
+function incidentIsGoal(type, detail, inc = {}, blob = incidentTextBlob(inc)) {
+  const compact = String(type || '').replace(/[^A-Z0-9]+/g, '');
+  if (['G', 'GOAL', 'OG', 'OWNGOAL', 'P', 'PG', 'PEN', 'PENALTY', 'PENALTYGOAL'].includes(compact)) return true;
+  if (/\b(?:GOAL|OWN\s*GOAL|PENALTY\s*GOAL)\b/.test(`${detail} ${blob}`)) return true;
+  return inc.goal === true || inc.isGoal === true || inc.Goal === true;
+}
+
+function incidentOwnGoal(type, detail, inc = {}, blob = incidentTextBlob(inc)) {
+  const compact = String(type || '').replace(/[^A-Z0-9]+/g, '');
+  return !!(
+    compact === 'OG' || compact === 'OWNGOAL' ||
+    /\bOWN[ _-]?GOAL\b|\bAUTOGOL\b/.test(`${detail} ${blob}`) ||
+    inc.og === true || inc.ownGoal === true || inc.isOwnGoal === true
+  );
+}
+
+function incidentPenaltyGoal(type, detail, inc = {}, blob = incidentTextBlob(inc)) {
+  const compact = String(type || '').replace(/[^A-Z0-9]+/g, '');
+  return !!(
+    ['P', 'PG', 'PEN', 'PENALTY', 'PENALTYGOAL'].includes(compact) ||
+    /\bPENALTY\b|\bSPOT KICK\b/.test(`${detail} ${blob}`) ||
+    inc.penalty === true || inc.pen === true || inc.pk === true || inc.fromPenalty === true
+  );
+}
+
 function extractGoalScorers(root) {
   const lists = [root?.Incs, root?.incs, root?.Eve, root?.eve, root?.Events, root?.events, root?.Incidents, root?.incidents, ...collectIncidentLists(root)];
   const out = [];
@@ -453,16 +508,15 @@ function extractGoalScorers(root) {
     for (const inc of list) {
       const type = String(inc.Type || inc.type || inc.Tp || inc.IT || inc.Cd || inc.code || inc.incidentType || '').toUpperCase();
       const detail = String(inc.Detail || inc.detail || inc.Info || inc.info || inc.Txt || inc.text || inc.Comment || inc.comment || inc.Name || inc.name || inc.Desc || inc.description || inc.incidentClass || '').toUpperCase();
-      const blob = JSON.stringify(inc).toUpperCase();
-      const isGoal = ['G', 'GOAL', 'OG', 'OWN GOAL', 'P', 'PG', 'PEN', 'PENALTY'].some(x => type === x || type.includes(x)) || /\bGOAL\b/.test(detail) || /\bGOAL\b/.test(blob);
-      if (!isGoal) continue;
-      const player = String(inc.Player || inc.player || inc.Pn || inc.Nm || inc.name || inc.playerName || inc.player?.name || '').trim();
+      const blob = incidentTextBlob(inc);
+      if (!incidentIsGoal(type, detail, inc, blob)) continue;
+      const player = incidentPlayerName(inc);
       const minuteRaw = inc.Min ?? inc.min ?? inc.Mi ?? inc.Minute ?? inc.minute ?? inc.time;
       const minute = minuteRaw != null ? String(minuteRaw).replace(/'/g, '') : null;
       const teamRaw = inc.T ?? inc.Tn ?? inc.Team ?? inc.team ?? (inc.isHome === false ? '2' : '1');
       const team = String(teamRaw).toLowerCase() === 'a' || String(teamRaw) === '2' || String(teamRaw).toLowerCase().includes('away') ? 'a' : 'h';
-      const og = type.includes('OG') || type.includes('OWN') || detail.includes('OWN GOAL') || inc.ownGoal === true;
-      const penalty = inc.penalty === true || inc.pen === true || inc.pk === true || inc.fromPenalty === true || type === 'P' || type === 'PG' || type.includes('PEN') || detail.includes('PENALTY');
+      const og = incidentOwnGoal(type, detail, inc, blob);
+      const penalty = incidentPenaltyGoal(type, detail, inc, blob);
       out.push({ team, minute: minute || '', player: player || '', og, penalty });
     }
   }
@@ -482,7 +536,7 @@ function extractCards(root) {
       const isYellow = !isYellowRed && (type.includes('YC') || type.includes('YELLOW') || detail.includes('YELLOW CARD') || blob.includes('YELLOW CARD') || inc.yellow === true || inc.yellowCard === true);
       const isDirectRed = !isYellowRed && (type.includes('RC') || type.includes('RED') || detail.includes('RED CARD') || blob.includes('RED CARD') || inc.red === true || inc.redCard === true);
       if (!isYellow && !isYellowRed && !isDirectRed) continue;
-      const player = String(inc.Player || inc.player || inc.Pn || inc.Nm || inc.name || inc.playerName || inc.player?.name || '').trim();
+      const player = incidentPlayerName(inc);
       const minuteRaw = inc.Min ?? inc.min ?? inc.Mi ?? inc.Minute ?? inc.minute ?? inc.time;
       const minute = minuteRaw != null ? String(minuteRaw).replace(/'/g, '') : '';
       const teamRaw = inc.T ?? inc.Tn ?? inc.Team ?? inc.team ?? (inc.isHome === false ? '2' : '1');

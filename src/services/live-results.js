@@ -3,7 +3,7 @@
 
 const FX_BY_ID=Object.fromEntries(FX.map(m=>[m.id,m]));
 let superligaSyncTimer=null;
-let superligaSyncInFlight=false;
+let superligaSyncInFlight=null;
 let LIVE_RESULTS=FROZEN_MODE&&window.__SUPERLIGA_LIVE_RESULTS__?window.__SUPERLIGA_LIVE_RESULTS__:superligaSafeJson(sessionStorage.getItem(SUPERLIGA_CACHE_KEYS.liveSnapshot),{});
 
 function saveLiveResults(){try{sessionStorage.setItem(SUPERLIGA_CACHE_KEYS.liveSnapshot,JSON.stringify(LIVE_RESULTS))}catch(e){}}
@@ -20,6 +20,39 @@ function gradeKoTip(p,r){if(!p||!r||!validScore(p.h)||!validScore(p.a)||!validSc
 function pctBar(val,total,clr){let p=total?+((val/total)*100).toFixed(2):0;return '<div class="stat-bar-row"><div class="stat-bar-track"><div class="stat-bar-fill" style="width:'+p+'%;background:'+clr+'"></div></div><span class="stat-bar-val">'+p+'%</span></div>'}
 
 function parseMaybeArray(v){try{return typeof v==='string'?JSON.parse(v):(Array.isArray(v)?v:[])}catch(e){return[]}}
+function superligaEventMinute(v){return String(v??'').replace(/[’'′]+/g,'').trim()}
+function superligaEventTeam(e){return(e&&(['a','away','2'].includes(String(e.team||'').toLowerCase())||String(e.side||'').toLowerCase()==='away'||String(e.teamSide||'').toLowerCase()==='away'||e.isHome===false))?'a':'h'}
+function superligaEventPlayer(e){
+  let vals=[e?.fullName,e?.displayName,e?.playerName,e?.player?.fullName,e?.player?.displayName,e?.player?.name,e?.person?.name,e?.player,e?.name,e?.person];
+  let names=vals.filter(v=>typeof v==='string'&&v.trim()).map(v=>v.trim());
+  if(!names.length)return'';
+  return names.sort((a,b)=>superligaPlayerNameScore(b)-superligaPlayerNameScore(a))[0];
+}
+function superligaPlayerNameScore(name){
+  let s=String(name||'').trim(),parts=s.split(/\s+/).filter(Boolean),initials=(s.match(/\b\p{L}\./gu)||[]).length;
+  return s.length+(parts.length>=2?20:0)-initials*12;
+}
+function superligaEventBlob(e){try{return JSON.stringify(e||{}).toLowerCase()}catch(_e){return''}}
+function superligaEventOwnGoal(e){let b=superligaEventBlob(e),t=String(e?.type||e?.kind||e?.label||e?.detail||e?.reason||e?.note||e?.goalType||e?.code||'').toLowerCase();return!!(e?.og===true||e?.ownGoal===true||e?.isOwnGoal===true||/\bown[ _-]?goal\b|\bautogol\b|\böngól\b/.test(t+' '+b))}
+function superligaEventPenalty(e){let b=superligaEventBlob(e),t=String(e?.type||e?.kind||e?.label||e?.detail||e?.reason||e?.note||e?.goalType||e?.code||'').toLowerCase();return!!(e?.penalty===true||e?.pen===true||e?.pk===true||e?.fromPenalty===true||t==='p'||t==='pg'||t==='pen'||t.includes('penalty')||t.includes('spot kick')||/"(?:penalty|pen|pk|frompenalty)"\s*:\s*true/.test(b))}
+function superligaNameKey(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
+const SUPERLIGA_EVENT_CORRECTIONS=[
+  {h:'FC Voluntari',a:'FC Botoșani',minute:'15',aliases:['Diarra M.','D. M.','M. Diarra','Mamadou Diarra'],player:'Mamadou Diarra',team:'h',og:true},
+  {h:'FC Voluntari',a:'FC Botoșani',minute:'19',aliases:['Dumiter A.','D. A.','A. Dumiter','Andrei Dumiter'],player:'Andrei Dumiter',team:'a'},
+  {h:'FC Voluntari',a:'FC Botoșani',minute:'47',aliases:['Mitrov Z.','M. Z.','Z. Mitrov','Zoran Mitrov'],player:'Zoran Mitrov',team:'a'},
+  {h:'FC Voluntari',a:'FC Botoșani',minute:'88',aliases:['Merloi G.','M. G.','G. Merloi','George Merloi','George Cristian Merloi'],player:'George Merloi',team:'h'}
+];
+function superligaApplyEventCorrection(id,e){
+  let m=FX_BY_ID[id],minute=superligaEventMinute(e.minute),key=superligaNameKey(e.player);
+  if(!m)return e;
+  let fix=SUPERLIGA_EVENT_CORRECTIONS.find(x=>x.h===m.h&&x.a===m.a&&x.minute===minute&&x.aliases.some(a=>superligaNameKey(a)===key));
+  return fix?{...e,player:fix.player,team:fix.team||e.team,og:fix.og===true||e.og===true}:e;
+}
+function normalizeScorerEvent(id,e){
+  if(!e||typeof e!=='object')return null;
+  let out={...e,team:superligaEventTeam(e),minute:superligaEventMinute(e.minute??e.matchMinute??e.elapsed??e.time??e.statusMinute),player:superligaEventPlayer(e),og:superligaEventOwnGoal(e),penalty:superligaEventPenalty(e)};
+  return superligaApplyEventCorrection(id,out);
+}
 function normalizeLiveResult(id,d){
   if(!d)return null;
   let h=d.h??d.home??d.homeScore??d.home_score??d.scoreHome,a=d.a??d.away??d.awayScore??d.away_score??d.scoreAway;
@@ -28,14 +61,15 @@ function normalizeLiveResult(id,d){
   let rawStatus=d.status||d.matchStatus||'',status=String(rawStatus).toLowerCase();
   let finished=!!d.finished||status==='ft'||status==='finished'||status.includes('full')||status.includes('vége');
   let started=d.started!==false||finished||status==='live'||status.includes('élő')||status.includes('in_play')||status.includes('in play');
-  let scorers=parseMaybeArray(d.scorers);
+  let scorers=parseMaybeArray(d.scorers).map(e=>normalizeScorerEvent(id,e)).filter(Boolean);
   let rawCards=[...parseMaybeArray(d.redCards),...parseMaybeArray(d.reds),...parseMaybeArray(d.cards),...parseMaybeArray(d.bookings),...parseMaybeArray(d.events),...parseMaybeArray(d.yellowCards)];
-  let rawCardsNorm=rawCards.map(c=>({...c,team:(c.team==='a'||c.team==='away'||c.side==='away'||c.teamSide==='away')?'a':'h',player:c.player||c.playerName||c.name||c.person||''}));
+  let rawCardsNorm=rawCards.map(c=>({...c,team:superligaEventTeam(c),minute:superligaEventMinute(c.minute??c.matchMinute??c.elapsed??c.time),player:superligaEventPlayer(c)}));
   let redCards=rawCardsNorm.filter(c=>{let t=String(c.type||c.card||c.eventType||c.kind||c.name||'').toLowerCase();return c.red||c.yellowRed||c.isRed||c.redCard||t==='rc'||t.includes('red')||t.includes('second yellow')||t.includes('second_yellow')}).map(c=>{let t=String(c.type||c.card||c.eventType||'').toLowerCase();let yr=c.yellowRed||c.secondYellow||t.includes('second yellow')||t.includes('yellow-red')||t.includes('second_yellow');return yr?{...c,yellowRed:true,red:true}:{...c,red:true}});
   let yellowCards=rawCardsNorm.filter(c=>{let t=String(c.type||c.card||c.eventType||c.kind||'').toLowerCase();return c.yellow||t==='yc'||t==='yellow'||(t.includes('yellow')&&!t.includes('red')&&!t.includes('second'))});
   let odds=null;try{odds=typeof d.odds==='string'?JSON.parse(d.odds):(d.odds&&typeof d.odds==='object'?d.odds:null)}catch(e){odds=null}
   return{started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,scorers,redCards,yellowCards,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
+(function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([id,row])=>{let r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
 function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,sc:r.scorers,rc:r.redCards,yc:r.yellowCards,od:r.odds})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
@@ -56,7 +90,7 @@ function mergeLiveResults(next){
   return changed;
 }
 function superligaInterestingMatches(now=Date.now()){
-  return FX.filter(m=>{let ko=fixtureKickoff(m),r=LIVE_RESULTS[m.id];if(r&&r.finished)return false;return now>=ko-SUPERLIGA_SYNC_BEFORE_MS&&now<=ko+SUPERLIGA_SYNC_AFTER_MS});
+  return FX.filter(m=>{let ko=fixtureKickoff(m),r=LIVE_RESULTS[m.id];if(r&&r.finished)return false;if(r&&r.started&&!r.finished)return now<=ko+4*60*60*1000;return now>=ko-SUPERLIGA_SYNC_BEFORE_MS&&now<=ko+SUPERLIGA_SYNC_AFTER_MS});
 }
 function superligaNextInterestingDelay(now=Date.now()){
   let active=superligaInterestingMatches(now);if(active.length)return SUPERLIGA_SYNC_LIVE_MS;
@@ -127,7 +161,7 @@ async function loadBootstrapLight(opts={}){
   })();
   return superligaBootstrapInFlight;
 }
-async function fetchWorkerJson(url){let r=await fetch(url,{cache:'no-store',credentials:'omit',headers:{Accept:'application/json'}});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json().catch(()=>null)}
+async function fetchWorkerJson(url,timeoutMs=20000){let ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),timeoutMs);try{let r=await fetch(url,{cache:'no-store',credentials:'omit',headers:{Accept:'application/json'},signal:ctrl.signal});if(!r.ok)throw new Error('HTTP '+r.status);let data=await r.json().catch(()=>null);if(!data||data.ok===false)throw new Error(data&&data.error||'Invalid worker payload');return data}finally{clearTimeout(timer)}}
 async function loadMatchResultsFromBackendDb(){
   if(FROZEN_MODE)return false;
   if(!superligaBootstrapDone&&!superligaBootstrapFailed){let ok=await loadBootstrapLight({fallback:false});if(ok)return true}
@@ -136,11 +170,19 @@ async function loadMatchResultsFromBackendDb(){
 }
 async function loadLiveResultsFromWorker(opts={}){
   if(!SUPERLIGA_RESULTS_SYNC_URL)return false;
-  let changed=false;
-  let forced=!!(opts.force||opts.forceLive);
-  try{let fast=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,{fast:1,t:Date.now()}));if(fast&&fast.results)changed=mergeLiveResults(fast.results)||changed}catch(e){}
-  let freshDelay=forced?120:420;
-  setTimeout(async()=>{try{let fresh=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,{fresh:1,live:1,t:Date.now()}));if(fresh&&fresh.results)mergeLiveResults(fresh.results)}catch(e){}},freshDelay);
+  let changed=false,forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches();
+  let freshFirst=forced||active.length>0,ids=active.map(m=>m.id).join(','),lastError=null;
+  async function use(mode){
+    let params=mode==='fresh'?{fresh:1,live:1,ids:ids||undefined,t:Date.now()}:{fast:1,t:Date.now()};
+    let data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,params),mode==='fresh'?25000:10000);
+    if(data&&data.results&&typeof data.results==='object')changed=mergeLiveResults(data.results)||changed;
+    try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:true,mode,count:Object.keys(data&&data.results||{}).length,activeIds:ids?ids.split(','):[],sync:data&&data.sync||null,updatedAt:data&&data.updatedAt||null,fetchedAt:new Date().toISOString()}}catch(e){}
+    return data;
+  }
+  if(freshFirst){try{await use('fresh');return changed}catch(e){lastError=e}}
+  try{await use('fast')}catch(e){lastError=lastError||e}
+  if(!freshFirst&&forced){try{await use('fresh')}catch(e){lastError=lastError||e}}
+  if(lastError)try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:false,error:lastError.message||String(lastError),activeIds:ids?ids.split(','):[],fetchedAt:new Date().toISOString()}}catch(e){}
   return changed;
 }
 async function loadMatchResultsOnceFromSdk(ids){
@@ -155,16 +197,17 @@ async function loadMatchResultsOnceFromSdk(ids){
 }
 async function loadMatchResultsOnceFromFirestore(){return loadMatchResultsOnceFromSdk()}
 async function syncLiveResults(opts={}){
-  if(FROZEN_MODE||superligaSyncInFlight)return false;
-  let forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches();
-  if(!forced&&!active.length&&!SUPERLIGA_RESULTS_SYNC_URL&&!SUPERLIGA_RESULTS_READ_URL)return false;
-  superligaSyncInFlight=true;
-  try{
+  if(FROZEN_MODE)return false;
+  if(superligaSyncInFlight)return superligaSyncInFlight;
+  superligaSyncInFlight=(async()=>{
+    let forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches();
+    if(!forced&&!active.length&&!SUPERLIGA_RESULTS_SYNC_URL&&!SUPERLIGA_RESULTS_READ_URL)return false;
     if(!superligaBootstrapDone&&!superligaBootstrapFailed)await loadBootstrapLight({fallback:false});
     if(SUPERLIGA_RESULTS_SYNC_URL)return await loadLiveResultsFromWorker(opts);
     if(SUPERLIGA_RESULTS_READ_URL)return await loadMatchResultsFromBackendDb();
     return await loadMatchResultsOnceFromSdk(active.map(m=>m.id));
-  }finally{superligaSyncInFlight=false}
+  })();
+  try{return await superligaSyncInFlight}finally{superligaSyncInFlight=null}
 }
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
 function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await syncLiveResults();scheduleLiveSync()},delay??nextLiveSyncDelay())}
