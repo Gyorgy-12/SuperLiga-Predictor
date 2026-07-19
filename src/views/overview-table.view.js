@@ -6,38 +6,13 @@ function regularLiveMatches(){
   if(S.tblRound)return [];
   return FX.filter(m=>m.g==='SL'&&LIVE_RESULTS[m.id]&&LIVE_RESULTS[m.id].started&&!LIVE_RESULTS[m.id].finished&&validScore(LIVE_RESULTS[m.id].h)&&validScore(LIVE_RESULTS[m.id].a));
 }
-function calcRegularRowsForLiveOverlay(includeLive){
-  let rows={};
-  GROUPS[0].teams.forEach(n=>rows[n]=mk(n,GROUPS[0].key));
-  FX.filter(m=>m.g==='SL'&&(!S.tblRound||m.r<=S.tblRound)).forEach(m=>{
-    let lr=LIVE_RESULTS[m.id];
-    let useReal=lr&&validScore(lr.h)&&validScore(lr.a)&&(lr.finished||(includeLive&&lr.started&&!lr.finished));
-    let p=useReal?{h:+lr.h,a:+lr.a}:getPred(m.id);
-    if(p)applyResult(rows,m,p);
-  });
-  return sortRowsForTable(Object.values(rows));
-}
-function liveDelta(nowPos,basePos){
-  if(!basePos||!nowPos||nowPos===basePos)return '';
-  let diff=basePos-nowPos;
-  return '<em class="live-table-pos-delta '+(diff>0?'up':'down')+'">'+(diff>0?'▲'+diff:'▼'+Math.abs(diff))+'</em>';
-}
-function gdLabel(v){v=+v||0;return (v>0?'+':'')+v;}
-function liveTableOverlayHtml(currentRows){
+function liveTableOverlayHtml(){
   let live=regularLiveMatches();
   if(!live.length)return '';
-  let baseRows=calcRegularRowsForLiveOverlay(false);
-  let cur={};currentRows.forEach((r,i)=>cur[r.name]={pos:i+1,row:r});
-  let base={};baseRows.forEach((r,i)=>base[r.name]={pos:i+1,row:r});
-  function teamLine(team){
-    let c=cur[team]||{},b=base[team]||{},a=ast(c.row||mk(team,'SL'));
-    return '<span class="live-table-team-meta"><b>'+esc(stn(team))+'</b><span>#'+esc(c.pos||'-')+liveDelta(c.pos,b.pos)+'</span><span>GK '+esc(gdLabel(a.diff))+'</span><span>'+esc(a.pts)+' pts</span></span>';
-  }
-  return '<div class="live-table-panel"><div class="live-table-panel-head"><span class="live-dot"></span><b>Élő tabella</b><small>az aktuális eredményekkel</small></div><div class="live-table-list">'+live.map(m=>{
+  return '<div class="live-table-panel"><div class="live-table-panel-head"><span class="live-dot"></span><b>Élő tabella</b></div><div class="live-table-list">'+live.map(m=>{
     let r=LIVE_RESULTS[m.id],clock=liveClockLabel(r)||'Élő';
     return '<div class="live-table-game" data-mid="'+esc(m.id)+'" role="button" tabindex="0">'
       +'<div class="live-table-scoreline"><span>'+esc(clock)+'</span><strong>'+esc(teamNameFor(m.h,'match-card'))+' <b>'+esc(r.h)+'-'+esc(r.a)+'</b> '+esc(teamNameFor(m.a,'match-card'))+'</strong></div>'
-      +'<div class="live-table-impact">'+teamLine(m.h)+teamLine(m.a)+'</div>'
     +'</div>';
   }).join('')+'</div></div>';
 }
@@ -48,7 +23,7 @@ function renderTables(){
   let m=document.getElementById('main'),out='';
   m.className='main';
   const st=sortRowsForTable(calcStandings());
-  const livePanel=liveTableOverlayHtml(st);
+  const livePanel=liveTableOverlayHtml();
   const lastR=Math.max(0,...FX.filter(x=>LIVE_RESULTS[x.id]?.finished).map(x=>x.r));
   const zones=[
     {rows:st.slice(0,6),clr:'var(--cyan)',lbl:'Top 6 → playoff'},

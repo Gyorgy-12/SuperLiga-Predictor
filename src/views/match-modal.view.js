@@ -58,7 +58,14 @@ function abbreviatedPlayerName(name){
   let initials=given.map(x=>x.charAt(0).toUpperCase()+'.').join(' ');
   return (initials?initials+' ':'')+surname;
 }
-function eventPlayerDisplayName(e,r){return abbreviatedPlayerName(canonicalEventPlayerName(e,r))}
+function playerNameNoAccents(value){
+  return String(value||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[łŁ]/g,m=>m==='Ł'?'L':'l').replace(/[đĐ]/g,m=>m==='Đ'?'D':'d')
+    .replace(/[øØ]/g,m=>m==='Ø'?'O':'o').replace(/ß/g,'ss')
+    .replace(/Æ/g,'AE').replace(/æ/g,'ae').replace(/Œ/g,'OE').replace(/œ/g,'oe')
+    .normalize('NFC');
+}
+function eventPlayerDisplayName(e,r){return playerNameNoAccents(abbreviatedPlayerName(canonicalEventPlayerName(e,r)))}
 function eventTeam(e){return e&&(['a','away'].includes(String(e.team||'').toLowerCase())||String(e.side||'').toLowerCase()==='away'||String(e.teamSide||'').toLowerCase()==='away')?'a':'h'}
 function eventMinute(e){
   let v=(e&&(e.minute??e.matchMinute??e.elapsed??e.time??e.statusMinute))||'';

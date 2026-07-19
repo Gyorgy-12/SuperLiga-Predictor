@@ -15,6 +15,67 @@ function cleanEventMinute(value) {
   return String(value).replace(/[’'′]+/g, '').trim() || null;
 }
 
+
+function repairPlayerUnicode(value) {
+  let text = String(value || '');
+  if (!text) return '';
+  text = text
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+  if (/[ÃÂÄÅ]/.test(text) && typeof TextDecoder !== 'undefined') {
+    try {
+      const bytes = Uint8Array.from(Array.from(text, ch => ch.charCodeAt(0) & 255));
+      const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      if (decoded && !decoded.includes(' ')) text = decoded;
+    } catch {}
+  }
+  return text.normalize('NFC').replace(/\s+/g, ' ').trim();
+}
+
+function playerAsciiKey(value) {
+  return repairPlayerUnicode(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[’'`´.-]/g, ' ').replace(/[^a-z0-9\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+const PLAYER_NAME_EXACT = Object.freeze({
+  'birligea d': 'D. Birligea',
+  'd birligea': 'D. Birligea',
+  'birligea daniel': 'Daniel Birligea',
+  'daniel birligea': 'Daniel Birligea',
+  'tanase f': 'F. Tanase',
+  'f tanase': 'F. Tanase',
+  'tanase florin': 'Florin Tanase',
+  'florin tanase': 'Florin Tanase',
+  's baiaram': 'S. Baiaram',
+  'stefan baiaram': 'Stefan Baiaram'
+});
+
+const PLAYER_SURNAME_DIACRITICS = Object.freeze({
+  birligea: 'Birligea',
+  tanase: 'Tanase',
+  mitrita: 'Mitrita',
+  cicaldau: 'Cicaldau',
+  baluta: 'Baluta',
+  sut: 'Sut',
+  vatajelu: 'Vatajelu',
+  rata: 'Rata'
+});
+
+function applyPlayerDiacritics(value) {
+  let text = repairPlayerUnicode(value);
+  if (!text) return '';
+  const exact = PLAYER_NAME_EXACT[playerAsciiKey(text)];
+  if (exact) text = exact;
+  return String(text).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[łŁ]/g, m => m === 'Ł' ? 'L' : 'l')
+    .replace(/[đĐ]/g, m => m === 'Đ' ? 'D' : 'd')
+    .replace(/[øØ]/g, m => m === 'Ø' ? 'O' : 'o')
+    .replace(/ß/g, 'ss').replace(/Æ/g, 'AE').replace(/æ/g, 'ae')
+    .replace(/Œ/g, 'OE').replace(/œ/g, 'oe').normalize('NFC');
+}
+
 function playerNameScore(name) {
   const text = String(name || '').trim();
   const parts = text.split(/\s+/).filter(Boolean);
@@ -28,7 +89,7 @@ function bestEventPlayer(event = {}) {
     event.player?.fullName, event.player?.displayName, event.player?.name,
     event.person?.fullName, event.person?.displayName, event.person?.name,
     event.Player, event.player, event.Pn, event.Nm, event.name, event.person
-  ].filter(value => typeof value === 'string' && value.trim()).map(value => value.trim());
+  ].filter(value => typeof value === 'string' && value.trim()).map(value => repairPlayerUnicode(value));
   if (!candidates.length) return '';
   candidates.sort((a, b) => playerNameScore(b) - playerNameScore(a));
   return candidates[0];
@@ -64,34 +125,34 @@ function initialToken(value) {
 }
 
 function normalizeFlashscorePlayerName(value) {
-  let text = String(value || '').replace(/\s+/g, ' ').trim();
+  let text = repairPlayerUnicode(value);
   let commaNormalized = false;
   if (!text) return '';
   if (text.includes(',')) {
-    const chunks = text.split(',').map(x => x.trim()).filter(Boolean);
+    const chunks = text.split(',').map(x => repairPlayerUnicode(x)).filter(Boolean);
     if (chunks.length >= 2) {
       text = `${chunks.slice(1).join(' ')} ${chunks[0]}`;
       commaNormalized = true;
     }
   }
   const parts = text.split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return text;
+  if (parts.length < 2) return applyPlayerDiacritics(text);
   const firstInitial = initialToken(parts[0]);
   const lastInitial = initialToken(parts[parts.length - 1]);
-  if (commaNormalized) return firstInitial ? `${firstInitial} ${parts.slice(1).join(' ')}` : text;
-  if (firstInitial) return `${firstInitial} ${parts.slice(1).join(' ')}`;
-  if (lastInitial) return `${lastInitial} ${parts.slice(0, -1).join(' ')}`;
-  return `${parts.slice(1).join(' ')} ${parts[0]}`;
+  if (commaNormalized) return applyPlayerDiacritics(firstInitial ? `${firstInitial} ${parts.slice(1).join(' ')}` : text);
+  if (firstInitial) return applyPlayerDiacritics(`${firstInitial} ${parts.slice(1).join(' ')}`);
+  if (lastInitial) return applyPlayerDiacritics(`${lastInitial} ${parts.slice(0, -1).join(' ')}`);
+  return applyPlayerDiacritics(`${parts.slice(1).join(' ')} ${parts[0]}`);
 }
 
 function normalizedEventPlayer(event = {}, sourceHint = '') {
   const rawName = bestEventPlayer(event);
   if (!rawName) return '';
   const order = String(event.playerNameOrder || event.nameOrder || '').toLowerCase();
-  if (String(sourceHint || '').toLowerCase().includes('flashscore') && order !== 'given-first') {
-    return normalizeFlashscorePlayerName(rawName);
-  }
-  return rawName;
+  const normalized = String(sourceHint || '').toLowerCase().includes('flashscore') && order !== 'given-first'
+    ? normalizeFlashscorePlayerName(rawName)
+    : rawName;
+  return applyPlayerDiacritics(normalized);
 }
 
 function normalizeTeamSide(value, fixture) {

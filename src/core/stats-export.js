@@ -29,7 +29,7 @@ function played(){return FX.map(m=>({m,p:getPred(m.id)})).filter(x=>x.p)}
 function koPlayed(){return []}
 function finishedActual(m){let r=actualFor({id:m.id});return r&&r.finished&&validScore(r.h)&&validScore(r.a)?{h:+r.h,a:+r.a}:null}
 function statPredFor(m,ko){return ko?koPred(m.id):getPred(m.id)}
-function statSourceFor(m,ko){let real=finishedActual(m);if(real)return{m,p:real,source:'Val&oacute;s'};let pred=statPredFor(m,ko);return pred?{m,p:pred,source:'Tipp'}:null}
+function statSourceFor(m,ko){let real=finishedActual(m);if(real)return{m,p:real,source:'Valós'};let pred=statPredFor(m,ko);return pred?{m,p:pred,source:'Tipp'}:null}
 function statMatchesFrom(matches,ko){return (matches||[]).map(m=>statSourceFor(m,ko)).filter(x=>x&&x.m&&x.m.h&&x.m.a)}
 function actualFinishedCount(matches){return (matches||[]).filter(m=>finishedActual(m)).length}
 function tipCountFor(matches,ko){return (matches||[]).filter(m=>m&&m.h&&m.a&&statPredFor(m,ko)).length}
