@@ -2,35 +2,18 @@
 
 // Regular-season table renderers
 
-function regularLiveMatches(){
-  if(S.tblRound)return [];
-  return FX.filter(m=>m.g==='SL'&&LIVE_RESULTS[m.id]&&LIVE_RESULTS[m.id].started&&!LIVE_RESULTS[m.id].finished&&validScore(LIVE_RESULTS[m.id].h)&&validScore(LIVE_RESULTS[m.id].a));
-}
-function liveTableOverlayHtml(){
-  let live=regularLiveMatches();
-  if(!live.length)return '';
-  return '<div class="live-table-panel"><div class="live-table-panel-head"><span class="live-dot"></span><b>Élő tabella</b></div><div class="live-table-list">'+live.map(m=>{
-    let r=LIVE_RESULTS[m.id],clock=liveClockLabel(r)||'Élő';
-    return '<div class="live-table-game" data-mid="'+esc(m.id)+'" role="button" tabindex="0">'
-      +'<div class="live-table-scoreline"><span>'+esc(clock)+'</span><strong>'+esc(teamNameFor(m.h,'match-card'))+' <b>'+esc(r.h)+'-'+esc(r.a)+'</b> '+esc(teamNameFor(m.a,'match-card'))+'</strong></div>'
-    +'</div>';
-  }).join('')+'</div></div>';
-}
-
-
 function renderTables(){
   syncTblRoundDrop();
   let m=document.getElementById('main'),out='';
   m.className='main';
   const st=sortRowsForTable(calcStandings());
-  const livePanel=liveTableOverlayHtml();
   const lastR=Math.max(0,...FX.filter(x=>LIVE_RESULTS[x.id]?.finished).map(x=>x.r));
   const zones=[
     {rows:st.slice(0,6),clr:'var(--cyan)',lbl:'Top 6 → playoff'},
     {rows:st.slice(6,16),clr:'var(--muted)',lbl:'7-16 → playout'},
   ];
   const displayR=S.tblRound||lastR;
-  out+='<section class="card"><div class="card-title">Tabella</div>'+livePanel+'<div class="standings">'+hdr();
+  out+='<section class="card"><div class="card-title">Tabella</div><div class="standings">'+hdr();
   let p=1;zones.forEach(z=>{let r=sl_zone(z,p);out+=r.h;p=r.n;});
   out+='</div>';
   out+='</section>';

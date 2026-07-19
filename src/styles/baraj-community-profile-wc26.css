@@ -1211,3 +1211,24 @@
     padding:8px 11px!important;
   }
 }
+
+
+/* V3 — only the score shown under “Valós” must match the Tipp score size.
+   The generic .community-result span rule made this nested score tiny. */
+.community-preview[data-community-view-id] .community-pred .community-result .community-real-value{
+  display:inline-block!important;
+  min-width:52px!important;
+  color:#ff6969!important;
+  font-size:clamp(20px,1.34vw,26px)!important;
+  font-weight:950!important;
+  line-height:1!important;
+  text-align:right!important;
+  text-transform:none!important;
+  letter-spacing:normal!important;
+}
+
+@media(max-width:720px){
+  .community-preview[data-community-view-id] .community-pred .community-result .community-real-value{
+    font-size:17px!important;
+  }
+}

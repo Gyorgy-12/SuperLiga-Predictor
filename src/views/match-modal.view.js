@@ -5,14 +5,29 @@
 function findRegularMatch(id){return FX.find(x=>x.id===id)||null}
 function closeTip(){document.querySelectorAll('.tip-overlay').forEach(el=>el.remove());syncModalOpenClass()}
 function modalScoreIsReal(r,locked){return !!(r&&(r.started||r.finished||locked)&&validScore(r.h)&&validScore(r.a))}
-function modalClockPill(r){
-  if(!r)return'';
-  if(r.finished)return'<span class="tip-live-clock">FT</span>';
-  let clock=liveClockLabel(r),isInt=String(r.status||'').toUpperCase().includes('INT');
-  return (clock?'<span class="tip-live-clock">'+esc(clock)+'</span>':'')+(isInt?'<span class="tip-live-clock int-modal-badge">INT.</span>':'');
+function modalStatusMeta(r){
+  if(!r)return null;
+  if(typeof superligaStatusMeta==='function'){
+    let meta=superligaStatusMeta(r,{mode:'modal'});
+    if(meta)return meta;
+  }
+  let s=[r.status,r.minute,r.period,r.shortDetail,r.detail,r.displayClock,r.statusText].map(v=>String(v||'')).join(' ').toUpperCase();
+  let pen=(validScore(r.pH)&&validScore(r.pA))||s.includes('PENAL')||s.includes('SHOOTOUT')||/\bPEN\b/.test(s)||/\bAP\b/.test(s);
+  let aet=s.includes('AET')||s.includes('EXTRA TIME')||/\bET\b/.test(s);
+  let ht=!r.finished&&(s==='HT'||/\bHT\b/.test(s)||s.includes('HALF')||s.includes('INTERVAL'));
+  let finished=!!r.finished||s==='FT'||/\bFT\b/.test(s)||s.includes('FULL TIME')||s.includes('FINISHED')||s.includes('FINAL');
+  if(pen)return{state:'pen',text:'PEN'};
+  if(aet)return{state:'aet',text:'AET'};
+  if(ht)return{state:'ht',text:'HT'};
+  if(finished)return{state:'ft',text:'FT'};
+  let clock=typeof liveClockLabel==='function'?liveClockLabel(r):'';
+  return clock?{state:'live',text:clock}:(r.started?{state:'live',text:'Élő'}:null);
 }
-function superligaModalStatusHtml(r){let pills=(typeof superligaStatusPills==='function')?superligaStatusPills(r,{mode:'modal'}):'';return pills?'<div class="wc26-modal-status">'+pills+'</div>':''}
-
+function modalStatusPillHtml(r){
+  let meta=modalStatusMeta(r);
+  if(!meta)return'';
+  return '<div class="wc26-modal-pill-slot"><span class="wc26-modal-pill" data-state="'+esc(meta.state)+'">'+esc(meta.text)+'</span></div>';
+}
 function eventPlayerName(e){
   return String(e&&(e.player||e.playerName||e.fullName||e.displayName||e.name||e.person)||'').trim();
 }
@@ -103,11 +118,9 @@ function goalScorersHtml(r,m){
   return'<div class="goal-scorers">'+rows+'</div>';
 }
 function modalGoalRows(r,m){
-  let clock=modalClockPill(r),events=goalScorersHtml(r,m);
-  if(!clock&&!events)return'';
-  return'<div class="tip-below-score">'+clock+events+'</div>';
+  let events=goalScorersHtml(r,m);
+  return events?'<div class="tip-below-score">'+events+'</div>':'';
 }
-
 function superligaMarketValue(team){let v=TEAM_MARKET&&TEAM_MARKET[team];return Number.isFinite(+v)?+v:10}
 function superligaElo(team){let v=TEAM_ELO&&TEAM_ELO[team];return Number.isFinite(+v)?+v:1450}
 function superligaMarketLabel(v){v=Number(v);return '€'+(Number.isFinite(v)?v:0).toFixed(2)+'M'}
@@ -140,6 +153,7 @@ function refreshOpenMatchModalModel(){
   let id=ov.dataset.tipId,isKo=ov.dataset.tipKind==='postseason';
   let m=isKo?findKoMatch(id):findRegularMatch(id);
   if(!m)return false;
+  let r=actualFor({id});
 
   let teams=ov.querySelectorAll('.tip-team');
   if(teams[0]){
@@ -151,8 +165,16 @@ function refreshOpenMatchModalModel(){
     if(meta)meta.innerHTML=modelMeta(m.a);
   }
 
+  let oldStatus=ov.querySelector('.wc26-modal-pill-slot'),statusHtml=modalStatusPillHtml(r),teamsRow=ov.querySelector('.tip-teams');
+  if(statusHtml){
+    let holder=document.createElement('div');holder.innerHTML=statusHtml;
+    let next=holder.firstElementChild;
+    if(oldStatus&&next)oldStatus.replaceWith(next);
+    else if(teamsRow&&next)teamsRow.insertAdjacentElement('afterend',next);
+  }else if(oldStatus)oldStatus.remove();
+
   let oldCard=ov.querySelector('.tip-prob-card');
-  let html=modalProbCard(m,actualFor({id}));
+  let html=modalProbCard(m,r);
   if(oldCard&&html){
     let holder=document.createElement('div');
     holder.innerHTML=html;
@@ -247,7 +269,7 @@ function openMatchTipModal(cfg){
   ov.className='overlay tip-overlay';
   ov.dataset.tipId=id;
   ov.dataset.tipKind=isKo?'postseason':'regular';
-  ov.innerHTML='<div class="sheet tip-sheet '+grade+'"><div class="sheet-top"><div class="sheet-pill"></div><button class="sheet-x" type="button" data-close-tip>&times;</button></div><div class="sheet-title">'+esc(title)+'</div><div class="tip-head"><span>'+esc(date)+' &middot; '+esc(phase)+'</span><span class="tip-time-pill">🕒 '+esc(time)+'</span></div>'+yourTipHtml+'<div class="tip-match"><div class="tip-teams"><div class="tip-team">'+crest(m.h)+'<span>'+esc(modalTeamName(m.h))+'</span><div class="tip-team-meta">'+modelMeta(m.h)+'</div></div>'+scoreBox+superligaModalStatusHtml(r)+'<div class="tip-team">'+crest(m.a)+'<span>'+esc(modalTeamName(m.a))+'</span><div class="tip-team-meta">'+modelMeta(m.a)+'</div></div></div>'+modalGoalRows(r,m)+'</div>'+modalProbCard(m,r)+modalBarajAggregateHtml(m,p)+modalBarajPenaltyHtml(m,p,locked)+'<div class="tip-msg" id="tipMsg"></div><div class="tip-actions"><button class="tip-btn clear" type="button" data-clear-tip'+dis+'>Tipp törlése</button><button class="tip-btn save" type="button" data-save-tip'+dis+'>'+(locked?'Zárolva':'Mentés')+'</button></div>'+lockNote+'</div>';
+  ov.innerHTML='<div class="sheet tip-sheet '+grade+'"><div class="sheet-top"><div class="sheet-pill"></div><button class="sheet-x" type="button" data-close-tip>&times;</button></div><div class="sheet-title">'+esc(title)+'</div><div class="tip-head"><span>'+esc(date)+' &middot; '+esc(phase)+'</span><span class="tip-time-pill">🕒 '+esc(time)+'</span></div>'+yourTipHtml+'<div class="tip-match"><div class="tip-teams"><div class="tip-team">'+crest(m.h)+'<span>'+esc(modalTeamName(m.h))+'</span><div class="tip-team-meta">'+modelMeta(m.h)+'</div></div>'+scoreBox+'<div class="tip-team">'+crest(m.a)+'<span>'+esc(modalTeamName(m.a))+'</span><div class="tip-team-meta">'+modelMeta(m.a)+'</div></div></div>'+modalStatusPillHtml(r)+modalGoalRows(r,m)+'</div>'+modalProbCard(m,r)+modalBarajAggregateHtml(m,p)+modalBarajPenaltyHtml(m,p,locked)+'<div class="tip-msg" id="tipMsg"></div><div class="tip-actions"><button class="tip-btn clear" type="button" data-clear-tip'+dis+'>Tipp törlése</button><button class="tip-btn save" type="button" data-save-tip'+dis+'>'+(locked?'Zárolva':'Mentés')+'</button></div>'+lockNote+'</div>';
   document.body.appendChild(ov);
   syncModalOpenClass();
   activateCrests();

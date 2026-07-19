@@ -135,27 +135,51 @@ function superligaMiniPen(v){return validScore(v)?'<span class="wc26-mini-pen-la
 function superligaScoreWithPen(score,pen){return superligaMiniPen(pen)+'<span>'+esc(score)+'</span>'}
 function liveClockLabel(r){
   if(!r||r.finished)return'';
-  let vals=[r.minute,r.status,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.time,r.statusMinute];
+  let vals=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.time,r.statusMinute,r.displayClock,r.status];
   let raw=vals.map(v=>v==null?'':String(v).trim()).find(Boolean)||'';
   let up=raw.toUpperCase();
-  if(up==='HT'||up.includes('HALF'))return'HT';
-  if(up==='INT'||up.includes('INTERVAL'))return'INT.';
-  if(raw&&up!=='LIVE'&&raw!=='Élő')return raw;
-  return'Élő';
+  if(up==='HT'||up==='INT'||up.includes('HALF')||up.includes('INTERVAL'))return'HT';
+  if(up==='AET'||up.includes('EXTRA TIME'))return'AET';
+  if(raw&&up!=='LIVE'&&raw!=='ÉLŐ')return raw;
+  return r.started?'Élő':'';
+}
+function superligaStatusBlob(r){
+  if(!r)return'';
+  return [r.status,r.minute,r.period,r.shortDetail,r.detail,r.displayClock,r.statusText,r.name,r.description]
+    .map(v=>String(v||'')).join(' ').toUpperCase();
+}
+function superligaIsHalfTimeResult(r){
+  let s=superligaStatusBlob(r);
+  return !!(r&&!r.finished&&(s==='HT'||/\bHT\b/.test(s)||s.includes('HALF TIME')||s.includes('HALFTIME')||s.includes('INTERVAL')||s.includes('STATUS_HALFTIME')));
+}
+function superligaIsPenaltyResult(r){
+  let s=superligaStatusBlob(r);
+  return !!(superligaHasPenScore(r)||s.includes('PENAL')||s.includes('SHOOTOUT')||s.includes('AFTER PEN')||/\bPEN\b/.test(s)||/\bAP\b/.test(s));
+}
+function superligaIsAetResult(r){
+  let s=superligaStatusBlob(r);
+  return !!(s.includes('AET')||s.includes('EXTRA TIME')||s.includes('AFTER EXTRA')||/\bET\b/.test(s));
+}
+function superligaIsFinishedResult(r){
+  let s=superligaStatusBlob(r);
+  return !!(r&&(r.finished||s==='FT'||/\bFT\b/.test(s)||s.includes('FULL TIME')||s.includes('FINISHED')||s.includes('FINAL')));
+}
+function superligaStatusMeta(r,opts={}){
+  if(!r||!(r.started||r.finished||superligaStatusBlob(r)))return null;
+  let mode=opts.mode||'modal',finished=superligaIsFinishedResult(r),pen=superligaIsPenaltyResult(r),aet=superligaIsAetResult(r),ht=superligaIsHalfTimeResult(r);
+  if(mode==='card')return ht?{state:'ht',text:'HT'}:null;
+  if(pen)return{state:'pen',text:'PEN'};
+  if(aet)return{state:'aet',text:'AET'};
+  if(ht)return{state:'ht',text:'HT'};
+  if(finished)return{state:'ft',text:'FT'};
+  let clock=liveClockLabel(r);
+  if(clock)return{state:'live',text:clock};
+  return r.started?{state:'live',text:'Élő'}:null;
 }
 function superligaStatusPills(r,opts={}){
-  if(!r)return'';
-  let s=String((r.status||'')+' '+(r.minute||'')+' '+(r.period||'')+' '+(r.shortDetail||'')+' '+(r.displayClock||'')).toUpperCase();
-  let pills=[];
-  const finished=!!r.finished||s==='FT'||s.includes('FULL TIME')||s.includes('FINAL')||s.includes('FINISHED');
-  if(!finished&&(s==='HT'||s.includes('HALF')||/\bHT\b/.test(s)))pills.push(['ht','HT']);
-  if(opts.mode!=='card'){
-    if(finished)pills.push(['ft','FT']);
-    if(superligaHasPenScore(r)||s.includes('PEN')||s.includes('AFTER PEN')||/\bAP\b/.test(s))pills.push(['pen','PEN']);
-    else if(s.includes('AET'))pills.push(['aet','AET']);
-  }
-  if(!pills.length)return'';
-  return '<span class="wc26-state-indicators">'+pills.map(([c,t])=>'<span class="wc26-status-pill '+c+'">'+t+'</span>').join('')+'</span>';
+  let meta=superligaStatusMeta(r,opts);
+  if(!meta)return'';
+  return '<span class="wc26-state-indicators"><span class="wc26-status-pill '+esc(meta.state)+'">'+esc(meta.text)+'</span></span>';
 }
 function superligaCardTipPenHtml(p){return''}
 function superligaCardScoreValue(score,pen){
@@ -175,13 +199,12 @@ function matchStateBadge(m,isKo){
     let g=isKo?gradeKoTip(tip,r):gradeTip(tip,r),grade=superligaGradeBadge(g.cat);
     if(grade)return grade;
   }
-  if(st==='finished')return'';
-  if(st==='live')return'<em class="mr-live-state live"><span></span>'+(esc(liveClockLabel(r)||'Élő'))+'</em>';
+  if(st==='finished'||st==='live')return'';
   if(st==='open')return'<em class="mr-live-state open">Tippelhet&#337;</em>';
   return'<em class="mr-live-state neutral">Z&aacute;rolva</em>';
 }
 function scoreHtml(m,isKo){
-  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),hasReal=r&&(r.started||r.finished||matchLockState({id:m.id})!=="open")&&validScore(r.h)&&validScore(r.a),clock=liveClockLabel(r),rawSt=r&&r.status?String(r.status).toUpperCase():'',isInt=rawSt.includes('INT'),lines='';
+  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),hasReal=r&&(r.started||r.finished||matchLockState({id:m.id})!=="open")&&validScore(r.h)&&validScore(r.a),lines='';
   const tipHasPen=superligaHasPenScore(tip),realHasPen=superligaHasPenScore(r),hasAnyPen=tipHasPen||realHasPen;
   if(tip&&hasReal){
     lines='<div class="mr-score-compare'+(hasAnyPen?' has-pen':'')+'">'
@@ -199,6 +222,15 @@ function scoreHtml(m,isKo){
       +'<div class="mr-score-row single"><span class="mr-score-single mr-score-real">'+superligaCardScoreValue(r.a,realHasPen?r.pA:null)+'</span></div>'
       +'</div>';
   }else lines='<div class="match-empty">-</div><div class="match-empty">-</div>';
-  let pills=superligaStatusPills(r,{mode:'card'}),clockRow=(hasReal&&r&&!r.finished&&(clock||isInt||pills))?'<div class="mr-clock-row">'+pills+(clock?'<span class="mr-clock">'+esc(clock)+'</span>':'')+(isInt?'<span class="mr-int-badge">INT.</span>':'')+'</div>':'';
+
+  let state=superligaStatusMeta(r,{mode:'card'}),clock='';
+  if(hasReal&&r&&!r.finished){
+    if(state)clock='<span class="mr-clock wc26-card-state state-'+esc(state.state)+'">'+esc(state.text)+'</span>';
+    else{
+      let label=liveClockLabel(r);
+      if(label)clock='<span class="mr-clock wc26-card-state state-live">'+esc(label)+'</span>';
+    }
+  }
+  let clockRow=clock?'<div class="mr-clock-row">'+clock+'</div>':'';
   return clockRow?'<div class="mr-score-wrap '+(tip?'':'no-tip')+'">'+clockRow+'<div class="mr-score-lines">'+lines+'</div></div>':lines;
 }
