@@ -134,14 +134,18 @@ function superligaPenPair(obj){return superligaHasPenScore(obj)?(+obj.pH)+'-'+(+
 function superligaMiniPen(v){return validScore(v)?'<span class="wc26-mini-pen-label">('+esc(v)+')</span>':''}
 function superligaScoreWithPen(score,pen){return superligaMiniPen(pen)+'<span>'+esc(score)+'</span>'}
 function liveClockLabel(r){
-  if(!r||r.finished)return'';
-  let vals=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.time,r.statusMinute,r.displayClock,r.status];
+  // A scheduled fixture may contain its kickoff time in `time`/`status`.
+  // That must never become a live minute pill. Only started, unfinished rows
+  // are allowed to expose a clock/status on match cards and in the modal.
+  if(!r||r.finished||!r.started)return'';
+  let vals=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock,r.status];
   let raw=vals.map(v=>v==null?'':String(v).trim()).find(Boolean)||'';
   let up=raw.toUpperCase();
   if(up==='HT'||up==='INT'||up.includes('HALF')||up.includes('INTERVAL'))return'HT';
   if(up==='AET'||up.includes('EXTRA TIME'))return'AET';
-  if(raw&&up!=='LIVE'&&raw!=='ÉLŐ')return raw;
-  return r.started?'Élő':'';
+  if(/^\d{1,2}:\d{2}$/.test(raw))return'';
+  if(raw&&up!=='LIVE'&&up!=='IN_PLAY'&&raw!=='Élő'&&up!=='ÉLŐ')return raw;
+  return'Élő';
 }
 function superligaStatusBlob(r){
   if(!r)return'';
@@ -165,7 +169,7 @@ function superligaIsFinishedResult(r){
   return !!(r&&(r.finished||s==='FT'||/\bFT\b/.test(s)||s.includes('FULL TIME')||s.includes('FINISHED')||s.includes('FINAL')));
 }
 function superligaStatusMeta(r,opts={}){
-  if(!r||!(r.started||r.finished||superligaStatusBlob(r)))return null;
+  if(!r||(!r.started&&!r.finished))return null;
   let mode=opts.mode||'modal',finished=superligaIsFinishedResult(r),pen=superligaIsPenaltyResult(r),aet=superligaIsAetResult(r),ht=superligaIsHalfTimeResult(r);
   if(mode==='card')return ht?{state:'ht',text:'HT'}:null;
   if(pen)return{state:'pen',text:'PEN'};
@@ -204,7 +208,7 @@ function matchStateBadge(m,isKo){
   return'<em class="mr-live-state neutral">Z&aacute;rolva</em>';
 }
 function scoreHtml(m,isKo){
-  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),hasReal=r&&(r.started||r.finished||matchLockState({id:m.id})!=="open")&&validScore(r.h)&&validScore(r.a),lines='';
+  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),hasReal=r&&(r.started||r.finished)&&validScore(r.h)&&validScore(r.a),lines='';
   const tipHasPen=superligaHasPenScore(tip),realHasPen=superligaHasPenScore(r),hasAnyPen=tipHasPen||realHasPen;
   if(tip&&hasReal){
     lines='<div class="mr-score-compare'+(hasAnyPen?' has-pen':'')+'">'
