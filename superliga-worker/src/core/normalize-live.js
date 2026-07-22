@@ -200,11 +200,17 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
   const pH = raw.pH ?? raw.homePenaltyScore ?? raw.penaltiesHome ?? raw.home?.penaltyScore ?? raw.Trp1 ?? raw.trp1;
   const pA = raw.pA ?? raw.awayPenaltyScore ?? raw.penaltiesAway ?? raw.away?.penaltyScore ?? raw.Trp2 ?? raw.trp2;
   const status = raw.status || raw.statusText || raw.matchStatus || raw.state || raw.Eps || raw.EpsL || raw.eventStatus || (raw.finished ? 'FT' : raw.started ? 'LIVE' : 'NS');
-  const upper = String(status || '').toUpperCase();
+  const upper = String(status || '').trim().toUpperCase();
+  const flashState = String(raw.flashscoreState || raw.feedState || '').trim().toLowerCase();
+  const explicitPrematch = raw.prematch === true || flashState === 'prematch' || ['NS', 'NOT_STARTED', 'NOT STARTED', 'SCHEDULED', 'TIMED', 'PREMATCH', 'PRE_MATCH'].includes(upper);
   const isMinuteStatus = /^\d{1,3}(?:'|\+|$)/.test(String(status || '').trim());
-  const started = !!raw.started || validScore(homeScore) || isMinuteStatus || ['LIVE', 'IN_PLAY', 'HT', '1H', '2H', 'FT', 'AET', 'PEN', 'FULL_TIME', 'COMPLETE'].includes(upper);
-  const finished = !!raw.finished || ['FT', 'AET', 'PEN', 'FULL_TIME', 'COMPLETE'].includes(upper);
-  const minute = cleanMinute(raw.minute ?? raw.matchMinute ?? raw.elapsed ?? raw.currentMinute ?? raw.timePlayed ?? raw.EpsL ?? (isMinuteStatus ? status : null));
+  const finished = !explicitPrematch && (!!raw.finished || ['FT', 'AET', 'PEN', 'FULL_TIME', 'COMPLETE'].includes(upper));
+  const started = !explicitPrematch && (
+    !!raw.started || finished || isMinuteStatus ||
+    ['LIVE', 'IN_PLAY', 'HT', '1H', '2H', 'ET'].includes(upper) ||
+    validScore(homeScore) || validScore(awayScore)
+  );
+  const minute = explicitPrematch ? null : cleanMinute(raw.minute ?? raw.matchMinute ?? raw.elapsed ?? raw.currentMinute ?? raw.timePlayed ?? raw.EpsL ?? (isMinuteStatus ? status : null));
   const eventSourceHint = [raw.eventSource, raw.scoreSource, raw.source, sourceMeta.eventSource, sourceMeta.scoreSource, sourceMeta.source].filter(Boolean).join(' ');
 
   const scorers = [
@@ -237,8 +243,8 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
     finished,
     status,
     minute,
-    h: validScore(homeScore) ? Number(homeScore) : null,
-    a: validScore(awayScore) ? Number(awayScore) : null,
+    h: !explicitPrematch && validScore(homeScore) ? Number(homeScore) : null,
+    a: !explicitPrematch && validScore(awayScore) ? Number(awayScore) : null,
     pH: validScore(pH) ? Number(pH) : null,
     pA: validScore(pA) ? Number(pA) : null,
     scorers,
@@ -248,6 +254,8 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
     scoreSource: raw.scoreSource || sourceMeta.scoreSource || 'unknown',
     eventSource: raw.eventSource || sourceMeta.eventSource || null,
     source: raw.source || sourceMeta.source || 'superliga-worker',
+    prematch: explicitPrematch,
+    flashscoreState: raw.flashscoreState || null,
     updatedAt: raw.updatedAt || new Date().toISOString()
   };
 }

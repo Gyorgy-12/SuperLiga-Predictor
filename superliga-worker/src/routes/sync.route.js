@@ -2,7 +2,7 @@ import { json, badRequest, requireAdmin, unauthorized } from '../utils/http.js';
 import { syncLive } from '../services/sync.service.js';
 import { getFixtures } from '../services/fixtures.service.js';
 import { backfillFlashscoreMids } from '../services/flashscore-mid-backfill.service.js';
-import { readStoredResults, refreshPublicResultsCache } from '../services/results.service.js';
+import { readStoredResults, refreshPublicResultsCache, writeFinalIfChanged } from '../services/results.service.js';
 
 /**
  * Manual result sync / historical Flashscore backfill.
@@ -77,12 +77,50 @@ export async function syncRoute(request, env) {
     all,
     activeFixtures: selected,
     detailLimit: selected.length,
+    historical: history,
     source: history ? 'historical-flashscore-backfill' : 'filtered-manual-sync'
   });
 
-  // writeFinalIfChanged updates the result documents and in-memory finals.
-  // Refresh the public aggregate too, otherwise a new Worker isolate can keep
-  // serving the older public-cache document after a successful backfill.
+  // Flashscore detail feeds can contain the complete historical score and
+  // incidents while still exposing DETAIL_SCORE instead of FT. In historical
+  // mode, finalize only fixtures whose scheduled kickoff is safely in the past.
+  // PREMATCH rows and future fixtures are never written as results.
+  const historicalFinalWrites = [];
+  const historicalSkipped = [];
+  if (history) {
+    const minAgeMinutes = positiveInt(url.searchParams.get('minAgeMinutes')) || 130;
+    for (const fixture of selected) {
+      const id = String(fixture.id);
+      const row = sync?.results?.[id] || null;
+      const decision = historicalFinalCandidate(fixture, row, minAgeMinutes);
+      if (!decision.ok) {
+        historicalSkipped.push({ id, reason: decision.reason });
+        continue;
+      }
+
+      const finalRow = {
+        ...row,
+        id,
+        started: true,
+        finished: true,
+        status: preserveFinalStatus(row?.status),
+        minute: null,
+        prematch: false,
+        flashscoreState: row?.flashscoreState === 'prematch' ? 'event_feed' : (row?.flashscoreState || 'event_feed'),
+        scoreSource: 'flashscore',
+        eventSource: row?.eventSource || 'flashscore',
+        source: 'flashscore',
+        updatedAt: new Date().toISOString()
+      };
+
+      const write = await writeFinalIfChanged(env, finalRow)
+        .catch(error => ({ written: false, id, error: error?.message || String(error) }));
+      historicalFinalWrites.push({ id, ...write, h: finalRow.h, a: finalRow.a, status: finalRow.status });
+    }
+  }
+
+  // Read after historical writes so the public aggregate contains the newly
+  // finalized Flashscore rows and no stale in-memory live version wins.
   const stored = await readStoredResults(env);
   const publicCache = await refreshPublicResultsCache(env, stored.results);
 
@@ -109,11 +147,57 @@ export async function syncRoute(request, env) {
       unmatched: midBackfill.unmatched || []
     } : null,
     sync,
+    historicalFinalWrites,
+    historicalSkipped,
     publicResultsCache: {
       count: publicCache.count,
       updatedAt: publicCache.updatedAt
     }
   }, { headers: { 'cache-control': 'no-store, max-age=0' } }, env);
+}
+
+function historicalFinalCandidate(fixture, row, minAgeMinutes) {
+  if (!row) return { ok: false, reason: 'missing_result_row' };
+  const status = String(row.status || '').trim().toUpperCase();
+  const state = String(row.flashscoreState || '').trim().toLowerCase();
+  if (row.prematch === true || state === 'prematch' || ['NS', 'PREMATCH', 'SCHEDULED', 'TIMED'].includes(status)) {
+    return { ok: false, reason: 'prematch' };
+  }
+  if (!validScore(row.h) || !validScore(row.a)) return { ok: false, reason: 'missing_score' };
+
+  const kickoff = fixtureKickoffMs(fixture);
+  if (!Number.isFinite(kickoff)) return { ok: false, reason: 'invalid_kickoff' };
+  if (Date.now() < kickoff + Math.max(1, minAgeMinutes) * 60 * 1000) {
+    return { ok: false, reason: 'not_old_enough' };
+  }
+
+  const hasDetail = state === 'event_feed' ||
+    (row.scorers || []).length > 0 ||
+    (row.yellowCards || []).length > 0 ||
+    (row.redCards || []).length > 0 ||
+    (row.substitutions || []).length > 0 ||
+    (row.penalties || []).length > 0 ||
+    !!row.matchMeta?.attendance ||
+    /^(FT|AET|PEN|FULL_TIME|COMPLETE|DETAIL_SCORE)$/i.test(status);
+  if (!hasDetail) return { ok: false, reason: 'insufficient_flashscore_detail' };
+  return { ok: true };
+}
+
+function fixtureKickoffMs(fixture) {
+  const date = cleanDate(fixture?.date);
+  const time = String(fixture?.t || fixture?.time || '').slice(0, 5);
+  if (!date || !/^\d{2}:\d{2}$/.test(time)) return NaN;
+  // July dates in the current SuperLiga season use Bucharest summer time.
+  return Date.parse(`${date}T${time}:00+03:00`);
+}
+
+function preserveFinalStatus(status) {
+  const upper = String(status || '').trim().toUpperCase();
+  return ['AET', 'PEN'].includes(upper) ? upper : 'FT';
+}
+
+function validScore(value) {
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 }
 
 function filterFixtures(fixtures, filters) {
