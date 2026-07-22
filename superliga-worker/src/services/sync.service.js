@@ -3,7 +3,6 @@ import { interestingFixtures } from '../core/match-window.js';
 import { mergeLiveResults, getLiveSnapshot } from './memory-cache.service.js';
 import { readStoredResults, writeFinalIfChanged } from './results.service.js';
 import { getFixtures } from './fixtures.service.js';
-import { fetchLiveScoreResults } from '../sources/livescore-source.js';
 import { fetchSofaScoreEvents } from '../sources/sofascore-events-source.js';
 import { fetchEspnEvents } from '../sources/espn-source.js';
 import { fetchFlashscoreEvents, fetchFlashscoreMatchDetails } from '../sources/flashscore-source.js';
@@ -39,31 +38,27 @@ export async function syncLive(env, opts = {}) {
     detailLimit: opts.detailLimit || opts.matchDetailLimit || env.INCIDENT_DETAIL_LIMIT || 12
   };
 
-  // B26 request-budget pipeline:
-  // 1) LiveScore + Flashscore run first. Flashscore gets at most df_sui + dc per fixture.
-  // 2) Official runs only for hard Flashscore misses (pending_feed is enough while NS).
-  // 3) ESPN and SofaScore are progressively narrowed fallbacks.
-  const [scorePack, flashscorePack] = await Promise.all([
-    fetchLiveScoreResults(env, active, commonOpts).catch(error => sourceErrorPack('livescore', error)),
-    fetchStoredFlashscoreIncidents(env, active, {
-      ...incidentOpts,
-      requestBudgetMode: 'strict',
-      primaryFeedOnly: true,
-      primaryBaseOnly: true,
-      pendingOnEmpty: true,
-      skipHtml: true,
-      feedProbeLimit: 2
-    }).catch(error => sourceErrorPack('flashscore-stored-details', error))
-  ]);
+  // Flashscore-first pipeline:
+  // 1) Flashscore is both the score master and the incident master.
+  // 2) LiveScore is intentionally not called anywhere in the production sync path.
+  // 3) Official/ESPN/SofaScore remain narrow fallbacks only when Flashscore has no usable live row.
+  const flashscorePack = await fetchStoredFlashscoreIncidents(env, active, {
+    ...incidentOpts,
+    requestBudgetMode: 'strict',
+    primaryFeedOnly: true,
+    primaryBaseOnly: true,
+    pendingOnEmpty: true,
+    skipHtml: true,
+    feedProbeLimit: 2
+  }).catch(error => sourceErrorPack('flashscore-stored-details', error));
 
   const flashPendingIds = new Set();
   const officialActive = [];
   for (const fixture of active) {
     const id = String(fixture.id);
     const flash = flashscorePack.results?.[id];
-    const score = scorePack.results?.[id];
     if (isPendingFeedResult(flash)) flashPendingIds.add(id);
-    if (needsSecondaryProvider(flash, score)) officialActive.push(fixture);
+    if (needsSecondaryProviderFlashFirst(flash, fixture, opts)) officialActive.push(fixture);
   }
 
   let officialPack = skippedSourcePack('official-superliga-stored-details-b26', 'flashscore_usable_or_pending');
@@ -76,10 +71,9 @@ export async function syncLive(env, opts = {}) {
   const fallbackActive = [];
   for (const fixture of active) {
     const id = String(fixture.id);
-    const score = scorePack.results?.[id];
     const flash = flashscorePack.results?.[id];
     const official = officialPack.results?.[id];
-    if (!needsSecondaryProvider(flash, score) || isProviderResultUsable(official)) primaryResolvedIds.add(id);
+    if (!needsSecondaryProviderFlashFirst(flash, fixture, opts) || isProviderResultUsable(official)) primaryResolvedIds.add(id);
     else fallbackActive.push(fixture);
   }
 
@@ -97,6 +91,7 @@ export async function syncLive(env, opts = {}) {
   }
 
   const eventPack = combineIncidentPacks(active, flashscorePack, officialPack, espnPack, sofaPack);
+  const scorePack = combineScorePacksFlashFirst(active, flashscorePack, officialPack, espnPack, sofaPack);
   const previous = getLiveSnapshot().results || {};
   const merged = mergeScoreAndEvents(active, scorePack.results || {}, eventPack.results || {}, previous);
   const changed = mergeLiveResults(merged, 'sync-live-b26');
@@ -110,7 +105,7 @@ export async function syncLive(env, opts = {}) {
 
   return {
     ok: true,
-    source: opts.source || 'sync-live-b26-request-budget',
+    source: opts.source || 'sync-live-flashscore-first',
     active: active.map(f => ({
       id: f.id,
       r: f.r,
@@ -118,7 +113,6 @@ export async function syncLive(env, opts = {}) {
       t: f.t,
       h: f.h,
       a: f.a,
-      livescoreId: f.livescoreId || f.sourceIds?.livescore || null,
       flashscoreUrl: getFlashscoreUrl(f),
       flashscoreMid: getFlashscoreMid(f),
       officialUrl: getOfficialUrl(f)
@@ -167,10 +161,11 @@ export async function syncLive(env, opts = {}) {
         sofaSkipped: !!sofaPack.skipped
       },
       requestBudget: {
-        mode: 'strict-b26',
+        mode: 'strict-flashscore-first',
         flashscoreMaxRequestsPerFixture: 2,
         flashscorePrimaryFeeds: ['df_sui', 'dc'],
         officialOnlyForHardMisses: true,
+        liveScoreDisabled: true,
         sofascoreSearchDisabled: true,
         sofascoreSingleBase: true,
         flashscoreProbeRequestCount: (flashscorePack.incidentDebug || []).reduce(
@@ -463,6 +458,58 @@ async function fetchSofaScoreBudgeted(env, fixtures = [], opts = {}) {
   });
 }
 
+function combineScorePacksFlashFirst(active, flashscorePack = {}, officialPack = {}, espnPack = {}, sofaPack = {}) {
+  const results = {};
+  const matched = [];
+  const unmatched = [];
+
+  for (const fixture of active || []) {
+    const id = String(fixture.id);
+    const candidates = [
+      flashscorePack.results?.[id],
+      officialPack.results?.[id],
+      espnPack.results?.[id],
+      sofaPack.results?.[id]
+    ];
+    const chosen = candidates.find(hasUsableScoreSignal) || candidates.find(isProviderResultUsable) || null;
+    if (chosen) {
+      results[id] = chosen;
+      matched.push({ id: fixture.id, h: fixture.h, a: fixture.a, provider: chosen.scoreSource || chosen.source || chosen.eventSource || 'fallback' });
+    } else {
+      unmatched.push({ id: fixture.id, h: fixture.h, a: fixture.a, date: fixture.date });
+    }
+  }
+
+  return {
+    ok: true,
+    source: 'flashscore-first-score-pack',
+    count: Object.keys(results).length,
+    results,
+    matched,
+    unmatched,
+    urls: dedupe([
+      ...(flashscorePack.urls || []),
+      ...(officialPack.urls || []),
+      ...(espnPack.urls || []),
+      ...(sofaPack.urls || [])
+    ]),
+    providers: {
+      flashscore: summarizeSource(flashscorePack),
+      official: summarizeSource(officialPack),
+      espn: summarizeSource(espnPack),
+      sofascore: summarizeSource(sofaPack)
+    }
+  };
+}
+
+function hasUsableScoreSignal(row) {
+  return !!(
+    row &&
+    ((row.h != null && row.a != null) || row.started || row.finished ||
+      /^(LIVE|HT|FT|AET|PEN|1H|2H|ET|BREAK)$/i.test(String(row.status || '').trim()))
+  );
+}
+
 function combineIncidentPacks(active, flashscorePack = {}, officialPack = {}, espnPack = {}, sofaPack = {}) {
   const results = {};
   const matched = [];
@@ -538,12 +585,24 @@ function isPendingFeedResult(row) {
   return !!(row && (row.flashscoreState === 'pending_feed' || row.status === 'PENDING_FEED'));
 }
 
-function needsSecondaryProvider(primaryRow, scoreRow = null) {
+function needsSecondaryProviderFlashFirst(primaryRow, fixture = null, opts = {}) {
   if (!primaryRow) return true;
-  // While LiveScore still says NS, a valid stored MID with an unpublished
-  // Flashscore detail feed is normal and must not trigger request fan-out.
-  if (isPendingFeedResult(primaryRow)) return !!scoreRow?.started;
-  return !isProviderResultUsable(primaryRow);
+  if (!isPendingFeedResult(primaryRow)) return !isProviderResultUsable(primaryRow);
+
+  // A stored Flashscore MID may legitimately have no published detail feed before kickoff.
+  // Once the scheduled start has passed, however, treat a still-pending feed as a hard miss
+  // so the narrow fallback chain can recover the score without touching LiveScore.
+  return fixtureLikelyStarted(fixture, opts);
+}
+
+function fixtureLikelyStarted(fixture, opts = {}) {
+  if (!fixture) return !!opts.force;
+  const date = String(fixture.date || '').slice(0, 10);
+  const time = String(fixture.t || fixture.time || '00:00').slice(0, 5);
+  const start = Date.parse(`${date}T${time}:00+03:00`);
+  if (!Number.isFinite(start)) return !!opts.force;
+  const graceMs = Number(opts.flashscorePendingGraceMs || 2 * 60 * 1000);
+  return Date.now() >= start + graceMs;
 }
 
 function hasAnyDetailSignal(row) {
@@ -613,7 +672,7 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, previousResul
       flashscoreState: events?.flashscoreState || previous?.flashscoreState || null,
       prematch: score?.started ? false : (events?.prematch ?? previous?.prematch ?? false),
       eventSource: isProviderResultUsable(events) ? (events?.eventSource || events?.source || previous?.eventSource || null) : (previous?.eventSource || score?.eventSource || null),
-      scoreSource: score?.scoreSource || previous?.scoreSource || events?.scoreSource || (score ? 'livescore' : events?.source || 'detail')
+      scoreSource: score?.scoreSource || previous?.scoreSource || events?.scoreSource || (score ? (score?.source || score?.scoreSource || 'flashscore') : events?.source || 'detail')
     };
 
     // Do not regress a live/final row to PREMATCH if a provider temporarily returns metadata-only data.
@@ -630,7 +689,7 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, previousResul
     }
 
     const normalized = normalizeLiveMatch(fixture.id, raw, fixture, {
-      source: score && events ? 'merged-b26' : (score ? 'livescore' : (events?.source || 'detail')),
+      source: score && events ? 'merged-flashscore-first' : (score ? (score?.source || score?.scoreSource || 'flashscore') : (events?.source || 'detail')),
       scoreSource: raw.scoreSource,
       eventSource: raw.eventSource
     });

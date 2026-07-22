@@ -1,5 +1,5 @@
 import { refreshFixtures } from '../services/fixture-refresh.service.js';
-import { refreshOdds } from '../services/odds.service.js';
+import { readOdds, refreshOdds } from '../services/odds.service.js';
 import { refreshTeamRatings } from '../services/team-ratings.service.js';
 import { syncLive } from '../services/sync.service.js';
 import { getFixtures } from '../services/fixtures.service.js';
@@ -15,6 +15,8 @@ const DEFAULT_DAILY_HOUR = 6;
 const DEFAULT_DAILY_MINUTE = 0;
 const DEFAULT_WINDOW_DAYS = 14;
 const DEFAULT_PREMATCH_ODDS_MINUTES = 30;
+const DEFAULT_ROLLING_ODDS_REFRESH_MINUTES = 360;
+const DEFAULT_ROLLING_ODDS_STALE_MINUTES = 360;
 const DEFAULT_LIVE_START_BEFORE_MINUTES = 5;
 const DEFAULT_LIVE_END_AFTER_MINUTES = 120;
 const DEFAULT_LIVE_INTERVAL_SECONDS = 30;
@@ -147,6 +149,12 @@ export class UpdateCoordinator {
       ran.push('prematch-odds');
     }
 
+    const rollingOdds = await this.runDueRollingOdds(fixtures, now, opts);
+    if (!rollingOdds.skipped) {
+      results.rollingOdds = rollingOdds;
+      ran.push('rolling-odds');
+    }
+
     const liveFixtures = this.selectLiveFixtures(fixtures, now);
     if (liveFixtures.length) {
       results.live = await syncLive(this.env, {
@@ -201,6 +209,7 @@ export class UpdateCoordinator {
     scheduler.lastDailyLocalDate = localDate;
     scheduler.lastDailyAt = new Date().toISOString();
     scheduler.lastDailyFixtureIds = windowFixtures.map(f => String(f.id));
+    scheduler.lastRollingOddsAt = new Date().toISOString();
     await this.writeSchedulerState(scheduler);
 
     return {
@@ -283,6 +292,36 @@ export class UpdateCoordinator {
       result,
       updatedAt: new Date().toISOString()
     };
+  }
+
+  async runDueRollingOdds(fixtures, now, opts = {}) {
+    const scheduler = await this.readSchedulerState();
+    const intervalMs = this.rollingOddsRefreshMinutes() * 60_000;
+    const lastMs = Date.parse(scheduler.lastRollingOddsAt || '');
+    if (Number.isFinite(lastMs) && now - lastMs < intervalMs) {
+      return { ok: true, skipped: true, reason: 'rolling_odds_not_due', nextAt: new Date(lastMs + intervalMs).toISOString() };
+    }
+
+    const current = await readOdds(this.env, { skipCoordinatorCache: true }).catch(() => ({ odds: {} }));
+    const staleMs = this.rollingOddsStaleMinutes() * 60_000;
+    const windowFixtures = this.selectDailyWindow(fixtures, now);
+    const targets = windowFixtures.filter(fixture => {
+      const row = current?.odds?.[String(fixture.id)];
+      if (!row || !Number.isFinite(Number(row.h)) || !Number.isFinite(Number(row.d)) || !Number.isFinite(Number(row.a))) return true;
+      const updated = Date.parse(row.updatedAt || row.feedUpdatedAt || '');
+      return !Number.isFinite(updated) || now - updated >= staleMs;
+    }).slice(0, Number(this.env.FLASHSCORE_ODDS_MAX_FIXTURES || 24));
+
+    let result = { ok: true, skipped: true, reason: 'rolling_odds_cache_fresh', count: 0 };
+    if (targets.length) {
+      result = await this.runOdds({ ...opts, force: true, activeFixtures: targets, fixtureIds: targets.map(f => String(f.id)), oddsReason: 'rolling_upcoming_odds_retry' });
+    }
+
+    scheduler.lastRollingOddsAt = new Date(now).toISOString();
+    scheduler.lastRollingOddsFixtureIds = targets.map(f => String(f.id));
+    await this.writeSchedulerState(scheduler);
+
+    return { ok: result?.ok !== false, task: 'rolling-odds', source: 'rolling-upcoming-odds-b37', count: targets.length, ids: targets.map(f => String(f.id)), intervalMinutes: this.rollingOddsRefreshMinutes(), staleMinutes: this.rollingOddsStaleMinutes(), result, updatedAt: new Date().toISOString() };
   }
 
   async runFixtures(opts = {}) {
@@ -389,6 +428,10 @@ export class UpdateCoordinator {
 
     const weekly = this.weeklySchedule(now, timezone, scheduler);
     if (weekly.enabled) candidates.push({ at: weekly.nextAt, type: weekly.due ? 'weekly_ratings_overdue' : 'weekly_ratings' });
+
+    const rollingIntervalMs = this.rollingOddsRefreshMinutes() * 60_000;
+    const lastRollingMs = Date.parse(scheduler.lastRollingOddsAt || '');
+    candidates.push({ at: Number.isFinite(lastRollingMs) ? Math.max(now + 1_000, lastRollingMs + rollingIntervalMs) : now + 1_000, type: 'rolling_odds' });
 
     const preOddsMs = this.prematchOddsMinutes() * 60_000;
     const liveBeforeMs = this.liveStartBeforeMinutes() * 60_000;
@@ -505,6 +548,14 @@ export class UpdateCoordinator {
 
   prematchOddsMinutes() {
     return clampInt(this.env.PREMATCH_ODDS_MINUTES ?? DEFAULT_PREMATCH_ODDS_MINUTES, 1, 180);
+  }
+
+  rollingOddsRefreshMinutes() {
+    return clampInt(this.env.ROLLING_ODDS_REFRESH_MINUTES ?? DEFAULT_ROLLING_ODDS_REFRESH_MINUTES, 30, 720);
+  }
+
+  rollingOddsStaleMinutes() {
+    return clampInt(this.env.ROLLING_ODDS_STALE_MINUTES ?? DEFAULT_ROLLING_ODDS_STALE_MINUTES, 30, 1440);
   }
 
   liveStartBeforeMinutes() {

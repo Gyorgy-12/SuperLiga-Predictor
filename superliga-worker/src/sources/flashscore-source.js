@@ -160,6 +160,7 @@ export async function fetchFlashscoreMatchDetails(env, input, opts = {}) {
   if (feedProbe.ok && feedProbe.validFeed) {
     const feedState = feedProbe.state || (feedProbe.events?.length || feedProbe.score ? 'event_feed' : 'prematch');
     const isPrematch = feedState === 'prematch';
+    const liveState = deriveFlashscoreLiveState(feedProbe, feedState);
     return {
       ok: true,
       source: 'flashscore-xfeed-details-b26-budgeted-prematch',
@@ -176,11 +177,13 @@ export async function fetchFlashscoreMatchDetails(env, input, opts = {}) {
       resolver: resolverPack ? summarizeFlashscoreMcResolver(resolverPack) : null,
       state: feedState,
       prematch: isPrematch,
-      started: !isPrematch && !!(feedProbe.score || feedProbe.events?.length),
-      finished: false,
-      score: feedProbe.score,
-      h: feedProbe.score?.h ?? null,
-      a: feedProbe.score?.a ?? null,
+      started: liveState.started,
+      finished: liveState.finished,
+      matchStatus: liveState.status,
+      minute: liveState.minute,
+      score: liveState.score,
+      h: liveState.score?.h ?? null,
+      a: liveState.score?.a ?? null,
       events: feedProbe.events || [],
       scorers: feedProbe.scorers || [],
       yellowCards: feedProbe.yellowCards || [],
@@ -233,6 +236,8 @@ export async function fetchFlashscoreMatchDetails(env, input, opts = {}) {
       prematch: true,
       started: false,
       finished: false,
+      matchStatus: 'NS',
+      minute: null,
       score: null,
       h: null,
       a: null,
@@ -410,6 +415,7 @@ export async function fetchFlashscoreXFeedDetails(env, matchKeyOrUrl, opts = {})
   }
 
   const probes = [];
+  let eventPack = null;
   let prematchPack = null;
   let dcPack = null;
 
@@ -460,23 +466,18 @@ export async function fetchFlashscoreXFeedDetails(env, matchKeyOrUrl, opts = {})
     const parsed = parseFlashscoreSuiFeed(raw);
     const hasEvents = parsed.events.length || parsed.scorers.length || parsed.yellowCards.length || parsed.redCards.length || parsed.doubleYellowCards.length;
     if (hasEvents || parsed.score) {
-      return {
-        ok: true,
-        validFeed: true,
-        state: 'event_feed',
-        source: 'flashscore-xfeed-details-b26',
-        matchKey,
+      eventPack = {
+        parsed,
+        raw,
         feedUrl: candidate.url,
         feedLabel: candidate.label,
         status: probe.status,
         contentType: probe.contentType,
-        elapsedMs: probe.elapsedMs,
-        raw,
-        dc: dcPack?.dc || null,
-        ...parsed,
-        meta: mergeFlashscoreMeta(parsed.meta, dcPack?.dc),
-        probes
+        elapsedMs: probe.elapsedMs
       };
+      // Do not return yet: the following dc_ probe is tiny and carries the
+      // live phase/minute signal needed when Flashscore is the score master.
+      continue;
     }
 
     if (hasMeaningfulPrematchMeta(parsed.meta)) {
@@ -490,6 +491,41 @@ export async function fetchFlashscoreXFeedDetails(env, matchKeyOrUrl, opts = {})
         elapsedMs: probe.elapsedMs
       };
     }
+  }
+
+  if (eventPack) {
+    const parsed = eventPack.parsed || emptyFlashscoreParsedFeed();
+    const mergedMeta = mergeFlashscoreMeta(parsed.meta, dcPack?.dc);
+    const liveState = deriveFlashscoreLiveState({
+      state: 'event_feed',
+      score: parsed.score,
+      events: parsed.events,
+      scorers: parsed.scorers,
+      meta: mergedMeta,
+      dc: dcPack?.dc || null
+    }, 'event_feed');
+    return {
+      ok: true,
+      validFeed: true,
+      state: 'event_feed',
+      source: 'flashscore-xfeed-details-flashscore-master',
+      matchKey,
+      feedUrl: eventPack.feedUrl,
+      feedLabel: eventPack.feedLabel,
+      status: eventPack.status,
+      contentType: eventPack.contentType,
+      elapsedMs: (eventPack.elapsedMs || 0) + (dcPack?.elapsedMs || 0),
+      raw: eventPack.raw,
+      dc: dcPack?.dc || null,
+      ...parsed,
+      score: liveState.score,
+      started: liveState.started,
+      finished: liveState.finished,
+      matchStatus: liveState.status,
+      minute: liveState.minute,
+      meta: mergedMeta,
+      probes
+    };
   }
 
   if (prematchPack || dcPack) {
@@ -967,6 +1003,7 @@ function parseFlashscoreSuiFeed(raw) {
     if (block.startsWith('AC÷')) {
       const pairs = parseLivesportPairs(block);
       currentPeriod = valueFor(pairs, 'AC') || currentPeriod;
+      if (currentPeriod != null && currentPeriod !== '') meta.currentPeriod = currentPeriod;
       continue;
     }
     if (block.replace(/^~+/, '').startsWith('MIT÷') || block.includes('¬MIT÷') || block.includes('¬~MIT÷')) {
@@ -1133,6 +1170,58 @@ function parseFlashscorePrematchFields(raw, meta) {
     meta.tvChannels = splitFlashscoreList(fallbackBroadcastRaw);
   }
   if (bookmakerRaw) meta.bookmakers = splitFlashscoreList(bookmakerRaw);
+}
+
+function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
+  const dc = pack.dc || {};
+  const meta = pack.meta || {};
+  const rawSignals = [
+    pack.matchStatus,
+    pack.statusText,
+    dc.liveCode,
+    dc.phaseCode,
+    dc.statusCode,
+    meta.currentPeriod,
+    meta.liveCode,
+    meta.phaseCode,
+    meta.statusCode
+  ].filter(v => v != null && String(v).trim() !== '').map(v => String(v).trim());
+  const blob = rawSignals.join(' ').toUpperCase();
+
+  let status = null;
+  let finished = false;
+  if (/\b(PEN|PENALT(?:Y|IES)|AFTER PENALTIES)\b/.test(blob)) { status = 'PEN'; finished = true; }
+  else if (/\b(AET|AFTER EXTRA TIME)\b/.test(blob)) { status = 'AET'; finished = true; }
+  else if (/\b(FT|FINISHED|FULL TIME|FINAL)\b/.test(blob)) { status = 'FT'; finished = true; }
+  else if (/\b(HT|HALF TIME|HALFTIME|BREAK)\b/.test(blob)) status = 'HT';
+
+  let minute = null;
+  for (const signal of rawSignals) {
+    const m = String(signal).match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:['’]|\s|$)/);
+    if (m) { minute = m[1]; break; }
+  }
+  if (!minute) {
+    const eventMinutes = [...(pack.events || []), ...(pack.scorers || [])]
+      .map(e => String(e?.minute || '').replace(/[’']/g, '').trim())
+      .filter(Boolean)
+      .sort((a, b) => flashscoreMinuteNumber(b) - flashscoreMinuteNumber(a));
+    minute = eventMinutes[0] || null;
+  }
+
+  const feedState = fallbackState || pack.state || null;
+  const started = finished || status === 'HT' || !!minute || feedState === 'event_feed' || !!pack.score || (pack.events || []).length > 0;
+  if (!status) status = finished ? 'FT' : (minute ? `${minute}'` : (started ? 'LIVE' : 'NS'));
+
+  let score = pack.score || null;
+  if (!score && started) score = { h: 0, a: 0, raw: '0-0' };
+  return { started, finished, status, minute, score };
+}
+
+function flashscoreMinuteNumber(value) {
+  const text = String(value || '').replace(/[’']/g, '').trim();
+  const parts = text.split('+').map(x => Number(x));
+  if (!Number.isFinite(parts[0])) return -1;
+  return parts[0] + (Number.isFinite(parts[1]) ? parts[1] / 100 : 0);
 }
 
 function parseFlashscoreDcFeed(raw) {

@@ -1,6 +1,6 @@
 export const SOURCE_POLICY = {
-  scoreMaster: 'livescore',
-  eventMaster: ['sofascore', 'espn', 'manual'],
+  scoreMaster: 'flashscore',
+  eventMaster: ['flashscore', 'official-superliga', 'espn', 'sofascore'],
   // Worker active window. Outside this, /live-results should be cheap and mostly idle.
   syncBeforeMs: 5 * 60 * 1000,
   syncAfterMs: 140 * 60 * 1000,

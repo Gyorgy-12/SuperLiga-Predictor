@@ -87,17 +87,31 @@ function resolveAppBase(env, opts = {}) {
 function candidateDateStrings(fixtures = [], opts = {}) {
   const dates = new Set();
   if (opts.date) dates.add(String(opts.date).replace(/-/g, '').slice(0, 8));
+
+  if (opts.force || opts.live || opts.fresh || opts.includeScheduled || opts.scheduled) {
+    const now = Date.now();
+    dates.add(ymdInZone(now, 'Europe/Bucharest'));
+    dates.add(ymdInZone(now - 24 * 60 * 60 * 1000, 'Europe/Bucharest'));
+    dates.add(ymdInZone(now + 24 * 60 * 60 * 1000, 'Europe/Bucharest'));
+  }
+
   for (const f of fixtures || []) {
     const d = String(f?.date || '').replace(/-/g, '').slice(0, 8);
     if (/^\d{8}$/.test(d)) dates.add(d);
   }
   if (!dates.size) {
-    const now = new Date();
-    dates.add(ymd(now));
-    dates.add(ymd(new Date(now.getTime() + 24 * 60 * 60 * 1000)));
+    const now = Date.now();
+    dates.add(ymdInZone(now, 'Europe/Bucharest'));
+    dates.add(ymdInZone(now + 24 * 60 * 60 * 1000, 'Europe/Bucharest'));
   }
   const max = Number(opts.maxDates || opts.liveScoreMaxDates || (opts.includeScheduled ? 10 : 6));
   return [...dates].filter(Boolean).slice(0, Math.max(1, max));
+}
+
+function ymdInZone(ms, timeZone = 'Europe/Bucharest') {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(ms));
+  const map = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${map.year}${map.month}${map.day}`;
 }
 
 function ymd(date) {
@@ -324,7 +338,7 @@ function mapRawMatchesToResults(rawMatches, fixtures, opts = {}) {
   const unmatched = [];
 
   for (const raw of rawMatches || []) {
-    const fixture = findMappedFixture(raw, fixtures);
+    const fixture = findMappedFixture(raw, fixtures, opts);
     if (!fixture) {
       unmatched.push({ rawId: raw.id || raw.eventId, date: raw.date || null, home: readHomeName(raw), away: readAwayName(raw), status: raw.status || raw.statusText || null });
       continue;
@@ -363,7 +377,7 @@ function mapRawMatchesToResults(rawMatches, fixtures, opts = {}) {
   return { results, matched, unmatched };
 }
 
-function findMappedFixture(raw, fixtures) {
+function findMappedFixture(raw, fixtures, opts = {}) {
   const rawId = raw.id || raw.matchId || raw.eventId || raw.Eid || raw.Id;
   const home = readHomeName(raw);
   const away = readAwayName(raw);
@@ -390,6 +404,8 @@ function findMappedFixture(raw, fixtures) {
       .sort((a, b) => a.diff - b.diff)[0];
     if (near) return near.fixture;
   }
+
+  if (teamMatches.length === 1 && (opts.force || opts.live || opts.fresh || opts.includeScheduled || opts.scheduled)) return teamMatches[0];
 
   return null;
 }
