@@ -20,6 +20,20 @@ function gradeKoTip(p,r){if(!p||!r||!validScore(p.h)||!validScore(p.a)||!validSc
 function pctBar(val,total,clr){let p=total?+((val/total)*100).toFixed(2):0;return '<div class="stat-bar-row"><div class="stat-bar-track"><div class="stat-bar-fill" style="width:'+p+'%;background:'+clr+'"></div></div><span class="stat-bar-val">'+p+'%</span></div>'}
 
 function parseMaybeArray(v){try{return typeof v==='string'?JSON.parse(v):(Array.isArray(v)?v:[])}catch(e){return[]}}
+function superligaTeamKey(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&amp;/g,' and ').replace(/\b(afc|afk|fk|acs|acsc|as|csm|cs|fc|osk|sc|cf|clubul|fotbal|fotbalistic|sa)\b/g,' ').replace(/\b(1923|1948|2013|52)\b/g,' ').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim()}
+function superligaSameTeamName(a,b){let x=superligaTeamKey(a),y=superligaTeamKey(b);if(!x||!y)return false;if(x===y||x.includes(y)||y.includes(x))return true;let xa=new Set(x.split(' ')),ya=new Set(y.split(' ')),hit=0;xa.forEach(t=>{if(ya.has(t))hit++});return hit/Math.max(xa.size,ya.size)>=.6}
+function resolveIncomingFixtureId(rawId,d){
+  let direct=FX_BY_ID[String(rawId)]||null;
+  let home=d&&(d.homeTeam||d.home?.name||d.homeName||d.hTeam||d.teamHome)||'',away=d&&(d.awayTeam||d.away?.name||d.awayName||d.aTeam||d.teamAway)||'';
+  if(direct&&(!home||!away||(superligaSameTeamName(home,direct.h)&&superligaSameTeamName(away,direct.a))))return String(rawId);
+  if(!home||!away)return String(rawId);
+  let candidates=FX.filter(m=>superligaSameTeamName(home,m.h)&&superligaSameTeamName(away,m.a));
+  if(!candidates.length)return String(rawId);
+  let date=String(d.date||d.matchDate||d.kickoffAt||'').slice(0,10);
+  if(date){let exact=candidates.find(m=>String(m.date||'').slice(0,10)===date);if(exact)return String(exact.id)}
+  if(candidates.length===1)return String(candidates[0].id);
+  return String(rawId);
+}
 function superligaEventMinute(v){return String(v??'').replace(/[’'′]+/g,'').trim()}
 function superligaEventTeam(e){return(e&&(['a','away','2'].includes(String(e.team||'').toLowerCase())||String(e.side||'').toLowerCase()==='away'||String(e.teamSide||'').toLowerCase()==='away'||e.isHome===false))?'a':'h'}
 function superligaEventPlayer(e){
@@ -69,12 +83,12 @@ function normalizeLiveResult(id,d){
   let odds=null;try{odds=typeof d.odds==='string'?JSON.parse(d.odds):(d.odds&&typeof d.odds==='object'?d.odds:null)}catch(e){odds=null}
   return{started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,scorers,redCards,yellowCards,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
-(function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([id,row])=>{let r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
+(function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([rawId,row])=>{let id=resolveIncomingFixtureId(rawId,row),r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
 function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,sc:r.scorers,rc:r.redCards,yc:r.yellowCards,od:r.odds})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
-  Object.entries(next||{}).forEach(([id,obj])=>{
-    let r=normalizeLiveResult(id,obj);if(!r)return;
+  Object.entries(next||{}).forEach(([rawId,obj])=>{
+    let id=resolveIncomingFixtureId(rawId,obj),r=normalizeLiveResult(id,obj);if(!r)return;
     let old=LIVE_RESULTS[id];if(old&&old.finished&&!r.finished)return;
     if(!old||liveResultFingerprint(old)!==liveResultFingerprint(r)){
       LIVE_RESULTS[id]=r;changed=true;
@@ -170,19 +184,39 @@ async function loadMatchResultsFromBackendDb(){
 }
 async function loadLiveResultsFromWorker(opts={}){
   if(!SUPERLIGA_RESULTS_SYNC_URL)return false;
-  let changed=false,forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches();
-  let freshFirst=forced||active.length>0,ids=active.map(m=>m.id).join(','),lastError=null;
-  async function use(mode){
-    let params=mode==='fresh'?{fresh:1,live:1,ids:ids||undefined,t:Date.now()}:{fast:1,t:Date.now()};
-    let data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,params),mode==='fresh'?25000:10000);
+  let changed=false,forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches(),lastError=null;
+  let dates=[...new Set(active.map(m=>String(m.date||'').slice(0,10)).filter(Boolean))],rounds=[...new Set(active.map(m=>String(m.r||'')).filter(Boolean))];
+  function payloadHasActive(data){
+    if(!active.length)return true;
+    return Object.entries(data&&data.results||{}).some(([rawId,row])=>{
+      let id=resolveIncomingFixtureId(rawId,row),m=FX_BY_ID[id];
+      return !!(m&&active.some(a=>String(a.id)===String(id))&&row&&(row.started||row.finished||validScore(row.h??row.homeScore)||validScore(row.a??row.awayScore)));
+    });
+  }
+  async function use(mode,variant='fast'){
+    let params={t:Date.now()};
+    if(mode==='fast')params.fast=1;
+    else{
+      params.fresh=1;params.live=1;params.scheduled=1;params.maxDates=10;
+      if(variant==='date'&&dates.length===1)params.date=dates[0];
+      else if(variant==='round'&&rounds.length===1){params.round=rounds[0];params.limit=16}
+      else{let ids=active.map(m=>m.id).join(',');if(ids)params.ids=ids}
+    }
+    let data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,params),mode==='fresh'?30000:10000);
     if(data&&data.results&&typeof data.results==='object')changed=mergeLiveResults(data.results)||changed;
-    try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:true,mode,count:Object.keys(data&&data.results||{}).length,activeIds:ids?ids.split(','):[],sync:data&&data.sync||null,updatedAt:data&&data.updatedAt||null,fetchedAt:new Date().toISOString()}}catch(e){}
+    try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:true,mode,variant,count:Object.keys(data&&data.results||{}).length,activeIds:active.map(m=>m.id),activeDates:dates,sync:data&&data.sync||null,updatedAt:data&&data.updatedAt||null,fetchedAt:new Date().toISOString()}}catch(e){}
     return data;
   }
-  if(freshFirst){try{await use('fresh');return changed}catch(e){lastError=e}}
-  try{await use('fast')}catch(e){lastError=lastError||e}
-  if(!freshFirst&&forced){try{await use('fresh')}catch(e){lastError=lastError||e}}
-  if(lastError)try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:false,error:lastError.message||String(lastError),activeIds:ids?ids.split(','):[],fetchedAt:new Date().toISOString()}}catch(e){}
+  let freshFirst=forced||active.length>0;
+  if(freshFirst){
+    try{
+      let data=await use('fresh',dates.length===1?'date':'ids');
+      if(active.length&&!payloadHasActive(data)&&rounds.length===1)await use('fresh','round');
+      return changed;
+    }catch(e){lastError=e}
+  }
+  try{await use('fast','fast')}catch(e){lastError=lastError||e}
+  if(lastError)try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:false,error:lastError.message||String(lastError),activeIds:active.map(m=>m.id),activeDates:dates,fetchedAt:new Date().toISOString()}}catch(e){}
   return changed;
 }
 async function loadMatchResultsOnceFromSdk(ids){
@@ -210,7 +244,7 @@ async function syncLiveResults(opts={}){
   try{return await superligaSyncInFlight}finally{superligaSyncInFlight=null}
 }
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
-function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await syncLiveResults();scheduleLiveSync()},delay??nextLiveSyncDelay())}
+function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await Promise.allSettled([syncLiveResults(),maybeRefreshOddsFromWorker(false)]);scheduleLiveSync()},delay??nextLiveSyncDelay())}
 function listenMatchResults(){return syncLiveResults({force:true})}
 let superligaRatingsInFlight=null;
 async function applyTeamElo(opts={}){
@@ -261,5 +295,20 @@ async function applyTeamElo(opts={}){
   finally{superligaRatingsInFlight=null}
 }
 window.superligaRefreshRatings=()=>applyTeamElo({force:true});
-async function applyOddsFromWorker(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let base=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'');let data=await fetch(base+'/odds',{cache:'no-store'}).then(r=>r.ok?r.json():null);return applyOddsMap(data&&data.odds)}catch(e){return false}}
+let superligaOddsPullAt=0,superligaOddsPullInFlight=null;
+async function applyOddsFromWorker(opts={}){
+  if(FROZEN_MODE)return false;
+  if(superligaOddsPullInFlight&&!opts.force)return superligaOddsPullInFlight;
+  let base=superligaWorkerBase();if(!base)return false;
+  superligaOddsPullInFlight=(async()=>{try{
+    let data=await fetchWorkerJson(addParams(base+'/odds',{fresh:1,nocache:1,t:Date.now()}),15000);
+    superligaOddsPullAt=Date.now();
+    let changed=applyOddsMap(data&&data.odds);
+    try{window.SUPERLIGA_ODDS_DEBUG={ok:true,count:Object.keys(data&&data.odds||{}).length,source:data&&data.source||null,updatedAt:data&&data.updatedAt||null,fetchedAt:new Date().toISOString()}}catch(e){}
+    return changed;
+  }catch(e){try{window.SUPERLIGA_ODDS_DEBUG={ok:false,error:e.message||String(e),fetchedAt:new Date().toISOString()}}catch(_e){}return false}})();
+  try{return await superligaOddsPullInFlight}finally{superligaOddsPullInFlight=null}
+}
+function maybeRefreshOddsFromWorker(force=false){return force||Date.now()-superligaOddsPullAt>=5*60*1000?applyOddsFromWorker({force}):Promise.resolve(false)}
+window.superligaRefreshOdds=()=>applyOddsFromWorker({force:true});
 async function applyFixtureOverrides(){if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;try{let url=SUPERLIGA_RESULTS_READ_URL.replace(/\/results$/,'/fixtures');let data=await fetch(addParams(url,{fresh:1,t:Date.now()}),{cache:'no-store'}).then(r=>r.ok?r.json():null);let list=data&&Array.isArray(data.fixtures)?data.fixtures:null;return applyFixtureList(list)}catch(e){return false}}
