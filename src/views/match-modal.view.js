@@ -119,14 +119,21 @@ function isOwnGoalEvent(s){
 }
 function isMissedPenaltyEvent(s){
   if(!s)return false;
-  let t=String(s?.type||s?.kind||s?.label||s?.detail||s?.note||s?.goalType||s?.reason||s?.code||'').toLowerCase();
-  let blob='';try{blob=JSON.stringify(s||{}).toLowerCase()}catch(e){}
-  let explicit=!!(s?.missed===true||s?.penaltyMissed===true||s?.saved===true||Number(s?.code)===11||/penalty[_ -]?(missed|saved)|missed penalty|spot kick (missed|saved)|not scored|failed penalty|kihagyott|ratat/.test(t+' '+blob));
-  if(explicit)return true;
-  let penaltyLike=!!(s?.penalty===true||s?.pen===true||s?.pk===true||s?.fromPenalty===true||/penalty|spot kick|11m/.test(t+' '+blob));
-  let stamped=Number.isFinite(Number(s?.homeScore))&&Number.isFinite(Number(s?.awayScore));
-  let scored=Number(s?.code)===10||/penalty[_ -]?(goal|scored)|penalty converted|converted penalty|spot kick goal/.test(t+' '+blob);
-  return penaltyLike&&!stamped&&!scored;
+  let t=[s?.type,s?.kind,s?.label,s?.detail,s?.note,s?.goalType,s?.reason]
+    .filter(Boolean).join(' ').toLowerCase();
+  let code=Number(s?.code??s?.Cd);
+
+  // Explicit scored signals always win.
+  if(code===10||s?.scored===true||s?.converted===true||/penalty[_ -]?(goal|scored)|penalty converted|converted penalty|spot kick goal/.test(t))return false;
+
+  // Only explicit miss/saved signals count as a missed penalty.
+  return !!(
+    s?.missed===true||
+    s?.penaltyMissed===true||
+    s?.saved===true||
+    code===11||
+    /penalty[_ -]?(missed|saved)|missed penalty|spot kick (missed|saved)|not scored|failed penalty|kihagyott|ratat/.test(t)
+  );
 }
 function isPenaltyGoal(s){
   if(isMissedPenaltyEvent(s))return false;
@@ -150,7 +157,7 @@ function goalScorersHtml(r,m){
     if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Piros lap')+'</span>';
     if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'2× Sárga')+'</span>';
     if(s._kind==='yellow')return'<span class="yellow-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Sárga lap')+'</span>';
-    if(s._kind==='penaltyMissed')return'<span class="missed-penalty-mark">&times;</span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Kihagyott büntető')+'</span><span class="goal-scorer-pen-missed">(kih. 11-es)</span>';
+    if(s._kind==='penaltyMissed')return'<span class="missed-penalty-mark">&times;</span>'+(eventPlayerName(s)?'<span class="goal-scorer-name">'+esc(eventPlayerDisplayName(s,r))+'</span>':'');
     let name=eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'',og=isOwnGoalEvent(s)?'<span class="goal-scorer-og">(&ouml;ng.)</span>':'',pen=isPenaltyGoal(s)?'<span class="goal-scorer-pen">(11-es)</span>':'';
     return'<span class="goal-scorer-ball">&#9917;</span><span class="goal-scorer-name">'+name+'</span>'+og+pen;
   };
