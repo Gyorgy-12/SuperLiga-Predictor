@@ -176,11 +176,25 @@ async function loadBootstrapLight(opts={}){
   return superligaBootstrapInFlight;
 }
 async function fetchWorkerJson(url,timeoutMs=20000){let ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),timeoutMs);try{let r=await fetch(url,{cache:'no-store',credentials:'omit',headers:{Accept:'application/json'},signal:ctrl.signal});if(!r.ok)throw new Error('HTTP '+r.status);let data=await r.json().catch(()=>null);if(!data||data.ok===false)throw new Error(data&&data.error||'Invalid worker payload');return data}finally{clearTimeout(timer)}}
-async function loadMatchResultsFromBackendDb(){
-  if(FROZEN_MODE)return false;
-  if(!superligaBootstrapDone&&!superligaBootstrapFailed){let ok=await loadBootstrapLight({fallback:false});if(ok)return true}
-  if(!SUPERLIGA_RESULTS_READ_URL)return false;
-  try{let data=await fetchWorkerJson(SUPERLIGA_RESULTS_READ_URL);let changed=data&&data.results?mergeLiveResults(data.results):false;if(data&&data.fixtures)changed=applyFixtureList(data.fixtures)||changed;return changed}catch(e){return false}
+let superligaFinalResultsReadAt=0,superligaFinalResultsReadInFlight=null;
+async function loadMatchResultsFromBackendDb(opts={}){
+  if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;
+  if(superligaFinalResultsReadInFlight&&!opts.force)return superligaFinalResultsReadInFlight;
+  if(!opts.force&&Date.now()-superligaFinalResultsReadAt<90*1000)return false;
+  superligaFinalResultsReadInFlight=(async()=>{
+    try{
+      let data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_READ_URL,{fresh:1,nocache:1,t:Date.now()}),20000);
+      superligaFinalResultsReadAt=Date.now();
+      let changed=data&&data.results?mergeLiveResults(data.results):false;
+      if(data&&data.fixtures)changed=applyFixtureList(data.fixtures)||changed;
+      try{window.SUPERLIGA_FINAL_RESULTS_DEBUG={ok:true,count:Object.keys(data&&data.results||{}).length,changed,updatedAt:data&&data.updatedAt||null,fetchedAt:new Date().toISOString()}}catch(e){}
+      return changed;
+    }catch(e){
+      try{window.SUPERLIGA_FINAL_RESULTS_DEBUG={ok:false,error:e&&e.message?e.message:String(e),fetchedAt:new Date().toISOString()}}catch(_e){}
+      return false;
+    }finally{superligaFinalResultsReadInFlight=null}
+  })();
+  return superligaFinalResultsReadInFlight;
 }
 async function loadLiveResultsFromWorker(opts={}){
   if(!SUPERLIGA_RESULTS_SYNC_URL)return false;
@@ -234,15 +248,30 @@ async function syncLiveResults(opts={}){
   if(FROZEN_MODE)return false;
   if(superligaSyncInFlight)return superligaSyncInFlight;
   superligaSyncInFlight=(async()=>{
-    let forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches();
+    let forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches(),changed=false;
     if(!forced&&!active.length&&!SUPERLIGA_RESULTS_SYNC_URL&&!SUPERLIGA_RESULTS_READ_URL)return false;
     if(!superligaBootstrapDone&&!superligaBootstrapFailed)await loadBootstrapLight({fallback:false});
-    if(SUPERLIGA_RESULTS_SYNC_URL)return await loadLiveResultsFromWorker(opts);
-    if(SUPERLIGA_RESULTS_READ_URL)return await loadMatchResultsFromBackendDb();
-    return await loadMatchResultsOnceFromSdk(active.map(m=>m.id));
+
+    // Final results are the base layer. Always hydrate them first on startup/force,
+    // because finished matches are intentionally absent from the live window.
+    if(SUPERLIGA_RESULTS_READ_URL){
+      changed=(await loadMatchResultsFromBackendDb({force:forced}))||changed;
+    }
+
+    // Live data is only an overlay. A stale live row cannot overwrite a finished row
+    // because mergeLiveResults protects old.finished above.
+    if(SUPERLIGA_RESULTS_SYNC_URL){
+      changed=(await loadLiveResultsFromWorker(opts))||changed;
+      return changed;
+    }
+    if(!SUPERLIGA_RESULTS_READ_URL){
+      changed=(await loadMatchResultsOnceFromSdk(active.map(m=>m.id)))||changed;
+    }
+    return changed;
   })();
   try{return await superligaSyncInFlight}finally{superligaSyncInFlight=null}
 }
+window.superligaRefreshResults=()=>syncLiveResults({force:true,forceLive:true});
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
 function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await Promise.allSettled([syncLiveResults(),maybeRefreshOddsFromWorker(false)]);scheduleLiveSync()},delay??nextLiveSyncDelay())}
 function listenMatchResults(){return syncLiveResults({force:true})}
