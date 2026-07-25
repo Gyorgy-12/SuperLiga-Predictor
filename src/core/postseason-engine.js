@@ -133,18 +133,42 @@ function superligaHasPenScore(obj){return obj&&validScore(obj.pH)&&validScore(ob
 function superligaPenPair(obj){return superligaHasPenScore(obj)?(+obj.pH)+'-'+(+obj.pA):''}
 function superligaMiniPen(v){return validScore(v)?'<span class="wc26-mini-pen-label">('+esc(v)+')</span>':''}
 function superligaScoreWithPen(score,pen){return superligaMiniPen(pen)+'<span>'+esc(score)+'</span>'}
+function superligaMinuteToken(value){
+  let s=String(value??'').trim();
+  if(!s||/^\d{1,2}:\d{2}$/.test(s))return null;
+  let m=s.match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:[’'′]|\s|$)/);
+  return m?m[1]:null;
+}
+function superligaMinuteOrder(value){
+  let s=String(value||''),m=s.match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  if(!m)return-1;
+  return Number(m[1])+(m[2]?Math.min(99,Number(m[2]))/100:0);
+}
+function superligaLatestIncidentMinute(r){
+  let events=[...(r?.scorers||[]),...(r?.yellowCards||[]),...(r?.redCards||[]),...(r?.doubleYellowCards||[]),...(r?.substitutions||[])];
+  let best=null,bestOrder=-1;
+  events.forEach(e=>{
+    let token=superligaMinuteToken(e?.minute??e?.matchMinute??e?.elapsed??e?.time??e?.statusMinute),order=superligaMinuteOrder(token);
+    if(token&&order>bestOrder){best=token;bestOrder=order;}
+  });
+  return best;
+}
 function liveClockLabel(r){
-  // A scheduled fixture may contain its kickoff time in `time`/`status`.
-  // That must never become a live minute pill. Only started, unfinished rows
-  // are allowed to expose a clock/status on match cards and in the modal.
+  // Never interpret provider flags such as liveCode=1 as "1st minute".
+  // The displayed clock is the newest trustworthy value between the explicit
+  // live clock and the latest incident minute, so it can never sit behind an
+  // already displayed goal/card event.
   if(!r||r.finished||!r.started)return'';
-  let vals=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock,r.status];
-  let raw=vals.map(v=>v==null?'':String(v).trim()).find(Boolean)||'';
-  let up=raw.toUpperCase();
-  if(up==='HT'||up==='INT'||up.includes('HALF')||up.includes('INTERVAL'))return'HT';
-  if(up==='AET'||up.includes('EXTRA TIME'))return'AET';
-  if(/^\d{1,2}:\d{2}$/.test(raw))return'';
-  if(raw&&up!=='LIVE'&&up!=='IN_PLAY'&&raw!=='Élő'&&up!=='ÉLŐ')return raw;
+  let statusBlob=[r.status,r.period,r.shortDetail,r.detail,r.statusText].map(v=>String(v||'')).join(' ').toUpperCase();
+  if(/\b(HT|INT)\b/.test(statusBlob)||statusBlob.includes('HALF')||statusBlob.includes('INTERVAL'))return'HT';
+  if(/\bAET\b/.test(statusBlob)||statusBlob.includes('EXTRA TIME'))return'AET';
+
+  let explicit=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
+    .map(superligaMinuteToken).filter(Boolean)
+    .sort((a,b)=>superligaMinuteOrder(b)-superligaMinuteOrder(a))[0]||null;
+  let incident=superligaLatestIncidentMinute(r);
+  let minute=superligaMinuteOrder(incident)>superligaMinuteOrder(explicit)?incident:explicit;
+  if(minute)return minute+"'";
   return'Élő';
 }
 function superligaStatusBlob(r){

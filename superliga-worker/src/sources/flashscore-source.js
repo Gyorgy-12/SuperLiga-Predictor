@@ -1195,18 +1195,43 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   else if (/\b(FT|FINISHED|FULL TIME|FINAL)\b/.test(blob)) { status = 'FT'; finished = true; }
   else if (/\b(HT|HALF TIME|HALFTIME|BREAK)\b/.test(blob)) status = 'HT';
 
-  let minute = null;
-  for (const signal of rawSignals) {
+  // Codes such as DL=1 / phaseCode=-1 are provider flags, not match minutes.
+  // Only minute-bearing status fields may supply the explicit clock.
+  const minuteSignals = [
+    pack.minute,
+    pack.matchMinute,
+    pack.statusMinute,
+    pack.displayClock,
+    pack.matchStatus,
+    pack.statusText,
+    meta.currentMinute,
+    meta.minute
+  ].filter(v => v != null && String(v).trim() !== '');
+
+  let providerMinute = null;
+  for (const signal of minuteSignals) {
     const m = String(signal).match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:['’]|\s|$)/);
-    if (m) { minute = m[1]; break; }
+    if (m) {
+      const candidate = m[1];
+      if (!providerMinute || flashscoreMinuteNumber(candidate) > flashscoreMinuteNumber(providerMinute)) providerMinute = candidate;
+    }
   }
-  if (!minute) {
-    const eventMinutes = [...(pack.events || []), ...(pack.scorers || [])]
-      .map(e => String(e?.minute || '').replace(/[’']/g, '').trim())
-      .filter(Boolean)
-      .sort((a, b) => flashscoreMinuteNumber(b) - flashscoreMinuteNumber(a));
-    minute = eventMinutes[0] || null;
-  }
+
+  const eventMinutes = [
+    ...(pack.events || []),
+    ...(pack.scorers || []),
+    ...(pack.yellowCards || []),
+    ...(pack.redCards || []),
+    ...(pack.doubleYellowCards || []),
+    ...(pack.substitutions || [])
+  ]
+    .map(e => String(e?.minute || '').replace(/[’']/g, '').trim())
+    .filter(Boolean)
+    .sort((a, b) => flashscoreMinuteNumber(b) - flashscoreMinuteNumber(a));
+  const incidentMinute = eventMinutes[0] || null;
+  const minute = flashscoreMinuteNumber(incidentMinute) > flashscoreMinuteNumber(providerMinute)
+    ? incidentMinute
+    : providerMinute;
 
   const feedState = fallbackState || pack.state || null;
   const started = finished || status === 'HT' || !!minute || feedState === 'event_feed' || !!pack.score || (pack.events || []).length > 0;
@@ -1369,6 +1394,9 @@ function toIntOrNull(value) {
 
 function mergeDetail(row, detail) {
   const state = detail?.state || (detail?.score ? 'event_feed' : (detail?.meta && Object.keys(detail.meta).length ? 'prematch' : 'unknown'));
+  const isPrematch = state === 'prematch' || detail?.prematch === true;
+  const status = isPrematch ? 'PREMATCH' : (detail?.matchStatus || detail?.statusText || (detail?.finished ? 'FT' : (detail?.score ? 'DETAIL_SCORE' : null)));
+  const finished = !isPrematch && (detail?.finished === true || ['FT','AET','PEN','FINISHED','FULL_TIME','FINAL'].includes(String(status||'').toUpperCase()));
   return {
     id: row.id,
     group: 'SL',
@@ -1376,10 +1404,10 @@ function mergeDetail(row, detail) {
     homeTeam: row.h,
     awayTeam: row.a,
     date: row.date,
-    started: state !== 'prematch' && !!(detail?.score || detail?.events?.length),
-    finished: false,
-    status: state === 'prematch' ? 'PREMATCH' : (detail?.score ? 'DETAIL_SCORE' : null),
-    minute: null,
+    started: !isPrematch && (finished || detail?.started === true || !!detail?.score || !!detail?.events?.length),
+    finished,
+    status,
+    minute: finished ? null : (detail?.minute ?? null),
     h: detail?.score?.h ?? null,
     a: detail?.score?.a ?? null,
     pH: null,
