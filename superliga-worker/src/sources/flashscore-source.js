@@ -1428,8 +1428,14 @@ function eventCodeLabel(codeRaw) {
 
 function isGoalItem(item) {
   if (flashscorePenaltyMissed(item)) return false;
-  const label = String(item?.label || item?.type || '');
-  return item?.code === 3 || item?.code === 10 || /goal|penalty[_ -]?(goal|scored)|penalty converted/i.test(label);
+  const code = Number(item?.code);
+  const label = String(item?.label || item?.type || item?.reason || '').toLowerCase();
+
+  // Flashscore/Livesport incident codes:
+  // 3 = regular goal, 4 = own goal, 10 = scored penalty.
+  // Own goals must remain normal score incidents, only tagged with og:true.
+  return code === 3 || code === 4 || code === 10 ||
+    /\bgoal\b|own[ _-]?goal|autogol|öngól|penalty[_ -]?(goal|scored)|penalty converted/i.test(label);
 }
 
 function cleanEventItem(item) {
