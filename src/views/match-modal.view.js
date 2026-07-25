@@ -165,6 +165,10 @@ function refreshOpenMatchModalModel(){
     if(meta)meta.innerHTML=modelMeta(m.a);
   }
 
+  let hCell=ov.querySelector('.tip-real-h'),aCell=ov.querySelector('.tip-real-a');
+  if(hCell&&r&&validScore(r.h))hCell.textContent=r.h;
+  if(aCell&&r&&validScore(r.a))aCell.textContent=r.a;
+
   let oldStatus=ov.querySelector('.wc26-modal-pill-slot'),statusHtml=modalStatusPillHtml(r),teamsRow=ov.querySelector('.tip-teams');
   if(statusHtml){
     let holder=document.createElement('div');holder.innerHTML=statusHtml;
@@ -172,6 +176,14 @@ function refreshOpenMatchModalModel(){
     if(oldStatus&&next)oldStatus.replaceWith(next);
     else if(teamsRow&&next)teamsRow.insertAdjacentElement('afterend',next);
   }else if(oldStatus)oldStatus.remove();
+
+  let oldEvents=ov.querySelector('.tip-below-score'),eventsHtml=modalGoalRows(r,m),statusNode=ov.querySelector('.wc26-modal-pill-slot');
+  if(eventsHtml){
+    let holder=document.createElement('div');holder.innerHTML=eventsHtml;
+    let next=holder.firstElementChild;
+    if(oldEvents&&next)oldEvents.replaceWith(next);
+    else if(next)(statusNode||teamsRow)?.insertAdjacentElement('afterend',next);
+  }else if(oldEvents)oldEvents.remove();
 
   let oldCard=ov.querySelector('.tip-prob-card');
   let html=modalProbCard(m,r);

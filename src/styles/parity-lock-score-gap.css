@@ -234,3 +234,114 @@
     width:46px!important;min-width:46px!important;max-width:46px!important;height:26px!important;padding:0 4px!important;font-size:12.5px!important
   }
 }
+
+
+/* V15 — slightly larger desktop live/HT/FT/AET/PEN pill; mobile stays compact */
+@media (min-width:721px){
+  .tip-overlay .wc26-modal-pill-slot{
+    min-height:36px!important;
+    margin:8px 0 6px!important;
+  }
+  .tip-overlay .wc26-modal-pill{
+    min-width:62px!important;
+    height:34px!important;
+    padding:0 12px!important;
+    font-size:15.5px!important;
+  }
+}
+
+
+/* V16 — pull score rail and live pill slightly left toward card center on mobile and desktop */
+@media (max-width: 720px){
+  html body .main.matches-main .match-row .mr-scores,
+  html body .matches-main .match-row .mr-scores{
+    padding-right:clamp(8px,2.6vw,12px)!important;
+    box-sizing:border-box!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-scores,
+  html body .matches-main .match-row.live-locked .mr-scores{
+    min-width:clamp(90px,22vw,104px)!important;
+    max-width:clamp(90px,22vw,104px)!important;
+    padding-right:clamp(9px,2.8vw,13px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    grid-template-columns:48px minmax(36px,44px)!important;
+    gap:6px!important;
+    justify-content:end!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock-row,
+  html body .matches-main .match-row.live-locked .mr-clock-row{
+    justify-self:end!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-lines,
+  html body .matches-main .match-row.live-locked .mr-score-lines{
+    justify-self:start!important;
+  }
+}
+
+@media (max-width: 390px){
+  html body .main.matches-main .match-row.live-locked .mr-scores,
+  html body .matches-main .match-row.live-locked .mr-scores{
+    min-width:92px!important;
+    max-width:92px!important;
+    padding-right:10px!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    grid-template-columns:46px minmax(34px,40px)!important;
+    gap:6px!important;
+  }
+}
+
+@media (min-width: 721px){
+  html body .main.matches-main .match-row .mr-scores,
+  html body .matches-main .match-row .mr-scores{
+    padding-right:clamp(14px,1.55vw,22px)!important;
+    box-sizing:border-box!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-scores,
+  html body .matches-main .match-row.live-locked .mr-scores{
+    padding-right:clamp(16px,1.8vw,26px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    display:grid!important;
+    grid-template-columns:56px minmax(40px,52px)!important;
+    align-items:center!important;
+    justify-content:end!important;
+    gap:8px!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock-row,
+  html body .matches-main .match-row.live-locked .mr-clock-row{
+    justify-self:end!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock,
+  html body .matches-main .match-row.live-locked .mr-clock{
+    width:56px!important;
+    min-width:56px!important;
+    max-width:56px!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-lines,
+  html body .matches-main .match-row.live-locked .mr-score-lines{
+    width:100%!important;
+    min-width:42px!important;
+    justify-self:start!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-row,
+  html body .matches-main .match-row.live-locked .mr-score-row{
+    justify-content:flex-end!important;
+    gap:8px!important;
+  }
+}

@@ -153,21 +153,40 @@ function superligaLatestIncidentMinute(r){
   });
   return best;
 }
+function superligaEstimatedRunningMinute(r,baseMinute){
+  if(!r||r.finished||!r.started)return null;
+  let token=superligaMinuteToken(baseMinute),base=token&&/^\d{1,3}$/.test(token)?Number(token):null;
+  let kickoff=Number(r._kickoffMs);
+  if(!Number.isFinite(kickoff)&&r._fixtureId){
+    let fixture=(typeof FX_BY_ID!=='undefined'&&FX_BY_ID[r._fixtureId])||(typeof FX!=='undefined'&&FX.find(x=>String(x.id)===String(r._fixtureId)));
+    if(fixture&&typeof fixtureKickoff==='function')kickoff=fixtureKickoff(fixture);
+  }
+  if(!Number.isFinite(kickoff))return token;
+  let elapsed=Math.floor((Date.now()-kickoff)/60000)+1;
+  if(elapsed<1)return token;
+  let s=[r.status,r.period,r.shortDetail,r.detail,r.statusText].map(v=>String(v||'')).join(' ').toUpperCase();
+  let estimate;
+  if(s.includes('1ST HALF')||s.includes('FIRST HALF')||/\b1H\b/.test(s))estimate=Math.min(45,elapsed);
+  else if(s.includes('2ND HALF')||s.includes('SECOND HALF')||/\b2H\b/.test(s))estimate=Math.min(90,Math.max(46,elapsed-15));
+  else estimate=elapsed<=55?Math.min(45,elapsed):Math.min(90,Math.max(46,elapsed-15));
+  if(Number.isFinite(base))estimate=Math.max(base,estimate);
+  return String(estimate);
+}
 function liveClockLabel(r){
-  // Never interpret provider flags such as liveCode=1 as "1st minute".
-  // The displayed clock is the newest trustworthy value between the explicit
-  // live clock and the latest incident minute, so it can never sit behind an
-  // already displayed goal/card event.
+  // Provider flags (liveCode=1 etc.) are never treated as minutes. Between
+  // backend polls the visible clock advances from the scheduled kickoff, while
+  // an explicit provider/event minute always remains the lower safety bound.
   if(!r||r.finished||!r.started)return'';
   let statusBlob=[r.status,r.period,r.shortDetail,r.detail,r.statusText].map(v=>String(v||'')).join(' ').toUpperCase();
-  if(/\b(HT|INT)\b/.test(statusBlob)||statusBlob.includes('HALF')||statusBlob.includes('INTERVAL'))return'HT';
+  if(/\b(HT|INT)\b/.test(statusBlob)||statusBlob.includes('HALF TIME')||statusBlob.includes('HALFTIME')||statusBlob.includes('INTERVAL'))return'HT';
   if(/\bAET\b/.test(statusBlob)||statusBlob.includes('EXTRA TIME'))return'AET';
 
   let explicit=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
     .map(superligaMinuteToken).filter(Boolean)
     .sort((a,b)=>superligaMinuteOrder(b)-superligaMinuteOrder(a))[0]||null;
   let incident=superligaLatestIncidentMinute(r);
-  let minute=superligaMinuteOrder(incident)>superligaMinuteOrder(explicit)?incident:explicit;
+  let base=superligaMinuteOrder(incident)>superligaMinuteOrder(explicit)?incident:explicit;
+  let minute=superligaEstimatedRunningMinute(r,base)||base;
   if(minute)return minute+"'";
   return'Élő';
 }
