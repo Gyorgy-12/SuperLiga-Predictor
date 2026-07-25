@@ -76,6 +76,7 @@ function normalizeLiveResult(id,d){
   let finished=!!d.finished||status==='ft'||status==='finished'||status.includes('full')||status.includes('vége');
   let started=d.started!==false||finished||status==='live'||status.includes('élő')||status.includes('in_play')||status.includes('in play');
   let scorers=parseMaybeArray(d.scorers).map(e=>normalizeScorerEvent(id,e)).filter(Boolean);
+  let events=parseMaybeArray(d.events).map(e=>normalizeScorerEvent(id,e)).filter(Boolean);
   let rawCards=[...parseMaybeArray(d.redCards),...parseMaybeArray(d.reds),...parseMaybeArray(d.cards),...parseMaybeArray(d.bookings),...parseMaybeArray(d.events),...parseMaybeArray(d.yellowCards),...parseMaybeArray(d.doubleYellowCards)];
   let rawCardsNorm=rawCards.map(c=>({...c,team:superligaEventTeam(c),minute:superligaEventMinute(c.minute??c.matchMinute??c.elapsed??c.time),player:superligaEventPlayer(c)}));
   let redCards=rawCardsNorm.filter(c=>{let t=String(c.type||c.card||c.eventType||c.kind||c.name||'').toLowerCase();return c.red||c.yellowRed||c.isRed||c.redCard||t==='rc'||t.includes('red')||t.includes('second yellow')||t.includes('second_yellow')}).map(c=>{let t=String(c.type||c.card||c.eventType||'').toLowerCase();let yr=c.yellowRed||c.secondYellow||t.includes('second yellow')||t.includes('yellow-red')||t.includes('second_yellow');return yr?{...c,yellowRed:true,red:true}:{...c,red:true}});
@@ -85,7 +86,7 @@ function normalizeLiveResult(id,d){
   let substitutions=parseMaybeArray(d.substitutions).map(e=>({...e,team:superligaEventTeam(e),minute:superligaEventMinute(e.minute??e.matchMinute??e.elapsed??e.time)}));
   let odds=null;try{odds=typeof d.odds==='string'?JSON.parse(d.odds):(d.odds&&typeof d.odds==='object'?d.odds:null)}catch(e){odds=null}
   let fixture=FX_BY_ID[id]||null,kickoffMs=fixture?fixtureKickoff(fixture):null;
-  return{_fixtureId:id,_receivedAt:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,scorers,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
+  return{_fixtureId:id,_receivedAt:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
 (function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([rawId,row])=>{let id=resolveIncomingFixtureId(rawId,row),r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
 function superligaLiveEventKey(e,kind='event'){
@@ -121,10 +122,11 @@ function superligaReconcileLiveResult(old,r){
     r.doubleYellowCards=superligaMergeEventRows(old.doubleYellowCards,r.doubleYellowCards,'yellowRed');
     r.penalties=superligaMergeEventRows(old.penalties,r.penalties,'penalty');
     r.substitutions=superligaMergeEventRows(old.substitutions,r.substitutions,'substitution');
+    r.events=superligaMergeEventRows(old.events,r.events,'timeline');
   }
   return r;
 }
-function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,sc:r.scorers,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
+function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
   Object.entries(next||{}).forEach(([rawId,obj])=>{
@@ -275,6 +277,53 @@ async function loadLiveResultsFromWorker(opts={}){
   if(lastError)try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:false,error:lastError.message||String(lastError),activeIds:active.map(m=>m.id),activeDates:dates,fetchedAt:new Date().toISOString()}}catch(e){}
   return changed;
 }
+let superligaScorerRepairAt=0,superligaScorerRepairInFlight=null;
+function superligaGoalLikeEvent(e){
+  if(!e||typeof e!=='object')return false;
+  let t=String(e.type||e.kind||e.label||e.detail||e.goalType||'').toLowerCase();
+  let blob='';try{blob=JSON.stringify(e).toLowerCase()}catch(_e){}
+  if(/missed|saved|not scored|failed|kihagyott|ratat/.test(t+' '+blob))return false;
+  return e.goal===true||e.isGoal===true||e.og===true||e.ownGoal===true||Number(e.code)===10||/\bgoal\b|penalty_goal|penalty scored|own goal|autogol|öngól/.test(t+' '+blob);
+}
+function superligaKnownGoalCount(r){
+  let rows=[...(Array.isArray(r?.scorers)?r.scorers:[])];
+  if(!rows.length&&Array.isArray(r?.events))rows=r.events.filter(superligaGoalLikeEvent);
+  let keys=new Set(rows.map(e=>superligaLiveEventKey(e,'goal')));
+  return keys.size;
+}
+function superligaMissingScorerIds(){
+  let now=Date.now();
+  return FX.filter(m=>{
+    let r=LIVE_RESULTS[m.id];
+    if(!r||!(r.started||r.finished)||!validScore(r.h)||!validScore(r.a))return false;
+    if(now<fixtureKickoff(m))return false;
+    let expected=Math.max(0,Number(r.h)+Number(r.a));
+    return expected>0&&superligaKnownGoalCount(r)<expected;
+  }).map(m=>String(m.id));
+}
+async function superligaRepairMissingScorers(opts={}){
+  if(FROZEN_MODE||!SUPERLIGA_RESULTS_SYNC_URL)return false;
+  if(superligaScorerRepairInFlight)return superligaScorerRepairInFlight;
+  let ids=superligaMissingScorerIds();
+  if(!ids.length)return false;
+  let force=!!opts.force,wait=force?0:60*1000;
+  if(!force&&Date.now()-superligaScorerRepairAt<wait)return false;
+  superligaScorerRepairAt=Date.now();
+  superligaScorerRepairInFlight=(async()=>{
+    let changed=false,errors=[];
+    for(let i=0;i<ids.length;i+=12){
+      let batch=ids.slice(i,i+12);
+      try{
+        let data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,{fresh:1,force:1,events:1,detail:1,ids:batch.join(','),t:Date.now()}),35000);
+        if(data&&data.results)changed=mergeLiveResults(data.results)||changed;
+      }catch(e){errors.push(e?.message||String(e));}
+    }
+    try{window.SUPERLIGA_SCORER_REPAIR_DEBUG={ok:errors.length===0,ids,remaining:superligaMissingScorerIds(),errors,changed,at:new Date().toISOString()}}catch(_e){}
+    return changed;
+  })();
+  try{return await superligaScorerRepairInFlight}finally{superligaScorerRepairInFlight=null}
+}
+
 async function loadMatchResultsOnceFromSdk(ids){
   if(!superligaDb)return false;
   let wanted=Array.isArray(ids)&&ids.length?ids:superligaInterestingMatches().map(m=>m.id);
@@ -304,6 +353,7 @@ async function syncLiveResults(opts={}){
     // because mergeLiveResults protects old.finished above.
     if(SUPERLIGA_RESULTS_SYNC_URL){
       changed=(await loadLiveResultsFromWorker(opts))||changed;
+      changed=(await superligaRepairMissingScorers({force:forced}))||changed;
       return changed;
     }
     if(!SUPERLIGA_RESULTS_READ_URL){
@@ -329,7 +379,7 @@ function superligaTickerMinuteOrder(value){
   return Number(m[1])+(m[2]?Math.min(99,Number(m[2]))/100:0);
 }
 function superligaTickerLatestIncidentMinute(r){
-  let events=[...(r?.scorers||[]),...(r?.yellowCards||[]),...(r?.redCards||[]),...(r?.doubleYellowCards||[]),...(r?.substitutions||[])];
+  let events=[...(r?.scorers||[]),...(r?.events||[]),...(r?.yellowCards||[]),...(r?.redCards||[]),...(r?.doubleYellowCards||[]),...(r?.substitutions||[])];
   let best=null,bestOrder=-1;
   events.forEach(e=>{
     let token=superligaTickerMinuteToken(e?.minute??e?.matchMinute??e?.elapsed??e?.time??e?.statusMinute);
@@ -360,18 +410,28 @@ function superligaClientClockLabel(id,r){
   if(elapsed<1)return base?base+"'":'Élő';
 
   let secondHalf=/2ND HALF|SECOND HALF|\b2H\b/.test(blob)||baseOrder>=46;
-  let estimate;
-  if(secondHalf){
-    estimate=Math.min(90,Math.max(46,elapsed-15));
-  }else if(elapsed<=50){
-    estimate=Math.min(45,elapsed);
-  }else if(elapsed<=60){
-    // Do not invent second-half minutes while the provider has not confirmed the restart.
-    estimate=45;
-  }else{
-    estimate=Math.min(90,Math.max(46,elapsed-15));
+  let providerBase=String(base||'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  if(!secondHalf){
+    if(providerBase&&Number(providerBase[1])===45&&providerBase[2]){
+      let extra=Math.max(Number(providerBase[2]),Math.max(1,elapsed-45));
+      return `45+${extra}'`;
+    }
+    if(elapsed>45&&elapsed<=60){
+      return `45+${Math.max(1,elapsed-45)}'`;
+    }
+    let estimate=Math.min(45,Math.max(1,elapsed));
+    if(baseOrder>=0)estimate=Math.max(estimate,Math.min(45,Math.floor(baseOrder)));
+    return String(estimate)+"'";
   }
-  if(baseOrder>=0)estimate=Math.max(estimate,Math.floor(baseOrder));
+
+  let playingElapsed=Math.max(46,elapsed-15);
+  if(providerBase&&Number(providerBase[1])===90&&providerBase[2]){
+    let extra=Math.max(Number(providerBase[2]),Math.max(1,playingElapsed-90));
+    return `90+${extra}'`;
+  }
+  if(playingElapsed>90)return `90+${Math.max(1,playingElapsed-90)}'`;
+  let estimate=Math.min(90,playingElapsed);
+  if(baseOrder>=0)estimate=Math.max(estimate,Math.min(90,Math.floor(baseOrder)));
   return String(estimate)+"'";
 }
 function superligaRefreshVisibleClockPills(){

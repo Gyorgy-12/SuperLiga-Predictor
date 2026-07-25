@@ -86,6 +86,32 @@ function eventMinute(e){
   let v=(e&&(e.minute??e.matchMinute??e.elapsed??e.time??e.statusMinute))||'';
   return String(v).replace(/[’'′]+/g,'').trim();
 }
+function eventMinuteOrder(e){
+  let text=eventMinute(e),m=text.match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  if(!m)return Number.POSITIVE_INFINITY;
+  return Number(m[1])+(m[2]?Number(m[2])/100:0);
+}
+function eventLooksLikeGoal(e){
+  if(!e||typeof e!=='object'||isMissedPenaltyEvent(e))return false;
+  let t=String(e.type||e.kind||e.label||e.detail||e.goalType||'').toLowerCase();
+  let blob='';try{blob=JSON.stringify(e).toLowerCase()}catch(_e){}
+  if(/yellow|red card|substitution|penalty awarded/.test(t))return false;
+  return e.goal===true||e.isGoal===true||e.og===true||e.ownGoal===true||Number(e.code)===10||/\bgoal\b|penalty_goal|penalty scored|own goal|autogol|öngól/.test(t+' '+blob);
+}
+function modalGoalCandidates(r){
+  let rows=[];
+  if(Array.isArray(r?.scorers))rows.push(...r.scorers);
+  if(Array.isArray(r?.goals))rows.push(...r.goals);
+  if(Array.isArray(r?.events))rows.push(...r.events.filter(eventLooksLikeGoal));
+  let seen=new Set(),out=[];
+  rows.forEach(e=>{
+    if(!e||isMissedPenaltyEvent(e))return;
+    let key=[e.eventId||e.id||'',eventMinute(e),eventTeam(e),eventPlayerName(e),String(e.type||e.label||'')].join('|');
+    if(seen.has(key))return;
+    seen.add(key);out.push(e);
+  });
+  return out;
+}
 function isOwnGoalEvent(s){
   let text=String(s?.type||s?.kind||s?.label||s?.detail||s?.reason||s?.note||s?.goalType||s?.code||'').toLowerCase();
   let blob='';try{blob=JSON.stringify(s||{}).toLowerCase()}catch(e){}
@@ -112,14 +138,14 @@ function isPenaltyGoal(s){
 }
 function goalScorersHtml(r,m){
   let events=[];
-  if(r&&Array.isArray(r.scorers))events=events.concat(r.scorers.filter(s=>!isMissedPenaltyEvent(s)).map(s=>({...s,_kind:'goal'})));
+  events=events.concat(modalGoalCandidates(r).map(s=>({...s,_kind:'goal'})));
   if(r&&Array.isArray(r.redCards))events=events.concat(r.redCards.map(s=>({...s,_kind:s.yellowRed?'yellowRed':'red'})));
   if(r&&Array.isArray(r.yellowCards))events=events.concat(r.yellowCards.map(s=>({...s,_kind:'yellow'})));
   if(r&&Array.isArray(r.penalties))events=events.concat(r.penalties.filter(isMissedPenaltyEvent).map(s=>({...s,_kind:'penaltyMissed'})));
   if(!events.length)return'';
   let seen=new Set();
   events=events.filter(s=>{let k=[s._kind,s.eventId||'',eventMinute(s),eventTeam(s),eventPlayerName(s)].join('|');if(seen.has(k))return false;seen.add(k);return true});
-  let sorted=events.sort((a,b)=>(parseInt(eventMinute(a),10)||0)-(parseInt(eventMinute(b),10)||0));
+  let sorted=events.sort((a,b)=>eventMinuteOrder(a)-eventMinuteOrder(b));
   let infoCell=s=>{
     if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Piros lap')+'</span>';
     if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'2× Sárga')+'</span>';

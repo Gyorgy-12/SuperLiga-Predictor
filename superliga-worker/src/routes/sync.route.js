@@ -121,7 +121,11 @@ export async function syncRoute(request, env) {
 
   // Read after historical writes so the public aggregate contains the newly
   // finalized Flashscore rows and no stale in-memory live version wins.
-  const stored = await readStoredResults(env);
+  const stored = await readStoredResults(env, {
+    forceCollection: history,
+    skipMemory: history,
+    skipPublicCache: history
+  });
   const publicCache = await refreshPublicResultsCache(env, stored.results);
 
   return json({
@@ -151,7 +155,8 @@ export async function syncRoute(request, env) {
     historicalSkipped,
     publicResultsCache: {
       count: publicCache.count,
-      updatedAt: publicCache.updatedAt
+      updatedAt: publicCache.updatedAt,
+      rebuiltFrom: stored.source
     }
   }, { headers: { 'cache-control': 'no-store, max-age=0' } }, env);
 }

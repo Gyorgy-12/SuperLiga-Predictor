@@ -4,14 +4,22 @@ import { getMemory, setFinalResult } from './memory-cache.service.js';
 import { sha256Hex, liveFingerprint } from '../core/hash.js';
 import { isFinished } from '../core/match-window.js';
 
-export async function readStoredResults(env) {
+export async function readStoredResults(env, opts = {}) {
   const mem = getMemory();
-  if (Object.keys(mem.finalResults).length) return { results: mem.finalResults, source: 'memory' };
+  const forceCollection = !!opts.forceCollection;
+  const skipMemory = forceCollection || !!opts.skipMemory;
+  const skipPublicCache = forceCollection || !!opts.skipPublicCache;
 
-  const publicDoc = await getDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results).catch(() => null);
-  if (publicDoc?.results) {
-    mem.finalResults = publicDoc.results;
-    return { results: mem.finalResults, source: 'firestore-public-cache' };
+  if (!skipMemory && Object.keys(mem.finalResults).length) {
+    return { results: mem.finalResults, source: 'memory' };
+  }
+
+  if (!skipPublicCache) {
+    const publicDoc = await getDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results).catch(() => null);
+    if (publicDoc?.results) {
+      mem.finalResults = publicDoc.results;
+      return { results: mem.finalResults, source: 'firestore-public-cache' };
+    }
   }
 
   const docs = await listDocuments(env, COLLECTIONS.results, { pageSize: 320 }).catch(() => []);
@@ -50,8 +58,12 @@ export async function writeFinalIfChanged(env, match) {
 }
 
 export async function refreshPublicResultsCache(env, results) {
-  const payload = { results, updatedAt: new Date().toISOString(), count: Object.keys(results || {}).length };
+  const cleanResults = results && typeof results === 'object' ? results : {};
+  const payload = { results: cleanResults, updatedAt: new Date().toISOString(), count: Object.keys(cleanResults).length };
   await patchDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results, payload).catch(() => null);
+  const mem = getMemory();
+  mem.finalResults = { ...cleanResults };
+  mem.updatedAt = payload.updatedAt;
   return payload;
 }
 
