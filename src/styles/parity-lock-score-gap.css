@@ -515,3 +515,31 @@
     transform:none!important;
   }
 }
+
+
+/* V21 — stronger score-rail centering retained; enlarge ONLY the live-minute text in the desktop match modal */
+@media (max-width: 720px){
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    transform:translateX(-16px)!important;
+  }
+}
+
+@media (max-width: 390px){
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    transform:translateX(-13px)!important;
+  }
+}
+
+@media (min-width: 721px){
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    transform:translateX(-34px)!important;
+  }
+
+  /* Only the live minute inside the match modal grows. Card pill and FT/HT/AET/PEN stay unchanged. */
+  .tip-overlay .wc26-modal-pill[data-state="live"]{
+    font-size:18px!important;
+  }
+}
