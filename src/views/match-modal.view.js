@@ -91,28 +91,45 @@ function isOwnGoalEvent(s){
   let blob='';try{blob=JSON.stringify(s||{}).toLowerCase()}catch(e){}
   return !!(s?.og===true||s?.ownGoal===true||s?.isOwnGoal===true||/\bown[ _-]?goal\b|\bautogol\b|\böngól\b/.test(text+' '+blob));
 }
+function isMissedPenaltyEvent(s){
+  if(!s)return false;
+  let t=String(s?.type||s?.kind||s?.label||s?.detail||s?.note||s?.goalType||s?.reason||s?.code||'').toLowerCase();
+  let blob='';try{blob=JSON.stringify(s||{}).toLowerCase()}catch(e){}
+  let explicit=!!(s?.missed===true||s?.penaltyMissed===true||s?.saved===true||Number(s?.code)===11||/penalty[_ -]?(missed|saved)|missed penalty|spot kick (missed|saved)|not scored|failed penalty|kihagyott|ratat/.test(t+' '+blob));
+  if(explicit)return true;
+  let penaltyLike=!!(s?.penalty===true||s?.pen===true||s?.pk===true||s?.fromPenalty===true||/penalty|spot kick|11m/.test(t+' '+blob));
+  let stamped=Number.isFinite(Number(s?.homeScore))&&Number.isFinite(Number(s?.awayScore));
+  let scored=Number(s?.code)===10||/penalty[_ -]?(goal|scored)|penalty converted|converted penalty|spot kick goal/.test(t+' '+blob);
+  return penaltyLike&&!stamped&&!scored;
+}
 function isPenaltyGoal(s){
+  if(isMissedPenaltyEvent(s))return false;
   let t=String(s?.type||s?.detail||s?.note||s?.goalType||s?.code||s?.Cd||'').toLowerCase();
   let blob='';
   try{blob=JSON.stringify(s||{}).toLowerCase()}catch(e){}
-  return !!(s?.penalty===true||s?.pen===true||s?.pk===true||s?.fromPenalty===true||t==='p'||t==='pg'||t==='pen'||t==='penalty'||t.includes('spot kick')||/"(penalty|pen|pk|frompenalty)"\s*:\s*true/.test(blob)||/\b11m\b/.test(blob)||blob.includes('spot kick'));
+  let stamped=Number.isFinite(Number(s?.homeScore))&&Number.isFinite(Number(s?.awayScore));
+  return !!(Number(s?.code)===10||/penalty[_ -]?(goal|scored)|penalty converted|converted penalty|spot kick goal/.test(t+' '+blob)||((s?.penalty===true||s?.pen===true||s?.pk===true||s?.fromPenalty===true)&&stamped));
 }
 function goalScorersHtml(r,m){
   let events=[];
-  if(r&&Array.isArray(r.scorers))events=events.concat(r.scorers.map(s=>({...s,_kind:'goal'})));
+  if(r&&Array.isArray(r.scorers))events=events.concat(r.scorers.filter(s=>!isMissedPenaltyEvent(s)).map(s=>({...s,_kind:'goal'})));
   if(r&&Array.isArray(r.redCards))events=events.concat(r.redCards.map(s=>({...s,_kind:s.yellowRed?'yellowRed':'red'})));
   if(r&&Array.isArray(r.yellowCards))events=events.concat(r.yellowCards.map(s=>({...s,_kind:'yellow'})));
+  if(r&&Array.isArray(r.penalties))events=events.concat(r.penalties.filter(isMissedPenaltyEvent).map(s=>({...s,_kind:'penaltyMissed'})));
   if(!events.length)return'';
+  let seen=new Set();
+  events=events.filter(s=>{let k=[s._kind,s.eventId||'',eventMinute(s),eventTeam(s),eventPlayerName(s)].join('|');if(seen.has(k))return false;seen.add(k);return true});
   let sorted=events.sort((a,b)=>(parseInt(eventMinute(a),10)||0)-(parseInt(eventMinute(b),10)||0));
   let infoCell=s=>{
     if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Piros lap')+'</span>';
     if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'2× Sárga')+'</span>';
     if(s._kind==='yellow')return'<span class="yellow-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Sárga lap')+'</span>';
+    if(s._kind==='penaltyMissed')return'<span class="missed-penalty-mark">&times;</span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Kihagyott büntető')+'</span><span class="goal-scorer-pen-missed">(kih. 11-es)</span>';
     let name=eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'',og=isOwnGoalEvent(s)?'<span class="goal-scorer-og">(&ouml;ng.)</span>':'',pen=isPenaltyGoal(s)?'<span class="goal-scorer-pen">(11-es)</span>':'';
     return'<span class="goal-scorer-ball">&#9917;</span><span class="goal-scorer-name">'+name+'</span>'+og+pen;
   };
   let rows=sorted.map(s=>{
-    let team=eventTeam(s),home=team!=='a'?infoCell(s):'',away=team==='a'?infoCell(s):'',min=eventMinute(s)?esc(eventMinute(s))+"&#39;":'',cls=s._kind==='red'?' red-card-row':s._kind==='yellowRed'?' red-card-row yellow-red-row':s._kind==='yellow'?' yellow-card-row':'';
+    let team=eventTeam(s),home=team!=='a'?infoCell(s):'',away=team==='a'?infoCell(s):'',min=eventMinute(s)?esc(eventMinute(s))+"&#39;":'',cls=s._kind==='red'?' red-card-row':s._kind==='yellowRed'?' red-card-row yellow-red-row':s._kind==='yellow'?' yellow-card-row':s._kind==='penaltyMissed'?' penalty-missed-row':'';
     return'<div class="goal-scorer-row'+cls+'"><div class="goal-scorers-col">'+home+'</div><span class="goal-scorer-min">'+min+'</span><div class="goal-scorers-col">'+away+'</div></div>';
   }).join('');
   return'<div class="goal-scorers">'+rows+'</div>';

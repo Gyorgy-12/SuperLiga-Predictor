@@ -345,3 +345,136 @@
     gap:8px!important;
   }
 }
+
+
+/* V17 — more event-name room at modal edges + missed-penalty styling */
+.tip-overlay .tip-match .tip-below-score{
+  --event-edge-release:clamp(13px,1.55vw,19px);
+  width:calc(100% + (var(--event-edge-release) * 2))!important;
+  margin-left:calc(var(--event-edge-release) * -1)!important;
+  margin-right:calc(var(--event-edge-release) * -1)!important;
+}
+.tip-overlay .goal-scorer-row{
+  grid-template-columns:minmax(0,1fr) 58px minmax(0,1fr)!important;
+  column-gap:clamp(15px,1.45vw,22px)!important;
+}
+.tip-overlay .goal-scorers-col{
+  gap:clamp(4px,.55vw,7px)!important;
+  font-size:clamp(12.5px,.92vw,15.5px)!important;
+}
+.tip-overlay .goal-scorer-name{
+  max-width:none!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+}
+.tip-overlay .goal-scorer-og,
+.tip-overlay .goal-scorer-pen,
+.tip-overlay .goal-scorer-pen-missed{
+  flex:0 0 auto!important;
+  margin-left:0!important;
+  font-size:.72em!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+.tip-overlay .goal-scorer-pen-missed{color:#ffca68!important;font-weight:900!important}
+.tip-overlay .missed-penalty-mark{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 0 1.15em!important;width:1.15em!important;height:1.15em!important;
+  border:1px solid rgba(255,202,104,.55)!important;border-radius:50%!important;
+  color:#ffca68!important;font-size:.82em!important;font-weight:950!important;line-height:1!important;
+}
+.tip-overlay .goal-scorer-row .goal-scorers-col:first-child .goal-scorer-pen-missed{order:0!important}
+.tip-overlay .goal-scorer-row .goal-scorers-col:first-child .missed-penalty-mark{order:3!important}
+.tip-overlay .goal-scorer-row .goal-scorers-col:last-child .missed-penalty-mark{order:0!important}
+.tip-overlay .goal-scorer-row .goal-scorers-col:last-child .goal-scorer-pen-missed{order:2!important}
+@media(max-width:720px){
+  .tip-overlay .tip-match .tip-below-score{--event-edge-release:clamp(9px,2.5vw,13px)}
+  .tip-overlay .goal-scorer-row{
+    grid-template-columns:minmax(0,1fr) 52px minmax(0,1fr)!important;
+    column-gap:clamp(10px,2.5vw,15px)!important;
+  }
+  .tip-overlay .goal-scorers-col{gap:clamp(3px,1vw,5px)!important;font-size:clamp(11.8px,3.25vw,14px)!important}
+  .tip-overlay .goal-scorer-og,.tip-overlay .goal-scorer-pen,.tip-overlay .goal-scorer-pen-missed{font-size:.67em!important}
+}
+
+
+/* V18 — shift live minute pill and score indicators a bit further left toward card center */
+@media (max-width: 720px){
+  html body .main.matches-main .match-row.live-locked .mr-scores,
+  html body .matches-main .match-row.live-locked .mr-scores{
+    min-width:clamp(102px,25vw,116px)!important;
+    max-width:clamp(102px,25vw,116px)!important;
+    padding-right:clamp(5px,1.8vw,8px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    grid-template-columns:50px minmax(38px,46px)!important;
+    gap:7px!important;
+    justify-content:end!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock-row,
+  html body .matches-main .match-row.live-locked .mr-clock-row{
+    justify-self:end!important;
+    transform:translateX(-2px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-lines,
+  html body .matches-main .match-row.live-locked .mr-score-lines{
+    justify-self:start!important;
+    transform:translateX(-2px)!important;
+  }
+}
+
+@media (max-width: 390px){
+  html body .main.matches-main .match-row.live-locked .mr-scores,
+  html body .matches-main .match-row.live-locked .mr-scores{
+    min-width:100px!important;
+    max-width:100px!important;
+    padding-right:6px!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    grid-template-columns:48px minmax(36px,42px)!important;
+    gap:6px!important;
+  }
+}
+
+@media (min-width: 721px){
+  html body .main.matches-main .match-row.live-locked .mr-scores,
+  html body .matches-main .match-row.live-locked .mr-scores{
+    min-width:136px!important;
+    max-width:136px!important;
+    padding-right:clamp(10px,1.15vw,14px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    grid-template-columns:60px minmax(44px,56px)!important;
+    gap:10px!important;
+    justify-content:end!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock-row,
+  html body .matches-main .match-row.live-locked .mr-clock-row{
+    justify-self:end!important;
+    transform:translateX(-4px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock,
+  html body .matches-main .match-row.live-locked .mr-clock{
+    width:60px!important;
+    min-width:60px!important;
+    max-width:60px!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-score-lines,
+  html body .matches-main .match-row.live-locked .mr-score-lines{
+    min-width:46px!important;
+    justify-self:start!important;
+    transform:translateX(-3px)!important;
+  }
+}

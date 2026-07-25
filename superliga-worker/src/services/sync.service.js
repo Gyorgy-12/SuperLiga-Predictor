@@ -706,17 +706,26 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, previousResul
     if (!score && !events) continue;
 
     const base = score || events || previous;
+    // A parsed Flashscore event feed is authoritative even if one category is empty.
+    // This allows corrected data to remove a stale fake scorer, such as a missed penalty.
+    const authoritativeIncidentFeed = !!events && events.prematch !== true &&
+      (events.authoritativeIncidents === true || String(events.flashscoreState || '').toLowerCase() === 'event_feed');
+    const incidentList = key => {
+      if (authoritativeIncidentFeed && Array.isArray(events?.[key])) return events[key];
+      if (Array.isArray(events?.[key]) && events[key].length) return events[key];
+      if (Array.isArray(score?.[key]) && score[key].length) return score[key];
+      return Array.isArray(previous?.[key]) ? previous[key] : [];
+    };
     const raw = {
       ...(previous || {}),
       ...(events || {}),
       ...(score || {}),
-      // Never wipe a previously known event list because a valid prematch/temporarily-empty feed returned [].
-      scorers: events?.scorers?.length ? events.scorers : (score?.scorers?.length ? score.scorers : previous?.scorers || []),
-      redCards: events?.redCards?.length ? events.redCards : (score?.redCards?.length ? score.redCards : previous?.redCards || []),
-      yellowCards: events?.yellowCards?.length ? events.yellowCards : (score?.yellowCards?.length ? score.yellowCards : previous?.yellowCards || []),
-      doubleYellowCards: events?.doubleYellowCards?.length ? events.doubleYellowCards : (score?.doubleYellowCards?.length ? score.doubleYellowCards : previous?.doubleYellowCards || []),
-      substitutions: events?.substitutions?.length ? events.substitutions : (score?.substitutions?.length ? score.substitutions : previous?.substitutions || []),
-      penalties: events?.penalties?.length ? events.penalties : (score?.penalties?.length ? score.penalties : previous?.penalties || []),
+      scorers: incidentList('scorers'),
+      redCards: incidentList('redCards'),
+      yellowCards: incidentList('yellowCards'),
+      doubleYellowCards: incidentList('doubleYellowCards'),
+      substitutions: incidentList('substitutions'),
+      penalties: incidentList('penalties'),
       matchMeta: {
         ...(previous?.matchMeta || {}),
         ...(events?.matchMeta || {}),

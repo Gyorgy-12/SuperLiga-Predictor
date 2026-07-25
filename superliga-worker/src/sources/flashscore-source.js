@@ -981,9 +981,24 @@ function flashscoreOwnGoal(item = {}) {
   return !!(item.og === true || item.ownGoal === true || item.isOwnGoal === true || /own[ _-]?goal|autogol|öngól/.test(text));
 }
 
+function flashscorePenaltyMissed(item = {}) {
+  const text = `${item.type || ''} ${item.label || ''} ${item.reason || ''} ${item.context || ''}`.toLowerCase();
+  const code = Number(item.code);
+  const explicitMiss = item.missed === true || item.penaltyMissed === true || item.saved === true || code === 11 ||
+    /penalty[_ -]?(missed|saved)|missed penalty|spot kick (missed|saved)|not scored|failed penalty|kihagyott|ratat/.test(text);
+  if (explicitMiss) return true;
+  const penaltyLike = code === 10 || item.penalty === true || item.pen === true || item.pk === true || item.fromPenalty === true || /penalty|spot kick|11m/.test(text);
+  const hasStampedScore = Number.isFinite(Number(item.homeScore)) && Number.isFinite(Number(item.awayScore));
+  const explicitlyScored = code === 10 || /penalty[_ -]?(goal|scored)|penalty converted|converted penalty|spot kick goal/.test(text);
+  return !!(penaltyLike && !hasStampedScore && !explicitlyScored);
+}
+
 function flashscorePenaltyGoal(item = {}) {
+  if (flashscorePenaltyMissed(item)) return false;
   const text = `${item.type || ''} ${item.label || ''} ${item.reason || ''}`.toLowerCase();
-  return !!(item.penalty === true || item.pen === true || item.pk === true || item.fromPenalty === true || item.code === 10 || /penalty|spot kick|11m/.test(text));
+  const hasStampedScore = Number.isFinite(Number(item.homeScore)) && Number.isFinite(Number(item.awayScore));
+  return !!(item.code === 10 || /penalty[_ -]?(goal|scored)|penalty converted|converted penalty|spot kick goal/.test(text) ||
+    ((item.penalty === true || item.pen === true || item.pk === true || item.fromPenalty === true) && hasStampedScore));
 }
 
 function parseFlashscoreSuiFeed(raw) {
@@ -1085,7 +1100,10 @@ function parseFlashscoreEventBlock(block, period) {
   for (const item of items) {
     const clean = cleanEventItem(item);
     timeline.push(clean);
-    if (isGoalItem(clean)) {
+    if (flashscorePenaltyMissed(clean)) {
+      penalties.push({ ...clean, type: 'penalty_missed', penalty: true, missed: true, playerNameOrder: 'given-first' });
+      lastGoal = null;
+    } else if (isGoalItem(clean)) {
       const penalty = flashscorePenaltyGoal(clean);
       const goal = { ...clean, type: penalty ? 'penalty_goal' : 'goal', penalty, og: flashscoreOwnGoal(clean), playerNameOrder: 'given-first' };
       goals.push(goal);
@@ -1346,13 +1364,16 @@ function eventCodeLabel(codeRaw) {
     7: 'substitution_in',
     8: 'assist',
     10: 'penalty_goal',
+    11: 'penalty_missed',
     47: 'not_on_pitch'
   };
   return map[code] || `event_${codeRaw}`;
 }
 
 function isGoalItem(item) {
-  return item?.code === 3 || item?.code === 10 || /\bgoal\b|\bpenalty\b/i.test(item?.label || '') && !/awarded/i.test(item?.label || '');
+  if (flashscorePenaltyMissed(item)) return false;
+  const label = String(item?.label || item?.type || '');
+  return item?.code === 3 || item?.code === 10 || /goal|penalty[_ -]?(goal|scored)|penalty converted/i.test(label);
 }
 
 function cleanEventItem(item) {

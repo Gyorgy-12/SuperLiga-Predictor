@@ -114,6 +114,13 @@ function statOwnGoal(event){
   return !!(event.og===true||event.ownGoal===true||event.isOwnGoal===true||/own[ _-]?goal|autogol|öngól/.test(text+' '+blob));
 }
 
+function statMissedPenalty(event){
+  if(!event)return false;
+  let text=String(event.type||event.kind||event.label||event.detail||event.reason||event.note||event.goalType||'').toLowerCase();
+  let blob='';try{blob=JSON.stringify(event).toLowerCase()}catch(_e){}
+  return !!(event.missed===true||event.penaltyMissed===true||event.saved===true||Number(event.code)===11||/penalty[_ -]?(missed|saved)|missed penalty|spot kick (missed|saved)|not scored|failed penalty|kihagyott|ratat/.test(text+' '+blob));
+}
+
 function statRow(i,name,sub,val){return '<div class="wc-stat-row"><div class="wc-stat-rank">'+i+'</div><div class="wc-stat-main"><div class="wc-stat-name">'+name+'</div><div class="wc-stat-sub">'+sub+'</div></div><div class="wc-stat-val">'+val+'</div></div>'}
 function topScorersList(){
   let counts={};
@@ -121,7 +128,7 @@ function topScorersList(){
     let r=LIVE_RESULTS[x.id];
     if(!r||!Array.isArray(r.scorers))return;
     r.scorers.forEach(s=>{
-      if(!s||statOwnGoal(s))return;
+      if(!s||statOwnGoal(s)||statMissedPenalty(s))return;
       let player=statPlayerDisplay(s,r);
       if(!player)return;
       let team=s.team==='a'?x.a:x.h,key=statPlayerCountKey(player)+'|'+team;
