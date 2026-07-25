@@ -992,7 +992,9 @@ function normalizeFlashscorePlayerName(value) {
 
 function flashscoreOwnGoal(item = {}) {
   const text = `${item.type || ''} ${item.label || ''} ${item.reason || ''}`.toLowerCase();
-  return !!(item.og === true || item.ownGoal === true || item.isOwnGoal === true || /own[ _-]?goal|autogol|öngól/.test(text));
+  // Livesport code 4 is an own goal. Keep the explicit code check because
+  // some feeds only expose `event_4` and no human-readable own-goal label.
+  return !!(Number(item.code) === 4 || item.og === true || item.ownGoal === true || item.isOwnGoal === true || /own[ _-]?goal|own_goal|event_4|autogol|öngól/.test(text));
 }
 
 function flashscorePenaltyMissed(item = {}) {
@@ -1415,6 +1417,7 @@ function eventCodeLabel(codeRaw) {
     1: 'yellow_card',
     2: 'red_card',
     3: 'goal',
+    4: 'own_goal',
     5: 'penalty_awarded',
     6: 'substitution_out',
     7: 'substitution_in',
