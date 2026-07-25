@@ -383,7 +383,7 @@ export async function fetchFlashscoreXFeedDetails(env, matchKeyOrUrl, opts = {})
   const primaryBaseOnly = opts.primaryBaseOnly === true || opts.primaryBaseOnly === '1' || budgetedPrimaryOnly;
   const tokenParam = opts.feedToken || opts.token || 'df_sui_';
   const tokens = budgetedPrimaryOnly
-    ? ['df_sui_', 'dc_']
+    ? ['df_sui_', 'dc_', 'df_dos_', 'df_scr_']
     : dedupeStrings([
         tokenParam,
         'df_sui_',
@@ -420,7 +420,7 @@ export async function fetchFlashscoreXFeedDetails(env, matchKeyOrUrl, opts = {})
   let dcPack = null;
 
   const probeLimit = budgetedPrimaryOnly
-    ? clampNumber(opts.feedProbeLimit || opts.probeLimit || 2, 1, 2)
+    ? clampNumber(opts.feedProbeLimit || opts.probeLimit || 4, 1, 4)
     : clampNumber(opts.feedProbeLimit || opts.probeLimit || 12, 1, 30);
 
   for (const candidate of dedupeFeedCandidates(candidates).slice(0, probeLimit)) {
@@ -466,17 +466,31 @@ export async function fetchFlashscoreXFeedDetails(env, matchKeyOrUrl, opts = {})
     const parsed = parseFlashscoreSuiFeed(raw);
     const hasEvents = parsed.events.length || parsed.scorers.length || parsed.yellowCards.length || parsed.redCards.length || parsed.doubleYellowCards.length;
     if (hasEvents || parsed.score) {
-      eventPack = {
-        parsed,
-        raw,
-        feedUrl: candidate.url,
-        feedLabel: candidate.label,
-        status: probe.status,
-        contentType: probe.contentType,
-        elapsedMs: probe.elapsedMs
-      };
-      // Do not return yet: the following dc_ probe is tiny and carries the
-      // live phase/minute signal needed when Flashscore is the score master.
+      if (eventPack) {
+        eventPack = {
+          ...eventPack,
+          parsed: mergeFlashscoreParsedFeeds(eventPack.parsed, parsed),
+          raw: `${eventPack.raw || ''}
+${raw}`,
+          feedUrl: `${eventPack.feedUrl || ''},${candidate.url}`,
+          feedLabel: `${eventPack.feedLabel || ''}+${candidate.label}`,
+          status: probe.status || eventPack.status,
+          contentType: probe.contentType || eventPack.contentType,
+          elapsedMs: (eventPack.elapsedMs || 0) + (probe.elapsedMs || 0)
+        };
+      } else {
+        eventPack = {
+          parsed,
+          raw,
+          feedUrl: candidate.url,
+          feedLabel: candidate.label,
+          status: probe.status,
+          contentType: probe.contentType,
+          elapsedMs: probe.elapsedMs
+        };
+      }
+      // Keep probing the compact detail feeds. Flashscore occasionally serves
+      // cards in df_sui while the goal rows are present only in df_dos/df_scr.
       continue;
     }
 
@@ -1321,6 +1335,48 @@ function emptyFlashscoreParsedFeed() {
     meta: {},
     score: null
   };
+}
+
+
+function mergeFlashscoreParsedFeeds(left = {}, right = {}) {
+  const pickScore = (a, b) => {
+    const total = row => {
+      const h = Number(row?.h);
+      const away = Number(row?.a);
+      return Number.isFinite(h) && Number.isFinite(away) ? h + away : -1;
+    };
+    return total(b) > total(a) ? b : (a || b || null);
+  };
+  return {
+    events: dedupeFlashscoreIncidentRows([...(left.events || []), ...(right.events || [])]),
+    scorers: dedupeFlashscoreIncidentRows([...(left.scorers || []), ...(right.scorers || [])]),
+    yellowCards: dedupeFlashscoreIncidentRows([...(left.yellowCards || []), ...(right.yellowCards || [])]),
+    redCards: dedupeFlashscoreIncidentRows([...(left.redCards || []), ...(right.redCards || [])]),
+    doubleYellowCards: dedupeFlashscoreIncidentRows([...(left.doubleYellowCards || []), ...(right.doubleYellowCards || [])]),
+    substitutions: dedupeFlashscoreIncidentRows([...(left.substitutions || []), ...(right.substitutions || [])]),
+    penalties: dedupeFlashscoreIncidentRows([...(left.penalties || []), ...(right.penalties || [])]),
+    meta: { ...(left.meta || {}), ...(right.meta || {}) },
+    score: pickScore(left.score, right.score)
+  };
+}
+
+function dedupeFlashscoreIncidentRows(rows = []) {
+  const seen = new Set();
+  const out = [];
+  for (const row of rows || []) {
+    if (!row) continue;
+    const key = [
+      row.eventId || '',
+      row.type || row.code || row.label || '',
+      row.minute || '',
+      row.team || row.side || row.teamSide || row.sideRaw || '',
+      row.player || row?.in?.player || row?.out?.player || ''
+    ].join('|').toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
 }
 
 function splitFlashscoreList(value) {

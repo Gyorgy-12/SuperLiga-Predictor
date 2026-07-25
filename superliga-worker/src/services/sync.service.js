@@ -50,7 +50,7 @@ export async function syncLive(env, opts = {}) {
     primaryBaseOnly: true,
     pendingOnEmpty: true,
     skipHtml: true,
-    feedProbeLimit: 2
+    feedProbeLimit: 4
   }).catch(error => sourceErrorPack('flashscore-stored-details', error));
 
   const flashPendingIds = new Set();
@@ -74,7 +74,7 @@ export async function syncLive(env, opts = {}) {
     const id = String(fixture.id);
     const flash = flashscorePack.results?.[id];
     const official = officialPack.results?.[id];
-    if (!needsSecondaryProviderFlashFirst(flash, fixture, opts) || isProviderResultUsable(official)) primaryResolvedIds.add(id);
+    if (!needsSecondaryProviderFlashFirst(flash, fixture, opts) || providerClosesPrimaryGap(flash, official)) primaryResolvedIds.add(id);
     else fallbackActive.push(fixture);
   }
 
@@ -84,7 +84,16 @@ export async function syncLive(env, opts = {}) {
       .catch(error => sourceErrorPack('espn-incidents', error));
   }
 
-  const sofaActive = fallbackActive.filter(fixture => !isProviderResultUsable(espnPack.results?.[String(fixture.id)]));
+  const sofaActive = fallbackActive.filter(fixture => {
+    const id = String(fixture.id);
+    const primary = chooseBestProviderResult(
+      flashscorePack.results?.[id],
+      officialPack.results?.[id],
+      null,
+      null
+    );
+    return !providerClosesPrimaryGap(primary, espnPack.results?.[id]);
+  });
   let sofaPack = skippedSourcePack('sofascore', fallbackActive.length ? 'espn_fallback_usable_or_no_remaining_fixture' : 'primary_flashscore_or_official_usable');
   if (sofaActive.length) {
     sofaPack = await fetchSofaScoreBudgeted(env, sofaActive, commonOpts)
@@ -163,8 +172,8 @@ export async function syncLive(env, opts = {}) {
       },
       requestBudget: {
         mode: 'strict-flashscore-first',
-        flashscoreMaxRequestsPerFixture: 2,
-        flashscorePrimaryFeeds: ['df_sui', 'dc'],
+        flashscoreMaxRequestsPerFixture: 4,
+        flashscorePrimaryFeeds: ['df_sui', 'dc', 'df_dos', 'df_scr'],
         officialOnlyForHardMisses: true,
         liveScoreDisabled: true,
         sofascoreSearchDisabled: true,
@@ -618,16 +627,56 @@ function combineIncidentPacks(active, flashscorePack = {}, officialPack = {}, es
 }
 
 function chooseBestProviderResult(flash, official, espn, sofa) {
-  // Incident-rich rows win first. A pending Flashscore feed is intentionally
-  // lower priority than any provider that returned real detail, but it remains
-  // a safe prematch placeholder when every secondary provider is empty.
-  for (const row of [flash, official, espn, sofa]) if (hasIncidentRows(row)) return row;
-  for (const row of [flash, official, espn, sofa]) {
-    if (!isPendingFeedResult(row) && isProviderResultUsable(row)) return row;
-  }
+  // Rank the whole provider rows instead of accepting the first row that has
+  // any card/substitution. A cards-only Flashscore snapshot must not beat a
+  // fallback row that actually contains the scorers for a 3-1 live score.
+  const rows = [flash, official, espn, sofa].filter(Boolean);
+  const ranked = rows
+    .filter(row => !isPendingFeedResult(row) && isProviderResultUsable(row))
+    .map((row, index) => ({ row, index, score: providerIncidentQuality(row) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  if (ranked.length) return ranked[0].row;
   if (isPendingFeedResult(flash)) return flash;
   for (const row of [official, espn, sofa]) if (isPendingFeedResult(row)) return row;
   return null;
+}
+
+function providerIncidentQuality(row) {
+  if (!row) return -1;
+  const totalGoals = resultGoalTotal(row);
+  const scorerCount = validScorerRows(row.scorers).length;
+  const completeGoalBonus = totalGoals != null && scorerCount >= totalGoals ? 10000 : 0;
+  const scoreBonus = totalGoals != null ? 500 : 0;
+  const finishedBonus = row.finished === true ? 250 : 0;
+  return completeGoalBonus + scorerCount * 1000 + countIncidents(row) * 10 + scoreBonus + finishedBonus;
+}
+
+function providerClosesPrimaryGap(primary, secondary) {
+  if (!primary || isPendingFeedResult(primary)) return isProviderResultUsable(secondary);
+  if (!isProviderResultUsable(secondary)) return false;
+  if (!scorerCoverageIncomplete(primary)) return true;
+  const primaryScorers = validScorerRows(primary.scorers).length;
+  const secondaryScorers = validScorerRows(secondary.scorers).length;
+  return secondaryScorers > primaryScorers || !scorerCoverageIncomplete(secondary);
+}
+
+function resultGoalTotal(row) {
+  const h = Number(row?.h);
+  const a = Number(row?.a);
+  return Number.isFinite(h) && Number.isFinite(a) && h >= 0 && a >= 0 ? h + a : null;
+}
+
+function validScorerRows(rows = []) {
+  return (Array.isArray(rows) ? rows : []).filter(row => {
+    const text = [row?.type, row?.kind, row?.label, row?.detail, row?.reason].filter(Boolean).join(' ').toLowerCase();
+    return !(row?.missed === true || row?.penaltyMissed === true || Number(row?.code) === 11 || /penalty[_ -]?(missed|saved)|missed penalty|kihagyott|ratat/.test(text));
+  });
+}
+
+function scorerCoverageIncomplete(row) {
+  const total = resultGoalTotal(row);
+  if (total == null || total <= 0 || row?.prematch === true || row?.started === false) return false;
+  return validScorerRows(row?.scorers).length < total;
 }
 
 function isProviderResultUsable(row) {
@@ -640,7 +689,12 @@ function isPendingFeedResult(row) {
 
 function needsSecondaryProviderFlashFirst(primaryRow, fixture = null, opts = {}) {
   if (!primaryRow) return true;
-  if (!isPendingFeedResult(primaryRow)) return !isProviderResultUsable(primaryRow);
+  if (!isPendingFeedResult(primaryRow)) {
+    if (!isProviderResultUsable(primaryRow)) return true;
+    // A live score whose total is larger than the parsed scorer list is only a
+    // partial incident snapshot. Keep the fallback chain alive for the goals.
+    return scorerCoverageIncomplete(primaryRow);
+  }
 
   // A stored Flashscore MID may legitimately have no published detail feed before kickoff.
   // Once the scheduled start has passed, however, treat a still-pending feed as a hard miss
@@ -711,8 +765,18 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, previousResul
     const authoritativeIncidentFeed = !!events && events.prematch !== true &&
       (events.authoritativeIncidents === true || String(events.flashscoreState || '').toLowerCase() === 'event_feed');
     const incidentList = key => {
-      if (authoritativeIncidentFeed && Array.isArray(events?.[key])) return events[key];
-      if (Array.isArray(events?.[key]) && events[key].length) return events[key];
+      const eventRows = Array.isArray(events?.[key]) ? events[key] : [];
+      // Authority is category-specific. A cards-only event_feed is not allowed
+      // to erase scorer rows while the score itself says that goals exist.
+      const categoryAuthoritative = authoritativeIncidentFeed &&
+        (key !== 'scorers' || !scorerCoverageIncomplete({
+          ...events,
+          h: score?.h ?? events?.h,
+          a: score?.a ?? events?.a,
+          started: score?.started ?? events?.started
+        }));
+      if (categoryAuthoritative) return eventRows;
+      if (eventRows.length) return eventRows;
       if (Array.isArray(score?.[key]) && score[key].length) return score[key];
       return Array.isArray(previous?.[key]) ? previous[key] : [];
     };
