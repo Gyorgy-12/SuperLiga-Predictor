@@ -478,3 +478,40 @@
     transform:translateX(-3px)!important;
   }
 }
+
+
+/* V19 — actual left shift: move the entire live score rail together */
+@media (max-width: 720px){
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    transform:translateX(-10px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock-row,
+  html body .matches-main .match-row.live-locked .mr-clock-row,
+  html body .main.matches-main .match-row.live-locked .mr-score-lines,
+  html body .matches-main .match-row.live-locked .mr-score-lines{
+    transform:none!important;
+  }
+}
+
+@media (max-width: 390px){
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    transform:translateX(-8px)!important;
+  }
+}
+
+@media (min-width: 721px){
+  html body .main.matches-main .match-row.live-locked .mr-score-wrap,
+  html body .matches-main .match-row.live-locked .mr-score-wrap{
+    transform:translateX(-20px)!important;
+  }
+
+  html body .main.matches-main .match-row.live-locked .mr-clock-row,
+  html body .matches-main .match-row.live-locked .mr-clock-row,
+  html body .main.matches-main .match-row.live-locked .mr-score-lines,
+  html body .matches-main .match-row.live-locked .mr-score-lines{
+    transform:none!important;
+  }
+}
