@@ -563,7 +563,9 @@ export class UpdateCoordinator {
   }
 
   liveEndAfterMinutes() {
-    return clampInt(this.env.LIVE_SYNC_END_AFTER_MINUTES ?? DEFAULT_LIVE_END_AFTER_MINUTES, 30, 360);
+    // Keep polling long enough to receive or safely infer the final Flashscore state.
+    // The old production binding is 120 minutes, which can expire before delayed FT data arrives.
+    return Math.max(170, clampInt(this.env.LIVE_SYNC_END_AFTER_MINUTES ?? DEFAULT_LIVE_END_AFTER_MINUTES, 30, 360));
   }
 
   liveIntervalSeconds() {

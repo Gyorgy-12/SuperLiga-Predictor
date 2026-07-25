@@ -1,5 +1,6 @@
 import { normalizeLiveMatch } from '../core/normalize-live.js';
 import { interestingFixtures } from '../core/match-window.js';
+import { kickoffMs } from '../utils/time.js';
 import { mergeLiveResults, getLiveSnapshot } from './memory-cache.service.js';
 import { readStoredResults, writeFinalIfChanged } from './results.service.js';
 import { getFixtures } from './fixtures.service.js';
@@ -398,6 +399,19 @@ function makeEventResult(fixture, detail = {}, meta = {}) {
   const score = detail.score || null;
   const state = detail.state || (score || detail.events?.length ? 'event_feed' : (detail.meta && Object.keys(detail.meta).length ? 'prematch' : 'unknown'));
   const isPrematch = state === 'prematch' || state === 'pending_feed';
+  const providerStatus = String(detail.matchStatus || detail.statusText || detail.matchState || '').trim().toUpperCase();
+  const providerFinished = detail.finished === true || ['FT', 'AET', 'PEN', 'FULL_TIME', 'COMPLETE', 'FINISHED', 'FINAL'].includes(providerStatus);
+  const inferredFinished = !isPrematch && !providerFinished && shouldSafelyFinalizeFlashscoreFixture(fixture, detail, score);
+  const finished = providerFinished || inferredFinished;
+  const started = !isPrematch && (finished || detail.started === true || !!score || !!detail.events?.length);
+  const finalStatus = providerStatus === 'AET' || providerStatus === 'PEN' ? providerStatus : 'FT';
+  const status = state === 'pending_feed'
+    ? 'PENDING_FEED'
+    : isPrematch
+      ? 'PREMATCH'
+      : finished
+        ? finalStatus
+        : (providerStatus || (score ? 'DETAIL_SCORE' : null));
   const row = {
     id: fixture.id,
     group: fixture.g || 'SL',
@@ -405,14 +419,14 @@ function makeEventResult(fixture, detail = {}, meta = {}) {
     homeTeam: fixture.h,
     awayTeam: fixture.a,
     date: fixture.date,
-    started: !isPrematch && !!(score || detail.events?.length),
-    finished: false,
-    status: state === 'pending_feed' ? 'PENDING_FEED' : (isPrematch ? 'PREMATCH' : (score ? 'DETAIL_SCORE' : null)),
-    minute: null,
-    h: score?.h ?? null,
-    a: score?.a ?? null,
-    pH: null,
-    pA: null,
+    started,
+    finished,
+    status,
+    minute: finished ? null : (detail.minute ?? null),
+    h: score?.h ?? detail.h ?? null,
+    a: score?.a ?? detail.a ?? null,
+    pH: detail.pH ?? null,
+    pA: detail.pA ?? null,
     scorers: detail.scorers || [],
     yellowCards: detail.yellowCards || [],
     redCards: detail.redCards || [],
@@ -429,10 +443,49 @@ function makeEventResult(fixture, detail = {}, meta = {}) {
     updatedAt: new Date().toISOString()
   };
 
+  if (inferredFinished) {
+    row.finalInferred = true;
+    row.finalInferenceReason = 'kickoff_age_and_90plus_event';
+  }
   if (meta.sourceUrlField) row[meta.sourceUrlField] = meta.url || null;
   if (meta.sourceIdField) row[meta.sourceIdField] = meta.id || null;
   if (meta.mid) row.flashscoreMid = meta.mid;
   return row;
+}
+
+function shouldSafelyFinalizeFlashscoreFixture(fixture, detail = {}, score = null, now = Date.now()) {
+  if (!score || !Number.isFinite(Number(score.h)) || !Number.isFinite(Number(score.a))) return false;
+  const ko = kickoffMs(fixture);
+  if (!Number.isFinite(ko)) return false;
+  const elapsedMinutes = (now - ko) / 60_000;
+  if (elapsedMinutes < 130) return false;
+
+  const minuteValues = [
+    detail.minute,
+    ...(detail.events || []).map(row => row?.minute),
+    ...(detail.scorers || []).map(row => row?.minute),
+    ...(detail.yellowCards || []).map(row => row?.minute),
+    ...(detail.redCards || []).map(row => row?.minute),
+    ...(detail.doubleYellowCards || []).map(row => row?.minute),
+    ...(detail.substitutions || []).map(row => row?.minute),
+    ...(detail.penalties || []).map(row => row?.minute)
+  ];
+  const latestMinute = minuteValues.reduce((max, value) => Math.max(max, eventMinuteNumber(value)), -1);
+
+  // At 130+ minutes after kickoff, a 90th-minute event means the provider's
+  // event feed has simply failed to expose FT. At 155+ minutes even an empty
+  // incident list is safe to finalize when a real score exists.
+  return latestMinute >= 90 || elapsedMinutes >= 155;
+}
+
+function eventMinuteNumber(value) {
+  const text = String(value ?? '').replace(/[’'′]/g, '').trim();
+  if (!text) return -1;
+  const match = text.match(/(\d{1,3})(?:\+(\d{1,2}))?/);
+  if (!match) return -1;
+  const base = Number(match[1]);
+  const added = Number(match[2] || 0);
+  return Number.isFinite(base) ? base + (Number.isFinite(added) ? added / 100 : 0) : -1;
 }
 
 async function fetchSofaScoreBudgeted(env, fixtures = [], opts = {}) {
