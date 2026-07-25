@@ -76,21 +76,61 @@ function normalizeLiveResult(id,d){
   let finished=!!d.finished||status==='ft'||status==='finished'||status.includes('full')||status.includes('vége');
   let started=d.started!==false||finished||status==='live'||status.includes('élő')||status.includes('in_play')||status.includes('in play');
   let scorers=parseMaybeArray(d.scorers).map(e=>normalizeScorerEvent(id,e)).filter(Boolean);
-  let rawCards=[...parseMaybeArray(d.redCards),...parseMaybeArray(d.reds),...parseMaybeArray(d.cards),...parseMaybeArray(d.bookings),...parseMaybeArray(d.events),...parseMaybeArray(d.yellowCards)];
+  let rawCards=[...parseMaybeArray(d.redCards),...parseMaybeArray(d.reds),...parseMaybeArray(d.cards),...parseMaybeArray(d.bookings),...parseMaybeArray(d.events),...parseMaybeArray(d.yellowCards),...parseMaybeArray(d.doubleYellowCards)];
   let rawCardsNorm=rawCards.map(c=>({...c,team:superligaEventTeam(c),minute:superligaEventMinute(c.minute??c.matchMinute??c.elapsed??c.time),player:superligaEventPlayer(c)}));
   let redCards=rawCardsNorm.filter(c=>{let t=String(c.type||c.card||c.eventType||c.kind||c.name||'').toLowerCase();return c.red||c.yellowRed||c.isRed||c.redCard||t==='rc'||t.includes('red')||t.includes('second yellow')||t.includes('second_yellow')}).map(c=>{let t=String(c.type||c.card||c.eventType||'').toLowerCase();let yr=c.yellowRed||c.secondYellow||t.includes('second yellow')||t.includes('yellow-red')||t.includes('second_yellow');return yr?{...c,yellowRed:true,red:true}:{...c,red:true}});
   let yellowCards=rawCardsNorm.filter(c=>{let t=String(c.type||c.card||c.eventType||c.kind||'').toLowerCase();return c.yellow||t==='yc'||t==='yellow'||(t.includes('yellow')&&!t.includes('red')&&!t.includes('second'))});
+  let doubleYellowCards=rawCardsNorm.filter(c=>{let t=String(c.type||c.card||c.eventType||c.kind||'').toLowerCase();return c.yellowRed||c.secondYellow||t.includes('second yellow')||t.includes('yellow-red')||t.includes('second_yellow')}).map(c=>({...c,yellowRed:true,red:true}));
+  let penalties=parseMaybeArray(d.penalties).map(e=>({...e,team:superligaEventTeam(e),minute:superligaEventMinute(e.minute??e.matchMinute??e.elapsed??e.time),player:superligaEventPlayer(e)}));
+  let substitutions=parseMaybeArray(d.substitutions).map(e=>({...e,team:superligaEventTeam(e),minute:superligaEventMinute(e.minute??e.matchMinute??e.elapsed??e.time)}));
   let odds=null;try{odds=typeof d.odds==='string'?JSON.parse(d.odds):(d.odds&&typeof d.odds==='object'?d.odds:null)}catch(e){odds=null}
   let fixture=FX_BY_ID[id]||null,kickoffMs=fixture?fixtureKickoff(fixture):null;
-  return{_fixtureId:id,_receivedAt:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,scorers,redCards,yellowCards,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
+  return{_fixtureId:id,_receivedAt:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,scorers,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
 (function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([rawId,row])=>{let id=resolveIncomingFixtureId(rawId,row),r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
-function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,sc:r.scorers,rc:r.redCards,yc:r.yellowCards,od:r.odds})}
+function superligaLiveEventKey(e,kind='event'){
+  if(!e||typeof e!=='object')return kind+'|';
+  let id=String(e.eventId||e.id||'').trim();
+  if(id)return kind+'|id|'+id;
+  let type=String(e.type||e.kind||e.label||e.card||'').toLowerCase();
+  let minute=superligaEventMinute(e.minute??e.matchMinute??e.elapsed??e.time);
+  let team=superligaEventTeam(e),player=superligaNameKey(superligaEventPlayer(e));
+  return [kind,type,minute,team,player].join('|');
+}
+function superligaMergeEventRows(oldRows,newRows,kind='event'){
+  let out=[],byKey=new Map();
+  [...(Array.isArray(oldRows)?oldRows:[]),...(Array.isArray(newRows)?newRows:[])].forEach(row=>{
+    if(!row||typeof row!=='object')return;
+    let key=superligaLiveEventKey(row,kind),prev=byKey.get(key);
+    byKey.set(key,prev?{...prev,...row}:row);
+  });
+  byKey.forEach(v=>out.push(v));
+  return out.sort((a,b)=>(parseInt(superligaEventMinute(a.minute),10)||0)-(parseInt(superligaEventMinute(b.minute),10)||0));
+}
+function superligaReconcileLiveResult(old,r){
+  if(!old)return r;
+  let sameScore=old.h===r.h&&old.a===r.a,expected=Math.max(0,(+r.h||0)+(+r.a||0));
+  let incomingScorers=Array.isArray(r.scorers)?r.scorers:[],oldScorers=Array.isArray(old.scorers)?old.scorers:[];
+  if(sameScore&&incomingScorers.length<expected&&oldScorers.length){
+    let merged=superligaMergeEventRows(oldScorers,incomingScorers,'goal');
+    if(merged.length>=incomingScorers.length)r.scorers=merged;
+  }
+  if(sameScore){
+    r.redCards=superligaMergeEventRows(old.redCards,r.redCards,'red');
+    r.yellowCards=superligaMergeEventRows(old.yellowCards,r.yellowCards,'yellow');
+    r.doubleYellowCards=superligaMergeEventRows(old.doubleYellowCards,r.doubleYellowCards,'yellowRed');
+    r.penalties=superligaMergeEventRows(old.penalties,r.penalties,'penalty');
+    r.substitutions=superligaMergeEventRows(old.substitutions,r.substitutions,'substitution');
+  }
+  return r;
+}
+function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,sc:r.scorers,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
   Object.entries(next||{}).forEach(([rawId,obj])=>{
     let id=resolveIncomingFixtureId(rawId,obj),r=normalizeLiveResult(id,obj);if(!r)return;
     let old=LIVE_RESULTS[id];if(old&&old.finished&&!r.finished)return;
+    r=superligaReconcileLiveResult(old,r);
     if(!old||liveResultFingerprint(old)!==liveResultFingerprint(r)){
       LIVE_RESULTS[id]=r;changed=true;
       if(r.finished&&(!old||!old.finished||old.h!==r.h||old.a!==r.a))pruneNeeded=true;
@@ -277,28 +317,99 @@ window.superligaRefreshResults=()=>syncLiveResults({force:true,forceLive:true});
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
 function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await Promise.allSettled([syncLiveResults(),maybeRefreshOddsFromWorker(false)]);scheduleLiveSync()},delay??nextLiveSyncDelay())}
 function listenMatchResults(){return syncLiveResults({force:true})}
+function superligaTickerMinuteToken(value){
+  let s=String(value??'').trim();
+  if(!s||/^\d{1,2}:\d{2}$/.test(s))return null;
+  let m=s.match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:[’'′]|\s|$)/);
+  return m?m[1]:null;
+}
+function superligaTickerMinuteOrder(value){
+  let m=String(value||'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  if(!m)return-1;
+  return Number(m[1])+(m[2]?Math.min(99,Number(m[2]))/100:0);
+}
+function superligaTickerLatestIncidentMinute(r){
+  let events=[...(r?.scorers||[]),...(r?.yellowCards||[]),...(r?.redCards||[]),...(r?.doubleYellowCards||[]),...(r?.substitutions||[])];
+  let best=null,bestOrder=-1;
+  events.forEach(e=>{
+    let token=superligaTickerMinuteToken(e?.minute??e?.matchMinute??e?.elapsed??e?.time??e?.statusMinute);
+    let order=superligaTickerMinuteOrder(token);
+    if(token&&order>bestOrder){best=token;bestOrder=order;}
+  });
+  return best;
+}
+function superligaClientClockLabel(id,r){
+  if(!r||!r.started||r.finished)return'';
+  let blob=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.displayClock].map(v=>String(v||'')).join(' ').toUpperCase();
+  if(/\b(HT|INT)\b/.test(blob)||blob.includes('HALF TIME')||blob.includes('HALFTIME')||blob.includes('INTERVAL'))return'HT';
+  if(/\bAET\b/.test(blob)||blob.includes('EXTRA TIME'))return'AET';
+  if(/\bPEN\b/.test(blob)||blob.includes('SHOOTOUT'))return'PEN';
+
+  let explicit=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
+    .map(superligaTickerMinuteToken).filter(Boolean)
+    .sort((a,b)=>superligaTickerMinuteOrder(b)-superligaTickerMinuteOrder(a))[0]||null;
+  let incident=superligaTickerLatestIncidentMinute(r);
+  let base=superligaTickerMinuteOrder(incident)>superligaTickerMinuteOrder(explicit)?incident:explicit;
+  let baseOrder=superligaTickerMinuteOrder(base);
+
+  let fixture=FX_BY_ID[String(id)]||null;
+  let kickoff=fixture?fixtureKickoff(fixture):Number(r._kickoffMs);
+  if(!Number.isFinite(kickoff))return base?base+"'":'Élő';
+
+  let elapsed=Math.floor((Date.now()-kickoff)/60000)+1;
+  if(elapsed<1)return base?base+"'":'Élő';
+
+  let secondHalf=/2ND HALF|SECOND HALF|\b2H\b/.test(blob)||baseOrder>=46;
+  let estimate;
+  if(secondHalf){
+    estimate=Math.min(90,Math.max(46,elapsed-15));
+  }else if(elapsed<=50){
+    estimate=Math.min(45,elapsed);
+  }else if(elapsed<=60){
+    // Do not invent second-half minutes while the provider has not confirmed the restart.
+    estimate=45;
+  }else{
+    estimate=Math.min(90,Math.max(46,elapsed-15));
+  }
+  if(baseOrder>=0)estimate=Math.max(estimate,Math.floor(baseOrder));
+  return String(estimate)+"'";
+}
 function superligaRefreshVisibleClockPills(){
   if(FROZEN_MODE)return;
   document.querySelectorAll('.match-row[data-mid],.match-row[data-ko-mid]').forEach(row=>{
     let id=row.getAttribute('data-mid')||row.getAttribute('data-ko-mid'),r=LIVE_RESULTS[id];
     if(!r||!r.started||r.finished)return;
-    let meta=typeof superligaStatusMeta==='function'?superligaStatusMeta(r,{mode:'card'}):null;
-    let label=meta&&meta.text?meta.text:(typeof liveClockLabel==='function'?liveClockLabel(r):'');
+    let label=superligaClientClockLabel(id,r);
     let pill=row.querySelector('.mr-clock');
     if(pill&&label&&pill.textContent!==label)pill.textContent=label;
   });
-  if(typeof refreshOpenMatchModalModel==='function')refreshOpenMatchModalModel();
+
+  let ov=document.querySelector('.tip-overlay[data-tip-id]');
+  if(ov){
+    let id=ov.dataset.tipId,r=LIVE_RESULTS[id];
+    if(r&&r.started&&!r.finished){
+      let label=superligaClientClockLabel(id,r);
+      let pill=ov.querySelector('.wc26-modal-pill');
+      if(pill&&label&&pill.textContent!==label){
+        pill.textContent=label;
+        pill.dataset.state=/^(HT|AET|PEN)$/.test(label)?label.toLowerCase():'live';
+      }
+    }
+  }
 }
 let superligaUiClockTimer=null;
 function startSuperligaUiClock(){
   if(FROZEN_MODE||superligaUiClockTimer)return;
-  superligaUiClockTimer=setInterval(()=>{
+  let tick=()=>{
     if(document.hidden)return;
     if(Object.values(LIVE_RESULTS||{}).some(r=>r&&r.started&&!r.finished))superligaRefreshVisibleClockPills();
-  },10000);
+  };
+  tick();
+  superligaUiClockTimer=setInterval(tick,5000);
 }
 startSuperligaUiClock();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)superligaRefreshVisibleClockPills()});
+
 let superligaRatingsInFlight=null;
 async function applyTeamElo(opts={}){
   if(FROZEN_MODE)return false;
