@@ -153,29 +153,47 @@ function superligaLatestIncidentMinute(r){
   });
   return best;
 }
+function superligaAdvanceProviderMinute(token,delta,secondHalf){
+  let m=String(token||'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  if(!m)return token||null;
+  let base=Number(m[1]),extra=Number(m[2]||0),add=Math.max(0,Math.min(2,Number(delta)||0));
+  if(!add)return token;
+  if(secondHalf){
+    if(base>=90)return `90+${Math.max(1,extra+add)}`;
+    return String(Math.min(90,Math.max(46,base+add)));
+  }
+  if(base>=45)return `45+${Math.max(1,extra+add)}`;
+  return String(Math.min(45,Math.max(1,base+add)));
+}
 function superligaEstimatedRunningMinute(r,baseMinute){
   if(!r||r.finished||!r.started)return null;
-  let token=superligaMinuteToken(baseMinute),base=token&&/^\d{1,3}$/.test(token)?Number(token):null;
+  let token=superligaMinuteToken(baseMinute);
+  if(token){
+    let s=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.matchMeta?.currentPeriod]
+      .map(v=>String(v||'')).join(' ').toUpperCase();
+    let secondHalf=s.includes('2ND HALF')||s.includes('SECOND HALF')||/\b2H\b/.test(s)||superligaMinuteOrder(token)>=46;
+    let receivedAt=Number(r._receivedAt),ageMinutes=Number.isFinite(receivedAt)
+      ?Math.floor(Math.max(0,Date.now()-receivedAt)/60000):0;
+    return superligaAdvanceProviderMinute(token,ageMinutes,secondHalf);
+  }
+
+  // Only metadata-only live records fall back to the scheduled kickoff.
   let kickoff=Number(r._kickoffMs);
   if(!Number.isFinite(kickoff)&&r._fixtureId){
     let fixture=(typeof FX_BY_ID!=='undefined'&&FX_BY_ID[r._fixtureId])||(typeof FX!=='undefined'&&FX.find(x=>String(x.id)===String(r._fixtureId)));
     if(fixture&&typeof fixtureKickoff==='function')kickoff=fixtureKickoff(fixture);
   }
-  if(!Number.isFinite(kickoff))return token;
+  if(!Number.isFinite(kickoff))return null;
   let elapsed=Math.floor((Date.now()-kickoff)/60000)+1;
-  if(elapsed<1)return token;
-  let s=[r.status,r.period,r.shortDetail,r.detail,r.statusText].map(v=>String(v||'')).join(' ').toUpperCase();
-  let estimate;
-  if(s.includes('1ST HALF')||s.includes('FIRST HALF')||/\b1H\b/.test(s))estimate=Math.min(45,elapsed);
-  else if(s.includes('2ND HALF')||s.includes('SECOND HALF')||/\b2H\b/.test(s))estimate=Math.min(90,Math.max(46,elapsed-15));
-  else estimate=elapsed<=55?Math.min(45,elapsed):Math.min(90,Math.max(46,elapsed-15));
-  if(Number.isFinite(base))estimate=Math.max(base,estimate);
-  return String(estimate);
+  if(elapsed<1)return null;
+  let s=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.matchMeta?.currentPeriod]
+    .map(v=>String(v||'')).join(' ').toUpperCase();
+  if(s.includes('2ND HALF')||s.includes('SECOND HALF')||/\b2H\b/.test(s))return String(Math.min(90,Math.max(46,elapsed-15)));
+  return String(Math.min(45,elapsed));
 }
 function liveClockLabel(r){
-  // Provider flags (liveCode=1 etc.) are never treated as minutes. Between
-  // backend polls the visible clock advances from the scheduled kickoff, while
-  // an explicit provider/event minute always remains the lower safety bound.
+  // Provider flags are never treated as minutes. A real provider/event minute
+  // is the clock anchor; scheduled kickoff is only a metadata-only fallback.
   if(!r||r.finished||!r.started)return'';
   let statusBlob=[r.status,r.period,r.shortDetail,r.detail,r.statusText].map(v=>String(v||'')).join(' ').toUpperCase();
   if(/\b(HT|INT)\b/.test(statusBlob)||statusBlob.includes('HALF TIME')||statusBlob.includes('HALFTIME')||statusBlob.includes('INTERVAL'))return'HT';

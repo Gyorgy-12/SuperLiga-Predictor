@@ -145,6 +145,13 @@ function mergeLiveResults(next){
     if(!old||liveResultFingerprint(old)!==liveResultFingerprint(r)){
       LIVE_RESULTS[id]=r;changed=true;
       if(r.finished&&(!old||!old.finished||old.h!==r.h||old.a!==r.a))pruneNeeded=true;
+    }else if(old){
+      // Even an identical provider snapshot is a fresh clock anchor. Without
+      // this, the client clock keeps advancing from the first time that minute
+      // was seen and can run several minutes ahead of Flashscore.
+      old._receivedAt=r._receivedAt;
+      if(Number.isFinite(Number(r._kickoffMs)))old._kickoffMs=Number(r._kickoffMs);
+      if(r.updatedAt)old.updatedAt=r.updatedAt;
     }
   });
   if(changed){
@@ -397,9 +404,22 @@ function superligaTickerLatestIncidentMinute(r){
   });
   return best;
 }
+function superligaTickerAdvanceFromProvider(token,delta,secondHalf){
+  let m=String(token||'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  if(!m)return token||'';
+  let base=Number(m[1]),extra=Number(m[2]||0),add=Math.max(0,Math.min(2,Number(delta)||0));
+  if(!add)return token;
+  if(secondHalf){
+    if(base>=90)return `90+${Math.max(1,extra+add)}`;
+    return String(Math.min(90,Math.max(46,base+add)));
+  }
+  if(base>=45)return `45+${Math.max(1,extra+add)}`;
+  return String(Math.min(45,Math.max(1,base+add)));
+}
 function superligaClientClockLabel(id,r){
   if(!r||!r.started||r.finished)return'';
-  let blob=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.displayClock].map(v=>String(v||'')).join(' ').toUpperCase();
+  let blob=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.displayClock,r.matchMeta?.currentPeriod]
+    .map(v=>String(v||'')).join(' ').toUpperCase();
   if(/\b(HT|INT)\b/.test(blob)||blob.includes('HALF TIME')||blob.includes('HALFTIME')||blob.includes('INTERVAL'))return'HT';
   if(/\bAET\b/.test(blob)||blob.includes('EXTRA TIME'))return'AET';
   if(/\bPEN\b/.test(blob)||blob.includes('SHOOTOUT'))return'PEN';
@@ -410,38 +430,31 @@ function superligaClientClockLabel(id,r){
   let incident=superligaTickerLatestIncidentMinute(r);
   let base=superligaTickerMinuteOrder(incident)>superligaTickerMinuteOrder(explicit)?incident:explicit;
   let baseOrder=superligaTickerMinuteOrder(base);
+  let secondHalf=/2ND HALF|SECOND HALF|\b2H\b/.test(blob)||baseOrder>=46;
 
+  // The provider minute is authoritative. Between polls it may advance by at
+  // most two minutes from the timestamp of the latest received snapshot. This
+  // avoids using the scheduled kickoff, which is wrong whenever kickoff was
+  // delayed (for example 53' being incorrectly displayed as 62').
+  if(base){
+    let receivedAt=Number(r._receivedAt),ageMinutes=Number.isFinite(receivedAt)
+      ?Math.floor(Math.max(0,Date.now()-receivedAt)/60000):0;
+    let anchored=superligaTickerAdvanceFromProvider(base,ageMinutes,secondHalf);
+    return anchored+"'";
+  }
+
+  // Metadata-only early live state: until Flashscore exposes a real minute,
+  // use the scheduled clock only as a temporary fallback.
   let fixture=FX_BY_ID[String(id)]||null;
   let kickoff=fixture?fixtureKickoff(fixture):Number(r._kickoffMs);
-  if(!Number.isFinite(kickoff))return base?base+"'":'Élő';
-
+  if(!Number.isFinite(kickoff))return'Élő';
   let elapsed=Math.floor((Date.now()-kickoff)/60000)+1;
-  if(elapsed<1)return base?base+"'":'Élő';
-
-  let secondHalf=/2ND HALF|SECOND HALF|\b2H\b/.test(blob)||baseOrder>=46;
-  let providerBase=String(base||'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
-  if(!secondHalf){
-    if(providerBase&&Number(providerBase[1])===45&&providerBase[2]){
-      let extra=Math.max(Number(providerBase[2]),Math.max(1,elapsed-45));
-      return `45+${extra}'`;
-    }
-    if(elapsed>45&&elapsed<=60){
-      return `45+${Math.max(1,elapsed-45)}'`;
-    }
-    let estimate=Math.min(45,Math.max(1,elapsed));
-    if(baseOrder>=0)estimate=Math.max(estimate,Math.min(45,Math.floor(baseOrder)));
-    return String(estimate)+"'";
+  if(elapsed<1)return'Élő';
+  if(secondHalf){
+    let playingElapsed=Math.max(46,elapsed-15);
+    return (playingElapsed>90?`90+${Math.max(1,playingElapsed-90)}`:String(Math.min(90,playingElapsed)))+"'";
   }
-
-  let playingElapsed=Math.max(46,elapsed-15);
-  if(providerBase&&Number(providerBase[1])===90&&providerBase[2]){
-    let extra=Math.max(Number(providerBase[2]),Math.max(1,playingElapsed-90));
-    return `90+${extra}'`;
-  }
-  if(playingElapsed>90)return `90+${Math.max(1,playingElapsed-90)}'`;
-  let estimate=Math.min(90,playingElapsed);
-  if(baseOrder>=0)estimate=Math.max(estimate,Math.min(90,Math.floor(baseOrder)));
-  return String(estimate)+"'";
+  return String(Math.min(45,Math.max(1,elapsed)))+"'";
 }
 function superligaRefreshVisibleClockPills(){
   if(FROZEN_MODE)return;
