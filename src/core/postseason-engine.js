@@ -192,22 +192,28 @@ function superligaEstimatedRunningMinute(r,baseMinute){
   return String(Math.min(45,elapsed));
 }
 function liveClockLabel(r){
-  // Provider flags are never treated as minutes. A real provider/event minute
-  // is the clock anchor; scheduled kickoff is only a metadata-only fallback.
   if(!r||r.finished||!r.started)return'';
-  let statusBlob=[r.status,r.period,r.shortDetail,r.detail,r.statusText].map(v=>String(v||'')).join(' ').toUpperCase();
+  let statusBlob=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.matchMeta?.currentPeriod]
+    .map(v=>String(v||'')).join(' ').toUpperCase();
   if(/\b(HT|INT)\b/.test(statusBlob)||statusBlob.includes('HALF TIME')||statusBlob.includes('HALFTIME')||statusBlob.includes('INTERVAL'))return'HT';
   if(/\bAET\b/.test(statusBlob)||statusBlob.includes('EXTRA TIME'))return'AET';
+  if(/\bPEN\b/.test(statusBlob)||statusBlob.includes('SHOOTOUT'))return'PEN';
 
-  let explicit=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
-    .map(superligaMinuteToken).filter(Boolean)
-    .sort((a,b)=>superligaMinuteOrder(b)-superligaMinuteOrder(a))[0]||null;
-  let incident=superligaLatestIncidentMinute(r);
-  let base=superligaMinuteOrder(incident)>superligaMinuteOrder(explicit)?incident:explicit;
-  let minute=superligaEstimatedRunningMinute(r,base)||base;
-  if(minute)return minute+"'";
-  return'Élő';
+  let token=superligaMinuteToken(r.providerMinute);
+  let source=String(r.minuteSource||'').toLowerCase();
+  if(!token&&source&&(source.includes('provider')||source.includes('flashscore-list')))token=superligaMinuteToken(r.minute);
+  if(!token&&!String(r.source||'').toLowerCase().includes('flashscore')){
+    token=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
+      .map(superligaMinuteToken).find(Boolean)||null;
+  }
+  if(!token)return'Élő';
+
+  let observedAt=Number(r._clockObservedAt||r._receivedAt),ageMinutes=Number.isFinite(observedAt)
+    ?Math.floor(Math.max(0,Date.now()-observedAt)/60000):0;
+  let secondHalf=statusBlob.includes('2ND HALF')||statusBlob.includes('SECOND HALF')||/\b2H\b/.test(statusBlob)||superligaMinuteOrder(token)>=46;
+  return (superligaAdvanceProviderMinute(token,Math.min(1,ageMinutes),secondHalf)||token)+"'";
 }
+
 function superligaStatusBlob(r){
   if(!r)return'';
   let meta=r.matchMeta&&typeof r.matchMeta==='object'?r.matchMeta:{};
@@ -225,24 +231,10 @@ function superligaResultKickoffMs(r){
 function superligaIsHalfTimeResult(r){
   if(!r||r.finished||!r.started)return false;
   let s=superligaStatusBlob(r);
-  if(s==='HT'||/\bHT\b/.test(s)||s.includes('HALF TIME')||s.includes('HALFTIME')||s.includes('INTERVAL')||s.includes('STATUS_HALFTIME')||s.includes('HALF-TIME'))return true;
   if(s.includes('2ND HALF')||s.includes('SECOND HALF')||/\b2H\b/.test(s))return false;
-
-  // Flashscore may keep the score/minute at 45 during the interval while the
-  // explicit HT token arrives one poll later. In that narrow window infer HT
-  // from the 45th-minute clock plus elapsed match time. Once 46+ or a second-
-  // half marker appears, the normal live clock takes over immediately.
-  let minuteCandidates=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock,superligaLatestIncidentMinute(r)]
-    .map(superligaMinuteToken).filter(Boolean)
-    .sort((a,b)=>superligaMinuteOrder(b)-superligaMinuteOrder(a));
-  let minute=minuteCandidates[0]||'';
-  if(!/^45(?:\+\d{1,2})?$/.test(minute))return false;
-  let kickoff=superligaResultKickoffMs(r);
-  if(!Number.isFinite(kickoff))return false;
-  let elapsed=(Date.now()-kickoff)/60000;
-  let firstHalfHint=s.includes('1ST HALF')||s.includes('FIRST HALF')||/\b1H\b/.test(s);
-  return firstHalfHint?(elapsed>=46&&elapsed<=75):(elapsed>=48&&elapsed<=68);
+  return !!(s==='HT'||/\bHT\b/.test(s)||s.includes('HALF TIME')||s.includes('HALFTIME')||s.includes('INTERVAL')||s.includes('STATUS_HALFTIME')||s.includes('HALF-TIME'));
 }
+
 function superligaIsPenaltyResult(r){
   let s=superligaStatusBlob(r);
   return !!(superligaHasPenScore(r)||s.includes('PENAL')||s.includes('SHOOTOUT')||s.includes('AFTER PEN')||/\bPEN\b/.test(s)||/\bAP\b/.test(s));

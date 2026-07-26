@@ -141,6 +141,11 @@ export async function discoverFlashscoreMids(env, fixtures = [], opts = {}) {
       rawDate: best.event.date,
       rawKickoffAt: best.event.kickoffAt,
       rawTimestamp: best.event.timestamp,
+      liveMinute: best.event.liveMinute || null,
+      liveStatus: best.event.liveStatus || null,
+      listStateCode: best.event.listStateCode || null,
+      listPhaseCode: best.event.listPhaseCode || null,
+      listClockRaw: best.event.listClockRaw || null,
       score: best.score,
       feed: best.event.feed,
       origin: best.event.feedUrl,
@@ -205,11 +210,51 @@ export function parseFlashscoreListFeed(raw, timezone = DEFAULT_TIMEZONE) {
       away,
       homeScore: nullableNumber(fields.AG),
       awayScore: nullableNumber(fields.AH),
+      // Flashscore's compact daily feed exposes the running clock in BX.
+      // Keep it separate from event timestamps: a 62' substitution must never
+      // become the current match minute when the actual clock is only 53'.
+      liveMinute: parseFlashscoreListClock(fields.BX),
+      liveStatus: parseFlashscoreListStatus(fields.BX, fields.AC, fields.AB),
+      listStateCode: cleanText(fields.AC || '' ) || null,
+      listPhaseCode: cleanText(fields.AB || '' ) || null,
+      listClockRaw: cleanText(fields.BX || '' ) || null,
       tournament: context.tournament || null,
       country: context.country || null
     });
   }
   return rows;
+}
+
+
+function parseFlashscoreListClock(value) {
+  const text = cleanText(value).replace(/[’'′]/g, '').trim();
+  const match = text.match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  if (!match) return null;
+  const base = Number(match[1]);
+  const extra = match[2] == null ? null : Number(match[2]);
+  if (!Number.isFinite(base) || base < 1 || base > 130) return null;
+  if (extra != null && (!Number.isFinite(extra) || extra < 0 || extra > 30)) return null;
+  return extra == null ? String(base) : `${base}+${extra}`;
+}
+
+function parseFlashscoreListStatus(clockRaw, stateRaw, phaseRaw) {
+  const clock = cleanText(clockRaw).toUpperCase();
+  const state = cleanText(stateRaw).toUpperCase();
+  const phase = cleanText(phaseRaw).toUpperCase();
+  const blob = [clock, state, phase].join(' ');
+
+  if (/\b(HT|HALF TIME|HALFTIME|BREAK|INT)\b/.test(blob)) return 'HT';
+  if (/\b(PEN|PENALTIES|SHOOTOUT)\b/.test(blob)) return 'PEN';
+  if (/\b(AET|AFTER EXTRA TIME)\b/.test(blob)) return 'AET';
+  if (/\b(FT|FULL TIME|FINISHED|FINAL)\b/.test(blob)) return 'FT';
+
+  // Flashscore's compact football list feed uses the numeric 3/3 state pair
+  // with BX=-1 after the match has ended. The detail incident feed can still
+  // contain only event rows and no textual FT marker, so decode this list-feed
+  // state explicitly instead of leaving an already finished match as LIVE.
+  if (clock === '-1' && state === '3' && phase === '3') return 'FT';
+
+  return parseFlashscoreListClock(clockRaw) ? 'LIVE' : null;
 }
 
 function buildDateFeedNames(fixtures, template, timezone, maxFeeds) {

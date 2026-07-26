@@ -212,6 +212,13 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
   );
   const minute = explicitPrematch ? null : cleanMinute(raw.minute ?? raw.matchMinute ?? raw.elapsed ?? raw.currentMinute ?? raw.timePlayed ?? raw.EpsL ?? (isMinuteStatus ? status : null));
   const eventSourceHint = [raw.eventSource, raw.scoreSource, raw.source, sourceMeta.eventSource, sourceMeta.scoreSource, sourceMeta.source].filter(Boolean).join(' ');
+  const minuteSource = String(raw.minuteSource || '').toLowerCase();
+  const sourceIsFlashscore = eventSourceHint.toLowerCase().includes('flashscore');
+  const providerMinute = raw.providerMinute ?? (
+    (!sourceIsFlashscore || minuteSource.includes('provider') || minuteSource.includes('flashscore-list'))
+      ? raw.minute
+      : null
+  );
 
   const scorers = [
     ...(raw.scorers || []),
@@ -243,6 +250,10 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
     finished,
     status,
     minute,
+    providerMinute: explicitPrematch ? null : cleanMinute(providerMinute),
+    latestIncidentMinute: cleanMinute(raw.latestIncidentMinute ?? null),
+    minuteSource: raw.minuteSource || null,
+    clockObservedAt: raw.clockObservedAt || null,
     h: !explicitPrematch && validScore(homeScore) ? Number(homeScore) : null,
     a: !explicitPrematch && validScore(awayScore) ? Number(awayScore) : null,
     pH: validScore(pH) ? Number(pH) : null,

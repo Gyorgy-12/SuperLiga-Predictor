@@ -95,7 +95,9 @@ function normalizeLiveResult(id,d){
   let phaseCode=d.phaseCode??matchMeta?.phaseCode??null;
   let statusCode=d.statusCode??matchMeta?.statusCode??null;
   let liveCode=d.liveCode??matchMeta?.liveCode??null;
-  return{_fixtureId:id,_receivedAt:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,period,shortDetail,detail,displayClock,statusText,phaseCode,statusCode,liveCode,matchMeta,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
+  let providerMinute=d.providerMinute??((String(d.minuteSource||'').toLowerCase().includes('provider')||String(d.minuteSource||'').toLowerCase().includes('flashscore-list'))?d.minute:null);
+  let clockObservedMs=Date.parse(d.clockObservedAt||'');
+  return{_fixtureId:id,_receivedAt:Date.now(),_clockObservedAt:Number.isFinite(clockObservedMs)?clockObservedMs:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,providerMinute,latestIncidentMinute:d.latestIncidentMinute??null,minuteSource:d.minuteSource??null,clockObservedAt:d.clockObservedAt??null,status:rawStatus,period,shortDetail,detail,displayClock,statusText,phaseCode,statusCode,liveCode,matchMeta,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
 (function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([rawId,row])=>{let id=resolveIncomingFixtureId(rawId,row),r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
 function superligaLiveEventKey(e,kind='event'){
@@ -135,7 +137,7 @@ function superligaReconcileLiveResult(old,r){
   }
   return r;
 }
-function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,pr:r.period,sd:r.shortDetail,dt:r.detail,dc:r.displayClock,tx:r.statusText,pc:r.phaseCode,scd:r.statusCode,lc:r.liveCode,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
+function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,pm:r.providerMinute,mis:r.minuteSource,lim:r.latestIncidentMinute,st:r.status,pr:r.period,sd:r.shortDetail,dt:r.detail,dc:r.displayClock,tx:r.statusText,pc:r.phaseCode,scd:r.statusCode,lc:r.liveCode,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
   Object.entries(next||{}).forEach(([rawId,obj])=>{
@@ -150,6 +152,8 @@ function mergeLiveResults(next){
       // this, the client clock keeps advancing from the first time that minute
       // was seen and can run several minutes ahead of Flashscore.
       old._receivedAt=r._receivedAt;
+      if(Number.isFinite(Number(r._clockObservedAt)))old._clockObservedAt=Number(r._clockObservedAt);
+      if(r.clockObservedAt)old.clockObservedAt=r.clockObservedAt;
       if(Number.isFinite(Number(r._kickoffMs)))old._kickoffMs=Number(r._kickoffMs);
       if(r.updatedAt)old.updatedAt=r.updatedAt;
     }
@@ -424,38 +428,32 @@ function superligaClientClockLabel(id,r){
   if(/\bAET\b/.test(blob)||blob.includes('EXTRA TIME'))return'AET';
   if(/\bPEN\b/.test(blob)||blob.includes('SHOOTOUT'))return'PEN';
 
-  let explicit=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
-    .map(superligaTickerMinuteToken).filter(Boolean)
-    .sort((a,b)=>superligaTickerMinuteOrder(b)-superligaTickerMinuteOrder(a))[0]||null;
-  let incident=superligaTickerLatestIncidentMinute(r);
-  let base=superligaTickerMinuteOrder(incident)>superligaTickerMinuteOrder(explicit)?incident:explicit;
-  let baseOrder=superligaTickerMinuteOrder(base);
-  let secondHalf=/2ND HALF|SECOND HALF|\b2H\b/.test(blob)||baseOrder>=46;
-
-  // The provider minute is authoritative. Between polls it may advance by at
-  // most two minutes from the timestamp of the latest received snapshot. This
-  // avoids using the scheduled kickoff, which is wrong whenever kickoff was
-  // delayed (for example 53' being incorrectly displayed as 62').
-  if(base){
-    let receivedAt=Number(r._receivedAt),ageMinutes=Number.isFinite(receivedAt)
-      ?Math.floor(Math.max(0,Date.now()-receivedAt)/60000):0;
-    let anchored=superligaTickerAdvanceFromProvider(base,ageMinutes,secondHalf);
-    return anchored+"'";
+  // Only the provider clock is allowed to drive the live pill. Goal/card/
+  // substitution timestamps and the scheduled kickoff are deliberately not
+  // used: both can be ahead of the real match when kickoff was delayed or a
+  // feed contains future/corrected incidents.
+  let providerToken=superligaTickerMinuteToken(r.providerMinute);
+  let source=String(r.minuteSource||'').toLowerCase();
+  if(!providerToken&&source&&(source.includes('provider')||source.includes('flashscore-list'))){
+    providerToken=superligaTickerMinuteToken(r.minute);
   }
-
-  // Metadata-only early live state: until Flashscore exposes a real minute,
-  // use the scheduled clock only as a temporary fallback.
-  let fixture=FX_BY_ID[String(id)]||null;
-  let kickoff=fixture?fixtureKickoff(fixture):Number(r._kickoffMs);
-  if(!Number.isFinite(kickoff))return'Élő';
-  let elapsed=Math.floor((Date.now()-kickoff)/60000)+1;
-  if(elapsed<1)return'Élő';
-  if(secondHalf){
-    let playingElapsed=Math.max(46,elapsed-15);
-    return (playingElapsed>90?`90+${Math.max(1,playingElapsed-90)}`:String(Math.min(90,playingElapsed)))+"'";
+  // Non-Flashscore fallbacks may still expose a genuine minute without the
+  // new source marker.
+  if(!providerToken&&!String(r.source||'').toLowerCase().includes('flashscore')){
+    providerToken=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
+      .map(superligaTickerMinuteToken).find(Boolean)||null;
   }
-  return String(Math.min(45,Math.max(1,elapsed)))+"'";
+  if(!providerToken)return'Élő';
+
+  let observedAt=Number(r._clockObservedAt||r._receivedAt);
+  let ageMinutes=Number.isFinite(observedAt)?Math.floor(Math.max(0,Date.now()-observedAt)/60000):0;
+  // One-minute interpolation makes the UI feel alive between 30-second polls,
+  // but cannot run several minutes ahead of Flashscore.
+  let secondHalf=/2ND HALF|SECOND HALF|\b2H\b/.test(blob)||superligaTickerMinuteOrder(providerToken)>=46;
+  let anchored=superligaTickerAdvanceFromProvider(providerToken,Math.min(1,ageMinutes),secondHalf);
+  return anchored+"'";
 }
+
 function superligaRefreshVisibleClockPills(){
   if(FROZEN_MODE)return;
   document.querySelectorAll('.match-row[data-mid],.match-row[data-ko-mid]').forEach(row=>{

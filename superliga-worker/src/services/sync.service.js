@@ -7,6 +7,7 @@ import { getFixtures } from './fixtures.service.js';
 import { fetchSofaScoreEvents } from '../sources/sofascore-events-source.js';
 import { fetchEspnEvents } from '../sources/espn-source.js';
 import { fetchFlashscoreEvents, fetchFlashscoreMatchDetails } from '../sources/flashscore-source.js';
+import { discoverFlashscoreMids } from '../sources/flashscore-mid-discovery-source.js';
 import { fetchOfficialSuperligaEvents, fetchOfficialSuperligaMatchDetails } from '../sources/official-superliga-source.js';
 
 export async function syncLive(env, opts = {}) {
@@ -43,8 +44,29 @@ export async function syncLive(env, opts = {}) {
   // 1) Flashscore is both the score master and the incident master.
   // 2) LiveScore is intentionally not called anywhere in the production sync path.
   // 3) Official/ESPN/SofaScore remain narrow fallbacks only when Flashscore has no usable live row.
+  // The compact Flashscore list feed is the only source in this pipeline
+  // that carries the actual running clock. Detail incidents contain event
+  // minutes, which are not the same thing as the current minute.
+  const now = Date.now();
+  const clockFixtures = active.filter(fixture => {
+    const ko = kickoffMs(fixture);
+    return Number.isFinite(ko) && now >= ko - 15 * 60_000 && now <= ko + 4 * 60 * 60_000;
+  });
+  const flashscoreClockPack = clockFixtures.length
+    ? await discoverFlashscoreMids(env, clockFixtures, {
+        ...commonOpts,
+        maxFeeds: Math.min(6, Number(env.FLASHSCORE_CLOCK_MAX_FEEDS || 4)),
+        matchThreshold: 80,
+        ambiguityGap: 5
+      }).catch(error => sourceErrorPack('flashscore-list-clock', error))
+    : skippedSourcePack('flashscore-list-clock', 'no_live_window_fixture');
+  const flashscoreListClockById = Object.fromEntries(
+    (flashscoreClockPack.matched || []).map(row => [String(row.id), row])
+  );
+
   const flashscorePack = await fetchStoredFlashscoreIncidents(env, active, {
     ...incidentOpts,
+    flashscoreListClockById,
     requestBudgetMode: 'strict',
     primaryFeedOnly: true,
     primaryBaseOnly: true,
@@ -161,6 +183,8 @@ export async function syncLive(env, opts = {}) {
         ...(sofaPack.incidentDebug || [])
       ],
       providers: eventPack.providers || {},
+      flashscoreClock: summarizeSource(flashscoreClockPack),
+      flashscoreClockMatched: flashscoreClockPack.matched || [],
       fallback: {
         flashPendingIds: [...flashPendingIds],
         officialFixtureIds: officialActive.map(f => String(f.id)),
@@ -223,7 +247,8 @@ async function fetchStoredFlashscoreIncidents(env, active = [], opts = {}) {
       feedProbeLimit: opts.feedProbeLimit || 2,
       fixtureDate: row.fixture.date || undefined,
       fixtureTime: row.fixture.t || row.fixture.time || undefined,
-      fixtureTimezone: opts.fixtureTimezone || env?.SCHEDULER_TIMEZONE || 'Europe/Bucharest'
+      fixtureTimezone: opts.fixtureTimezone || env?.SCHEDULER_TIMEZONE || 'Europe/Bucharest',
+      listClock: opts.flashscoreListClockById?.[String(row.fixture.id)] || null
     });
     const url = detail.url || row.url || buildFlashscoreUrl(row.id);
     urls.push(url);
@@ -435,6 +460,10 @@ function makeEventResult(fixture, detail = {}, meta = {}) {
     finished,
     status,
     minute: finished ? null : (detail.minute ?? null),
+    providerMinute: finished ? null : (detail.providerMinute ?? detail.minute ?? null),
+    latestIncidentMinute: detail.latestIncidentMinute ?? null,
+    minuteSource: detail.minuteSource || (detail.providerMinute != null ? 'provider-list' : null),
+    clockObservedAt: detail.clockObservedAt || null,
     h: score?.h ?? detail.h ?? null,
     a: score?.a ?? detail.a ?? null,
     pH: detail.pH ?? null,
@@ -810,6 +839,10 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, previousResul
       raw.finished = previous.finished;
       raw.status = previous.status;
       raw.minute = previous.minute;
+      raw.providerMinute = previous.providerMinute ?? null;
+      raw.latestIncidentMinute = previous.latestIncidentMinute ?? null;
+      raw.minuteSource = previous.minuteSource ?? null;
+      raw.clockObservedAt = previous.clockObservedAt ?? null;
       raw.h = previous.h;
       raw.a = previous.a;
       raw.pH = previous.pH;
@@ -828,6 +861,10 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, previousResul
     if (raw.matchMeta && Object.keys(raw.matchMeta).length) normalized.matchMeta = raw.matchMeta;
     if (raw.substitutions?.length) normalized.substitutions = raw.substitutions;
     if (raw.penalties?.length) normalized.penalties = raw.penalties;
+    if (raw.providerMinute != null) normalized.providerMinute = raw.providerMinute;
+    if (raw.latestIncidentMinute != null) normalized.latestIncidentMinute = raw.latestIncidentMinute;
+    if (raw.minuteSource) normalized.minuteSource = raw.minuteSource;
+    if (raw.clockObservedAt) normalized.clockObservedAt = raw.clockObservedAt;
     if (raw.flashscoreState) normalized.flashscoreState = raw.flashscoreState;
     if (raw.prematch === true && !normalized.started) normalized.prematch = true;
     if (events?.flashscoreMid || previous?.flashscoreMid) normalized.flashscoreMid = events?.flashscoreMid || previous?.flashscoreMid;

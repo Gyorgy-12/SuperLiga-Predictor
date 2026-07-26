@@ -160,7 +160,7 @@ export async function fetchFlashscoreMatchDetails(env, input, opts = {}) {
   if (feedProbe.ok && feedProbe.validFeed) {
     const feedState = feedProbe.state || (feedProbe.events?.length || feedProbe.score ? 'event_feed' : 'prematch');
     const isPrematch = feedState === 'prematch';
-    const liveState = deriveFlashscoreLiveState(feedProbe, feedState);
+    const liveState = deriveFlashscoreLiveState({ ...feedProbe, listClock: opts.listClock || null }, feedState);
     return {
       ok: true,
       source: 'flashscore-xfeed-details-b26-budgeted-prematch',
@@ -181,6 +181,10 @@ export async function fetchFlashscoreMatchDetails(env, input, opts = {}) {
       finished: liveState.finished,
       matchStatus: liveState.status,
       minute: liveState.minute,
+      providerMinute: liveState.providerMinute,
+      latestIncidentMinute: liveState.latestIncidentMinute,
+      minuteSource: liveState.minuteSource,
+      clockObservedAt: liveState.clockObservedAt,
       score: liveState.score,
       h: liveState.score?.h ?? null,
       a: liveState.score?.a ?? null,
@@ -516,7 +520,8 @@ ${raw}`,
       events: parsed.events,
       scorers: parsed.scorers,
       meta: mergedMeta,
-      dc: dcPack?.dc || null
+      dc: dcPack?.dc || null,
+      listClock: opts.listClock || null
     }, 'event_feed');
     return {
       ok: true,
@@ -537,6 +542,10 @@ ${raw}`,
       finished: liveState.finished,
       matchStatus: liveState.status,
       minute: liveState.minute,
+      providerMinute: liveState.providerMinute,
+      latestIncidentMinute: liveState.latestIncidentMinute,
+      minuteSource: liveState.minuteSource,
+      clockObservedAt: liveState.clockObservedAt,
       meta: mergedMeta,
       probes
     };
@@ -565,9 +574,10 @@ ${raw}`,
           substitutions: parsed.substitutions,
           meta: mergedMeta,
           dc: dcPack?.dc || null,
-          matchStatus: 'LIVE'
+          listClock: opts.listClock || null,
+          matchStatus: opts.listClock?.liveStatus || 'LIVE'
         }, 'metadata_live')
-      : { started: false, finished: false, status: 'NS', minute: null, score: parsed.score || null };
+      : { started: false, finished: false, status: 'NS', minute: null, providerMinute: null, latestIncidentMinute: null, minuteSource: null, clockObservedAt: null, score: parsed.score || null };
 
     return {
       ok: true,
@@ -589,6 +599,10 @@ ${raw}`,
       finished: liveState.finished,
       matchStatus: liveState.status,
       minute: liveState.minute,
+      providerMinute: liveState.providerMinute,
+      latestIncidentMinute: liveState.latestIncidentMinute,
+      minuteSource: liveState.minuteSource,
+      clockObservedAt: liveState.clockObservedAt,
       meta: mergedMeta,
       dc: dcPack?.dc || null,
       probes
@@ -1324,7 +1338,9 @@ function flashscoreFixtureStartMs(dateValue, timeValue, timezone = 'Europe/Bucha
 function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   const dc = pack.dc || {};
   const meta = pack.meta || {};
+  const listClock = pack.listClock || {};
   const rawSignals = [
+    listClock.liveStatus,
     pack.matchStatus,
     pack.statusText,
     dc.liveCode,
@@ -1342,11 +1358,15 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   if (/\b(PEN|PENALT(?:Y|IES)|AFTER PENALTIES)\b/.test(blob)) { status = 'PEN'; finished = true; }
   else if (/\b(AET|AFTER EXTRA TIME)\b/.test(blob)) { status = 'AET'; finished = true; }
   else if (/\b(FT|FINISHED|FULL TIME|FINAL)\b/.test(blob)) { status = 'FT'; finished = true; }
-  else if (/\b(HT|HALF TIME|HALFTIME|BREAK)\b/.test(blob)) status = 'HT';
+  else if (/\b(HT|HALF TIME|HALFTIME|BREAK|INT)\b/.test(blob)) status = 'HT';
 
-  // Codes such as DL=1 / phaseCode=-1 are provider flags, not match minutes.
-  // Only minute-bearing status fields may supply the explicit clock.
+  // Only a genuine provider clock may become the public running minute.
+  // Event timestamps (goals/cards/substitutions) are lower-bound history, not
+  // the clock. Mixing them caused future substitution rows to show 62' while
+  // the match itself was only in the 53rd minute.
   const minuteSignals = [
+    listClock.liveMinute,
+    pack.providerMinute,
     pack.minute,
     pack.matchMinute,
     pack.statusMinute,
@@ -1377,18 +1397,26 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
     .map(e => String(e?.minute || '').replace(/[’']/g, '').trim())
     .filter(Boolean)
     .sort((a, b) => flashscoreMinuteNumber(b) - flashscoreMinuteNumber(a));
-  const incidentMinute = eventMinutes[0] || null;
-  const minute = flashscoreMinuteNumber(incidentMinute) > flashscoreMinuteNumber(providerMinute)
-    ? incidentMinute
-    : providerMinute;
+  const latestIncidentMinute = eventMinutes[0] || null;
+  const minute = providerMinute;
 
   const feedState = fallbackState || pack.state || null;
-  const started = finished || status === 'HT' || !!minute || feedState === 'event_feed' || feedState === 'metadata_live' || !!pack.score || (pack.events || []).length > 0;
-  if (!status) status = finished ? 'FT' : (minute ? `${minute}'` : (started ? 'LIVE' : 'NS'));
+  const started = finished || status === 'HT' || !!providerMinute || feedState === 'event_feed' || feedState === 'metadata_live' || !!pack.score || (pack.events || []).length > 0;
+  if (!status) status = finished ? 'FT' : (providerMinute ? `${providerMinute}'` : (started ? 'LIVE' : 'NS'));
 
   let score = pack.score || null;
   if (!score && started) score = { h: 0, a: 0, raw: '0-0' };
-  return { started, finished, status, minute, score };
+  return {
+    started,
+    finished,
+    status,
+    minute,
+    providerMinute,
+    latestIncidentMinute,
+    minuteSource: providerMinute ? (listClock.liveMinute ? 'flashscore-list-bx' : 'provider-detail') : null,
+    clockObservedAt: providerMinute ? new Date().toISOString() : null,
+    score
+  };
 }
 
 function flashscoreMinuteNumber(value) {
