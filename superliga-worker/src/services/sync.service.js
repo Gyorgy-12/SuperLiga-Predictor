@@ -220,7 +220,10 @@ async function fetchStoredFlashscoreIncidents(env, active = [], opts = {}) {
       primaryBaseOnly: opts.primaryBaseOnly ?? true,
       pendingOnEmpty: opts.pendingOnEmpty ?? true,
       skipHtml: opts.skipHtml ?? true,
-      feedProbeLimit: opts.feedProbeLimit || 2
+      feedProbeLimit: opts.feedProbeLimit || 2,
+      fixtureDate: row.fixture.date || undefined,
+      fixtureTime: row.fixture.t || row.fixture.time || undefined,
+      fixtureTimezone: opts.fixtureTimezone || env?.SCHEDULER_TIMEZONE || 'Europe/Bucharest'
     });
     const url = detail.url || row.url || buildFlashscoreUrl(row.id);
     urls.push(url);

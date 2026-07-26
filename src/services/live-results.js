@@ -86,7 +86,16 @@ function normalizeLiveResult(id,d){
   let substitutions=parseMaybeArray(d.substitutions).map(e=>({...e,team:superligaEventTeam(e),minute:superligaEventMinute(e.minute??e.matchMinute??e.elapsed??e.time)}));
   let odds=null;try{odds=typeof d.odds==='string'?JSON.parse(d.odds):(d.odds&&typeof d.odds==='object'?d.odds:null)}catch(e){odds=null}
   let fixture=FX_BY_ID[id]||null,kickoffMs=fixture?fixtureKickoff(fixture):null;
-  return{_fixtureId:id,_receivedAt:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
+  let matchMeta=d.matchMeta&&typeof d.matchMeta==='object'?d.matchMeta:null;
+  let period=d.period??d.currentPeriod??d.matchPeriod??d.phase??matchMeta?.currentPeriod??null;
+  let shortDetail=d.shortDetail??d.shortStatus??d.statusShort??null;
+  let detail=d.detail??d.statusDetail??d.description??null;
+  let displayClock=d.displayClock??d.clock??null;
+  let statusText=d.statusText??d.statusName??null;
+  let phaseCode=d.phaseCode??matchMeta?.phaseCode??null;
+  let statusCode=d.statusCode??matchMeta?.statusCode??null;
+  let liveCode=d.liveCode??matchMeta?.liveCode??null;
+  return{_fixtureId:id,_receivedAt:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,status:rawStatus,period,shortDetail,detail,displayClock,statusText,phaseCode,statusCode,liveCode,matchMeta,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
 (function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([rawId,row])=>{let id=resolveIncomingFixtureId(rawId,row),r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
 function superligaLiveEventKey(e,kind='event'){
@@ -126,7 +135,7 @@ function superligaReconcileLiveResult(old,r){
   }
   return r;
 }
-function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
+function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,st:r.status,pr:r.period,sd:r.shortDetail,dt:r.detail,dc:r.displayClock,tx:r.statusText,pc:r.phaseCode,scd:r.statusCode,lc:r.liveCode,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
   Object.entries(next||{}).forEach(([rawId,obj])=>{

@@ -544,11 +544,38 @@ ${raw}`,
 
   if (prematchPack || dcPack) {
     const parsed = prematchPack?.parsed || emptyFlashscoreParsedFeed();
+    const mergedMeta = mergeFlashscoreMeta(parsed.meta, dcPack?.dc);
+    const metadataLive = shouldPromoteFlashscoreMetadataToLive({
+      meta: mergedMeta,
+      dc: dcPack?.dc || null,
+      fixtureDate: opts.fixtureDate || opts.date || null,
+      fixtureTime: opts.fixtureTime || opts.time || null,
+      timezone: opts.fixtureTimezone || opts.timezone || 'Europe/Bucharest'
+    });
+
+    const liveState = metadataLive
+      ? deriveFlashscoreLiveState({
+          state: 'metadata_live',
+          score: parsed.score,
+          events: parsed.events,
+          scorers: parsed.scorers,
+          yellowCards: parsed.yellowCards,
+          redCards: parsed.redCards,
+          doubleYellowCards: parsed.doubleYellowCards,
+          substitutions: parsed.substitutions,
+          meta: mergedMeta,
+          dc: dcPack?.dc || null,
+          matchStatus: 'LIVE'
+        }, 'metadata_live')
+      : { started: false, finished: false, status: 'NS', minute: null, score: parsed.score || null };
+
     return {
       ok: true,
       validFeed: true,
-      state: 'prematch',
-      source: 'flashscore-xfeed-details-b26',
+      state: metadataLive ? 'metadata_live' : 'prematch',
+      source: metadataLive
+        ? 'flashscore-xfeed-metadata-live-b27'
+        : 'flashscore-xfeed-details-b27',
       matchKey,
       feedUrl: prematchPack?.feedUrl || dcPack?.feedUrl || null,
       feedLabel: prematchPack?.feedLabel || dcPack?.feedLabel || null,
@@ -557,7 +584,12 @@ ${raw}`,
       elapsedMs: (prematchPack?.elapsedMs || 0) + (dcPack?.elapsedMs || 0),
       raw: prematchPack?.raw || dcPack?.raw || '',
       ...parsed,
-      meta: mergeFlashscoreMeta(parsed.meta, dcPack?.dc),
+      score: liveState.score,
+      started: liveState.started,
+      finished: liveState.finished,
+      matchStatus: liveState.status,
+      minute: liveState.minute,
+      meta: mergedMeta,
       dc: dcPack?.dc || null,
       probes
     };
@@ -1206,6 +1238,89 @@ function parseFlashscorePrematchFields(raw, meta) {
   if (bookmakerRaw) meta.bookmakers = splitFlashscoreList(bookmakerRaw);
 }
 
+function shouldPromoteFlashscoreMetadataToLive(input = {}) {
+  const meta = input.meta || {};
+  const dc = input.dc || {};
+  const fixtureStartMs = flashscoreFixtureStartMs(
+    input.fixtureDate,
+    input.fixtureTime,
+    input.timezone || 'Europe/Bucharest'
+  );
+
+  // The stored fixture date/time is authoritative. Provider timestamps have
+  // repeatedly arrived with a shifted timezone, so use them only as fallback.
+  const providerStartMs = Date.parse(meta.scheduledAt || dc.scheduledAt || '');
+  const startMs = Number.isFinite(fixtureStartMs)
+    ? fixtureStartMs
+    : (Number.isFinite(providerStartMs) ? providerStartMs : null);
+  if (!Number.isFinite(startMs)) return false;
+
+  const elapsedMinutes = (Date.now() - startMs) / 60000;
+  // Five-minute early tolerance covers clock skew. The upper limit keeps old
+  // FT metadata (which can still contain liveCode=1/currentPeriod=2nd Half)
+  // from being resurrected as a live fixture.
+  if (elapsedMinutes < -5 || elapsedMinutes > 210) return false;
+
+  const phaseCode = String(dc.phaseCode ?? meta.phaseCode ?? '').trim().toUpperCase();
+  const liveCode = String(dc.liveCode ?? meta.liveCode ?? '').trim().toUpperCase();
+  const statusCode = String(dc.statusCode ?? meta.statusCode ?? '').trim().toUpperCase();
+  const period = String(meta.currentPeriod || '').trim().toUpperCase();
+
+  const explicitLivePeriod = /(?:^|\b)(1ST HALF|2ND HALF|FIRST HALF|SECOND HALF|HALF TIME|HALFTIME|EXTRA TIME|LIVE|BREAK)(?:\b|$)/.test(period);
+  const providerLiveFlag = phaseCode === '0' || liveCode === '1' || statusCode === '1';
+
+  // In the first 20 minutes after scheduled kickoff, Flashscore can expose
+  // only metadata/DC feeds before publishing incident rows. A provider flag
+  // plus the authoritative fixture window is enough to mark it LIVE at 0-0.
+  return explicitLivePeriod || providerLiveFlag;
+}
+
+function flashscoreFixtureStartMs(dateValue, timeValue, timezone = 'Europe/Bucharest') {
+  const date = String(dateValue || '').trim();
+  const time = String(timeValue || '').trim();
+  const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const t = time.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m || !t) return null;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hour = Number(t[1]);
+  const minute = Number(t[2]);
+  if (![year, month, day, hour, minute].every(Number.isFinite)) return null;
+
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23'
+    });
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(utcGuess))
+        .filter(part => part.type !== 'literal')
+        .map(part => [part.type, part.value])
+    );
+    const renderedAsUtc = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+      Number(parts.second || 0)
+    );
+    const offsetMs = renderedAsUtc - utcGuess;
+    return utcGuess - offsetMs;
+  } catch {
+    return utcGuess;
+  }
+}
+
 function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   const dc = pack.dc || {};
   const meta = pack.meta || {};
@@ -1268,7 +1383,7 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
     : providerMinute;
 
   const feedState = fallbackState || pack.state || null;
-  const started = finished || status === 'HT' || !!minute || feedState === 'event_feed' || !!pack.score || (pack.events || []).length > 0;
+  const started = finished || status === 'HT' || !!minute || feedState === 'event_feed' || feedState === 'metadata_live' || !!pack.score || (pack.events || []).length > 0;
   if (!status) status = finished ? 'FT' : (minute ? `${minute}'` : (started ? 'LIVE' : 'NS'));
 
   let score = pack.score || null;
