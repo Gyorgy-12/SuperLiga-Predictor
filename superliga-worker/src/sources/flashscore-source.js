@@ -1413,8 +1413,8 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
     minute,
     providerMinute,
     latestIncidentMinute,
-    minuteSource: providerMinute ? (listClock.liveMinute ? 'flashscore-list-bx' : 'provider-detail') : null,
-    clockObservedAt: providerMinute ? new Date().toISOString() : null,
+    minuteSource: providerMinute ? (listClock.minuteSource || (listClock.liveMinute ? 'flashscore-list-bx' : 'provider-detail')) : null,
+    clockObservedAt: providerMinute ? (listClock.clockObservedAt || new Date().toISOString()) : null,
     score
   };
 }

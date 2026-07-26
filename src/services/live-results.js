@@ -260,10 +260,10 @@ async function loadMatchResultsFromBackendDb(opts={}){
   })();
   return superligaFinalResultsReadInFlight;
 }
+let superligaPublicFreshAt=0,superligaPublicFreshErrors=0,superligaPublicFreshBackoffUntil=0;
 async function loadLiveResultsFromWorker(opts={}){
   if(!SUPERLIGA_RESULTS_SYNC_URL)return false;
-  let changed=false,forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches(),lastError=null;
-  let dates=[...new Set(active.map(m=>String(m.date||'').slice(0,10)).filter(Boolean))],rounds=[...new Set(active.map(m=>String(m.r||'')).filter(Boolean))];
+  let changed=false,forced=!!(opts.force||opts.forceLive),active=superligaInterestingMatches(),lastError=null,fastData=null;
   function payloadHasActive(data){
     if(!active.length)return true;
     return Object.entries(data&&data.results||{}).some(([rawId,row])=>{
@@ -271,30 +271,46 @@ async function loadLiveResultsFromWorker(opts={}){
       return !!(m&&active.some(a=>String(a.id)===String(id))&&row&&(row.started||row.finished||validScore(row.h??row.homeScore)||validScore(row.a??row.awayScore)));
     });
   }
-  async function use(mode,variant='fast'){
+  async function use(mode){
     let params={t:Date.now()};
     if(mode==='fast')params.fast=1;
     else{
-      params.fresh=1;params.live=1;params.scheduled=1;params.maxDates=10;
-      if(variant==='date'&&dates.length===1)params.date=dates[0];
-      else if(variant==='round'&&rounds.length===1){params.round=rounds[0];params.limit=16}
-      else{let ids=active.map(m=>m.id).join(',');if(ids)params.ids=ids}
+      params.fresh=1;params.live=1;
+      if(forced)params.force=1;
+      let ids=active.map(m=>m.id).join(',');if(ids)params.ids=ids;
     }
-    let data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,params),mode==='fresh'?30000:10000);
+    let data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,params),mode==='fresh'?20000:10000);
     if(data&&data.results&&typeof data.results==='object')changed=mergeLiveResults(data.results)||changed;
-    try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:true,mode,variant,count:Object.keys(data&&data.results||{}).length,activeIds:active.map(m=>m.id),activeDates:dates,sync:data&&data.sync||null,updatedAt:data&&data.updatedAt||null,fetchedAt:new Date().toISOString()}}catch(e){}
+    try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:true,mode,count:Object.keys(data&&data.results||{}).length,activeIds:active.map(m=>m.id),sync:data&&data.sync||null,coordinatorCache:data&&data.coordinatorCache||null,updatedAt:data&&data.updatedAt||null,fetchedAt:new Date().toISOString()}}catch(e){}
     return data;
   }
-  let freshFirst=forced||active.length>0;
-  if(freshFirst){
-    try{
-      let data=await use('fresh',dates.length===1?'date':'ids');
-      if(active.length&&!payloadHasActive(data)&&rounds.length===1)await use('fresh','round');
-      return changed;
-    }catch(e){lastError=e}
+
+  // Read the shared coordinator cache first. This is cheap and cannot fan out
+  // to Flashscore once per browser tab.
+  if(!forced){
+    try{fastData=await use('fast')}catch(e){lastError=e}
   }
-  try{await use('fast','fast')}catch(e){lastError=lastError||e}
-  if(lastError)try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:false,error:lastError.message||String(lastError),activeIds:active.map(m=>m.id),activeDates:dates,fetchedAt:new Date().toISOString()}}catch(e){}
+
+  const now=Date.now();
+  const cacheMiss=active.length>0&&!payloadHasActive(fastData);
+  const refreshDue=forced||cacheMiss||(active.length>0&&now-superligaPublicFreshAt>=75*1000);
+  if(refreshDue&&now>=superligaPublicFreshBackoffUntil){
+    try{
+      await use('fresh');
+      superligaPublicFreshAt=Date.now();
+      superligaPublicFreshErrors=0;
+      superligaPublicFreshBackoffUntil=0;
+    }catch(e){
+      lastError=e;
+      superligaPublicFreshErrors=Math.min(6,superligaPublicFreshErrors+1);
+      superligaPublicFreshBackoffUntil=Date.now()+Math.min(3*60*1000,15*1000*(2**(superligaPublicFreshErrors-1)));
+    }
+  }
+
+  if(forced&&!refreshDue){
+    try{await use('fresh')}catch(e){lastError=e}
+  }
+  if(lastError)try{window.SUPERLIGA_LIVE_SYNC_DEBUG={ok:false,error:lastError.message||String(lastError),activeIds:active.map(m=>m.id),retryAfterMs:Math.max(0,superligaPublicFreshBackoffUntil-Date.now()),fetchedAt:new Date().toISOString()}}catch(e){}
   return changed;
 }
 let superligaScorerRepairAt=0,superligaScorerRepairInFlight=null;

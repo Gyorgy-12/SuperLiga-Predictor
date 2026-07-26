@@ -54,6 +54,11 @@ export async function coordinatorOddsCache(env) {
   return data?.odds ? data : null;
 }
 
+
+export async function coordinatorLiveResultsCache(env) {
+  const data = await coordinatorFetchJson(env, '/live-results-cache');
+  return data?.results && typeof data.results === 'object' ? data : null;
+}
 export async function coordinatorRatingsCache(env) {
   const data = await coordinatorFetchJson(env, '/ratings-cache');
   return data?.ratings || data?.marketValues ? data : null;

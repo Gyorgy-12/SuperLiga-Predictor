@@ -9,6 +9,7 @@ const STATE_KEY = 'coordinator-state';
 const LOCK_KEY = 'coordinator-lock';
 const SCHEDULER_KEY = 'event-scheduler-state-b28';
 const PREMATCH_ODDS_KEY = 'prematch-odds-state-b28';
+const LIVE_RESULTS_CACHE_KEY = 'live-results-cache-b39';
 
 const DEFAULT_TIMEZONE = 'Europe/Bucharest';
 const DEFAULT_DAILY_HOUR = 6;
@@ -46,6 +47,15 @@ export class UpdateCoordinator {
     }
     if (request.method === 'GET' && path === '/ratings-cache') {
       return this.json(await this.state.storage.get('ratings-cache') || { ok: true, ratings: {}, marketValues: {}, source: 'empty' });
+    }
+    if (request.method === 'GET' && path === '/live-results-cache') {
+      return this.json(await this.state.storage.get(LIVE_RESULTS_CACHE_KEY) || {
+        ok: true,
+        results: {},
+        activeIds: [],
+        source: 'empty',
+        updatedAt: null
+      });
     }
 
     if (request.method === 'POST' && (path === '/run' || path === '/refresh')) {
@@ -163,8 +173,9 @@ export class UpdateCoordinator {
         cron: !!opts.alarm,
         activeFixtures: liveFixtures,
         includeScheduled: true,
-        source: 'coordinator-live-b28-windowed-30s'
+        source: 'coordinator-live-b39-mobile-clock-30s'
       });
+      await this.storeLiveResultsCache(results.live, 'coordinator-alarm');
       ran.push('live');
       scheduler = await this.readSchedulerState();
       scheduler.lastLiveTickAt = new Date().toISOString();
@@ -379,11 +390,36 @@ export class UpdateCoordinator {
   }
 
   async runManualLive(opts = {}) {
-    return syncLive(this.env, {
+    const result = await syncLive(this.env, {
       ...opts,
       force: !!opts.force,
-      source: 'coordinator-live-manual-b28'
+      source: 'coordinator-live-manual-b39-mobile-clock'
     });
+    await this.storeLiveResultsCache(result, 'coordinator-manual');
+    return result;
+  }
+
+  async storeLiveResultsCache(result, source = 'coordinator') {
+    const activeIds = Array.isArray(result?.active)
+      ? result.active.map(row => String(row?.id || '')).filter(Boolean)
+      : [];
+    const allResults = result?.results && typeof result.results === 'object' ? result.results : {};
+    const rows = {};
+    for (const id of activeIds) {
+      if (allResults[id]) rows[id] = allResults[id];
+    }
+    const payload = {
+      ok: result?.ok !== false,
+      results: rows,
+      activeIds,
+      active: Array.isArray(result?.active) ? result.active : [],
+      source,
+      syncSource: result?.source || null,
+      changed: result?.changed ?? null,
+      updatedAt: result?.updatedAt || new Date().toISOString()
+    };
+    await this.state.storage.put(LIVE_RESULTS_CACHE_KEY, payload);
+    return payload;
   }
 
   selectDailyWindow(fixtures, now) {
@@ -624,6 +660,7 @@ export class UpdateCoordinator {
       ...(await this.readState()),
       scheduler: await this.readSchedulerState(),
       prematchOdds: await this.readPrematchOddsState(),
+      liveResultsCache: await this.liveResultsCacheSummary(),
       alarmAt: await this.state.storage.getAlarm(),
       schedulerConfig: {
         timezone: this.timezone(),
@@ -638,6 +675,17 @@ export class UpdateCoordinator {
         weeklyRatingsLocalTime: `${String(clampInt(this.env.WEEKLY_RATINGS_HOUR_LOCAL ?? 10, 0, 23)).padStart(2, '0')}:${String(clampInt(this.env.WEEKLY_RATINGS_MINUTE_LOCAL ?? 0, 0, 59)).padStart(2, '0')}`
       }
     };
+  }
+
+  async liveResultsCacheSummary() {
+    const cache = await this.state.storage.get(LIVE_RESULTS_CACHE_KEY);
+    return cache ? {
+      source: cache.source || null,
+      syncSource: cache.syncSource || null,
+      activeIds: Array.isArray(cache.activeIds) ? cache.activeIds : [],
+      count: Object.keys(cache.results || {}).length,
+      updatedAt: cache.updatedAt || null
+    } : { source: 'empty', activeIds: [], count: 0, updatedAt: null };
   }
 
   async updateState(task, result, opts = {}) {

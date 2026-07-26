@@ -8,6 +8,7 @@ import { fetchSofaScoreEvents } from '../sources/sofascore-events-source.js';
 import { fetchEspnEvents } from '../sources/espn-source.js';
 import { fetchFlashscoreEvents, fetchFlashscoreMatchDetails } from '../sources/flashscore-source.js';
 import { discoverFlashscoreMids } from '../sources/flashscore-mid-discovery-source.js';
+import { fetchFlashscoreMobileClocks } from '../sources/flashscore-mobile-clock-source.js';
 import { fetchOfficialSuperligaEvents, fetchOfficialSuperligaMatchDetails } from '../sources/official-superliga-source.js';
 
 export async function syncLive(env, opts = {}) {
@@ -44,9 +45,9 @@ export async function syncLive(env, opts = {}) {
   // 1) Flashscore is both the score master and the incident master.
   // 2) LiveScore is intentionally not called anywhere in the production sync path.
   // 3) Official/ESPN/SofaScore remain narrow fallbacks only when Flashscore has no usable live row.
-  // The compact Flashscore list feed is the only source in this pipeline
-  // that carries the actual running clock. Detail incidents contain event
-  // minutes, which are not the same thing as the current minute.
+  // The compact x/feed and the lightweight official mobile page are clock
+  // sources. Detail incidents contain event minutes, which are not the same
+  // thing as the current match minute.
   const now = Date.now();
   const clockFixtures = active.filter(fixture => {
     const ko = kickoffMs(fixture);
@@ -60,8 +61,22 @@ export async function syncLive(env, opts = {}) {
         ambiguityGap: 5
       }).catch(error => sourceErrorPack('flashscore-list-clock', error))
     : skippedSourcePack('flashscore-list-clock', 'no_live_window_fixture');
-  const flashscoreListClockById = Object.fromEntries(
+  const flashscoreMobileClockPack = clockFixtures.length
+    ? await fetchFlashscoreMobileClocks(env, clockFixtures, commonOpts)
+        .catch(error => sourceErrorPack('flashscore-mobile-clock', error))
+    : skippedSourcePack('flashscore-mobile-clock', 'no_live_window_fixture');
+
+  const xFeedClockById = Object.fromEntries(
     (flashscoreClockPack.matched || []).map(row => [String(row.id), row])
+  );
+  const mobileClockById = Object.fromEntries(
+    (flashscoreMobileClockPack.matched || []).map(row => [String(row.id), row])
+  );
+  const flashscoreListClockById = Object.fromEntries(
+    clockFixtures.map(fixture => {
+      const id = String(fixture.id);
+      return [id, mergeFlashscoreClockRows(xFeedClockById[id], mobileClockById[id])];
+    }).filter(([, row]) => row)
   );
 
   const flashscorePack = await fetchStoredFlashscoreIncidents(env, active, {
@@ -185,6 +200,9 @@ export async function syncLive(env, opts = {}) {
       providers: eventPack.providers || {},
       flashscoreClock: summarizeSource(flashscoreClockPack),
       flashscoreClockMatched: flashscoreClockPack.matched || [],
+      flashscoreMobileClock: summarizeSource(flashscoreMobileClockPack),
+      flashscoreMobileClockMatched: flashscoreMobileClockPack.matched || [],
+      flashscoreClockMerged: Object.values(flashscoreListClockById),
       fallback: {
         flashPendingIds: [...flashPendingIds],
         officialFixtureIds: officialActive.map(f => String(f.id)),
@@ -905,6 +923,23 @@ function limitFixtures(list, opts = {}) {
   const limit = Number(opts.limit || opts.liveLimit || 0);
   if (limit > 0) return list.slice(0, limit);
   return list;
+}
+
+function mergeFlashscoreClockRows(xFeed = null, mobile = null) {
+  if (!xFeed && !mobile) return null;
+  const liveMinute = mobile?.liveMinute || xFeed?.liveMinute || null;
+  const liveStatus = mobile?.liveStatus || xFeed?.liveStatus || null;
+  return {
+    ...(xFeed || {}),
+    ...(mobile || {}),
+    id: mobile?.id || xFeed?.id || null,
+    liveMinute,
+    liveStatus,
+    minuteSource: mobile?.liveMinute ? 'flashscore-mobile-page' : (xFeed?.liveMinute ? 'flashscore-list-bx' : null),
+    clockObservedAt: liveMinute ? (mobile?.clockObservedAt || new Date().toISOString()) : null,
+    xFeedClockRaw: xFeed?.listClockRaw || null,
+    mobileClockRaw: mobile?.mobileClockRaw || null
+  };
 }
 
 function sourceErrorPack(source, error) {

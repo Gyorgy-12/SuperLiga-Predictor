@@ -26,7 +26,7 @@ export default {
       // The daily cron is the primary safety wake-up. Normal app bootstrap also
       // makes sure the Durable Object alarm exists, without running any source
       // fetch unless an actual daily/prematch/live/weekly job is due.
-      if (path === '/' || path === '/health' || path === '/bootstrap-light' || path === '/bootstrap' || path === '/admin/coordinator') {
+      if (path === '/' || path === '/health' || path === '/bootstrap-light' || path === '/bootstrap' || path === '/live-results' || path === '/admin/coordinator') {
         ctx?.waitUntil?.(ensureCoordinatorAlarm(env).catch(() => null));
       }
 
