@@ -15,7 +15,7 @@ import {
 const COORDINATOR_CACHE_STALE_MS = 45_000;
 const EMPTY_CACHE_WAIT_MS = 6_000;
 
-export async function liveResultsRoute(request, env, ctx) {
+async function liveResultsRoute(request, env, ctx) {
   const url = new URL(request.url);
   const force = url.searchParams.get('force') === '1';
   const noSync = url.searchParams.get('nosync') === '1';
@@ -149,7 +149,7 @@ async function livePayload(meta = {}) {
     sync: meta.sync || null,
     count: Object.keys(visibleResults).length,
     results: visibleResults,
-    pipelineVersion: 'b39-mobile-flashscore-live-clock',
+    pipelineVersion: 'b40-mobile-clock-cache-bust-stale-ht',
     nextDelayMs,
     source: meta.source || meta.coordinatorCache?.source || snapshot.source || stored.source || 'memory',
     fast: !!meta.fast,
@@ -185,3 +185,6 @@ function compactCoordinatorResult(result, source) {
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export { liveResultsRoute };
+export default liveResultsRoute;

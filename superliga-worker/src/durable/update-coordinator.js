@@ -9,7 +9,7 @@ const STATE_KEY = 'coordinator-state';
 const LOCK_KEY = 'coordinator-lock';
 const SCHEDULER_KEY = 'event-scheduler-state-b28';
 const PREMATCH_ODDS_KEY = 'prematch-odds-state-b28';
-const LIVE_RESULTS_CACHE_KEY = 'live-results-cache-b39';
+const LIVE_RESULTS_CACHE_KEY = 'live-results-cache-b40';
 
 const DEFAULT_TIMEZONE = 'Europe/Bucharest';
 const DEFAULT_DAILY_HOUR = 6;
@@ -173,7 +173,7 @@ export class UpdateCoordinator {
         cron: !!opts.alarm,
         activeFixtures: liveFixtures,
         includeScheduled: true,
-        source: 'coordinator-live-b39-mobile-clock-30s'
+        source: 'coordinator-live-b40-mobile-clock-cache-bust-30s'
       });
       await this.storeLiveResultsCache(results.live, 'coordinator-alarm');
       ran.push('live');
@@ -393,7 +393,7 @@ export class UpdateCoordinator {
     const result = await syncLive(this.env, {
       ...opts,
       force: !!opts.force,
-      source: 'coordinator-live-manual-b39-mobile-clock'
+      source: 'coordinator-live-manual-b40-mobile-clock-cache-bust'
     });
     await this.storeLiveResultsCache(result, 'coordinator-manual');
     return result;

@@ -16,13 +16,15 @@ export async function fetchFlashscoreMobileClocks(env, fixtures = [], opts = {})
   const referer = String(opts.referer || env?.FLASHSCORE_REFERER || 'https://www.flashscore.com/');
   const userAgent = String(opts.userAgent || env?.FLASHSCORE_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36');
 
-  const probe = await fetchHtml(url, { timeoutMs, referer, userAgent });
+  const requestUrl = withCacheBust(url);
+  const probe = await fetchHtml(requestUrl, { timeoutMs, referer, userAgent });
   if (!probe.ok) {
     return {
       ...emptyPack('fetch_failed'),
       ok: false,
       error: probe.error || `HTTP ${probe.status || 0}`,
       url,
+      requestUrl,
       status: probe.status || 0,
       elapsedMs: probe.elapsedMs
     };
@@ -74,7 +76,7 @@ export async function fetchFlashscoreMobileClocks(env, fixtures = [], opts = {})
 
   return {
     ok: true,
-    source: 'flashscore-mobile-clock-v1',
+    source: 'flashscore-mobile-clock-v2-cache-bust',
     url,
     status: probe.status,
     bytes: probe.text?.length || 0,
@@ -85,8 +87,22 @@ export async function fetchFlashscoreMobileClocks(env, fixtures = [], opts = {})
     matched,
     unmatched,
     rowSample: rows.slice(0, 24),
+    cacheStatus: probe.cacheStatus || null,
+    age: probe.age || null,
     updatedAt: new Date().toISOString()
   };
+}
+
+function withCacheBust(value) {
+  const stamp = Date.now();
+  try {
+    const u = new URL(String(value || DEFAULT_URL));
+    u.searchParams.set('_slclock', String(stamp));
+    return u.toString();
+  } catch {
+    const raw = String(value || DEFAULT_URL);
+    return `${raw}${raw.includes('?') ? '&' : '?'}_slclock=${stamp}`;
+  }
 }
 
 export function parseFlashscoreMobileFootballPage(html) {
@@ -275,11 +291,16 @@ async function fetchHtml(url, opts) {
   const timer = setTimeout(() => controller.abort('timeout'), opts.timeoutMs);
   try {
     const response = await fetch(url, {
+      // Cloudflare Workers rejects cache:'no-store' together with cf.cacheTtl.
+      // The unique _slclock query parameter already busts intermediary caches.
+      cache: 'no-store',
       headers: {
         accept: 'text/html,application/xhtml+xml,*/*',
         referer: opts.referer,
         'user-agent': opts.userAgent,
-        'accept-language': 'ro-RO,ro;q=0.9,en;q=0.7'
+        'accept-language': 'ro-RO,ro;q=0.9,en;q=0.7',
+        'cache-control': 'no-cache, no-store, max-age=0',
+        pragma: 'no-cache'
       },
       signal: controller.signal
     });
@@ -289,7 +310,9 @@ async function fetchHtml(url, opts) {
       status: response.status,
       text,
       elapsedMs: Date.now() - started,
-      error: response.ok ? null : `HTTP ${response.status}`
+      error: response.ok ? null : `HTTP ${response.status}`,
+      cacheStatus: response.headers.get('cf-cache-status'),
+      age: response.headers.get('age')
     };
   } catch (error) {
     return {
@@ -307,7 +330,7 @@ async function fetchHtml(url, opts) {
 function emptyPack(reason) {
   return {
     ok: true,
-    source: 'flashscore-mobile-clock-v1',
+    source: 'flashscore-mobile-clock-v2-cache-bust',
     targetCount: 0,
     rawRowCount: 0,
     count: 0,

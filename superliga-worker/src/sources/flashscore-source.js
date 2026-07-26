@@ -1398,6 +1398,17 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
     .filter(Boolean)
     .sort((a, b) => flashscoreMinuteNumber(b) - flashscoreMinuteNumber(a));
   const latestIncidentMinute = eventMinutes[0] || null;
+
+  // The mobile page can be briefly edge-cached at the interval. Never let a
+  // stale `Pauză` row keep the match at HT after the detail feed already
+  // proves that the second half resumed (46+ incident/currentPeriod).
+  const latestIncidentNumber = flashscoreMinuteNumber(latestIncidentMinute);
+  const secondHalfEvidence = /\b(2ND HALF|SECOND HALF)\b/.test(blob)
+    || latestIncidentNumber >= 46
+    || (providerMinute && flashscoreMinuteNumber(providerMinute) >= 46);
+  const staleHtSuppressed = status === 'HT' && secondHalfEvidence;
+  if (staleHtSuppressed) status = null;
+
   const minute = providerMinute;
 
   const feedState = fallbackState || pack.state || null;
@@ -1415,6 +1426,7 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
     latestIncidentMinute,
     minuteSource: providerMinute ? (listClock.minuteSource || (listClock.liveMinute ? 'flashscore-list-bx' : 'provider-detail')) : null,
     clockObservedAt: providerMinute ? (listClock.clockObservedAt || new Date().toISOString()) : null,
+    staleHtSuppressed,
     score
   };
 }
