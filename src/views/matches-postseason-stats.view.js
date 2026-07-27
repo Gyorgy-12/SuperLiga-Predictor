@@ -1,7 +1,7 @@
 // Matches, KO, baraj and stats renderers
 
 function matchRow(m,isKo){
-  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),locked=isKo?(m.locked||!!(r&&r.started)):matchLockState(m)!=='open',live=r&&r.started&&!r.finished,done=r&&r.finished,cls=(done?' finished':live?' live-locked':tip?' predicted':'')+(locked?' locked':'')+matchGradeClass(tip,r,!!isKo),attr=isKo?'data-ko-mid':'data-mid',edit=(FROZEN_MODE&&!READONLY_MODE)||locked?'':'<div class="mr-bell">✎</div>';
+  let tip=isKo?koPred(m.id):getPred(m.id),r=actualFor(m),effectiveFinished=!!(r&&superligaIsEffectivelyFinished(r,m)),locked=isKo?(m.locked||!!(r&&r.started)):matchLockState(m)!=='open',live=!!(r&&r.started&&!effectiveFinished),done=effectiveFinished,cls=(done?' finished':live?' live-locked':tip?' predicted':'')+(locked?' locked':'')+matchGradeClass(tip,r,!!isKo),attr=isKo?'data-ko-mid':'data-mid',edit=(FROZEN_MODE&&!READONLY_MODE)||locked?'':'<div class="mr-bell">✎</div>';
   return '<div class="match-row'+cls+'" '+attr+'="'+esc(m.id)+'" role="button" tabindex="0">'
     +'<div class="mr-date">'+esc(m.t||'21:00')+'<span>'+esc(matchStageText(m,!!isKo))+'</span>'+matchTipBadge(m,!!isKo)+matchStateBadge(m,!!isKo)+'</div>'
     +'<div class="mr-sep"></div>'

@@ -192,7 +192,7 @@ function superligaEstimatedRunningMinute(r,baseMinute){
   return String(Math.min(45,elapsed));
 }
 function liveClockLabel(r){
-  if(!r||r.finished||!r.started)return'';
+  if(!r||!r.started||superligaIsEffectivelyFinished(r))return'';
   let statusBlob=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.matchMeta?.currentPeriod]
     .map(v=>String(v||'')).join(' ').toUpperCase();
   if(/\b(HT|INT)\b/.test(statusBlob)||statusBlob.includes('HALF TIME')||statusBlob.includes('HALFTIME')||statusBlob.includes('INTERVAL'))return'HT';
@@ -245,7 +245,7 @@ function superligaIsAetResult(r){
 }
 function superligaIsFinishedResult(r){
   let s=superligaStatusBlob(r);
-  return !!(r&&(r.finished||s==='FT'||/\bFT\b/.test(s)||s.includes('FULL TIME')||s.includes('FINISHED')||s.includes('FINAL')));
+  return !!(r&&(superligaIsEffectivelyFinished(r)||r.finished||s==='FT'||/\bFT\b/.test(s)||s.includes('FULL TIME')||s.includes('FINISHED')||s.includes('FINAL')));
 }
 function superligaStatusMeta(r,opts={}){
   if(!r||(!r.started&&!r.finished))return null;
@@ -307,7 +307,7 @@ function scoreHtml(m,isKo){
   }else lines='<div class="match-empty">-</div><div class="match-empty">-</div>';
 
   let state=superligaStatusMeta(r,{mode:'card'}),clock='';
-  if(hasReal&&r&&!r.finished){
+  if(hasReal&&r&&superligaShouldDisplayLive(r,m)){
     if(state)clock='<span class="mr-clock wc26-card-state state-'+esc(state.state)+'">'+esc(state.text)+'</span>';
     else{
       let label=liveClockLabel(r);

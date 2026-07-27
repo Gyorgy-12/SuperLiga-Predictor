@@ -12,7 +12,40 @@ function localMatchTime(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleTim
 function localMatchDate(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleDateString('hu-HU',{month:'short',day:'numeric',timeZone:tz||Intl.DateTimeFormat().resolvedOptions().timeZone}).replace(/\u00a0/g,' ')}catch(e){return m.d}}
 function matchSortKey(m){return (m.date||'9999-99-99')+'T'+(m.t||'99:99')+'|'+String(m.r||'').padStart(2,'0')+'|'+(m.g||'')+'|'+(m.id||'')}
 function sortMatchesChronological(rows){return rows.slice().sort((a,b)=>matchSortKey(a).localeCompare(matchSortKey(b)))}
-function matchLockState(m){let r=LIVE_RESULTS[m.id];if(r&&r.finished)return'finished';if(r&&r.started)return'live';return Date.now()>=fixtureKickoff(m)?'live':'open'}
+const SUPERLIGA_LATE_LIVE_CLOCK_STALE_MS=15*60*1000;
+const SUPERLIGA_ABSOLUTE_LIVE_CUTOFF_MS=3*60*60*1000+15*60*1000;
+function superligaTerminalStatusText(r){
+  let meta=r&&r.matchMeta&&typeof r.matchMeta==='object'?r.matchMeta:{};
+  return [r?.status,r?.period,r?.shortDetail,r?.detail,r?.displayClock,r?.statusText,r?.phaseCode,r?.statusCode,meta.currentPeriod,meta.phaseCode,meta.statusCode]
+    .map(v=>String(v||'')).join(' ').toUpperCase();
+}
+function superligaClockMinuteOrder(value){
+  let m=String(value??'').replace(/[’'′]+/g,'').trim().match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  return m?Number(m[1])+Number(m[2]||0)/100:-1;
+}
+function superligaResultObservedAt(r){
+  let parsed=Date.parse(String(r?.clockObservedAt||r?.updatedAt||''));
+  if(Number.isFinite(parsed))return parsed;
+  let numeric=Number(r?._clockObservedAt||r?._receivedAt);
+  return Number.isFinite(numeric)?numeric:null;
+}
+function superligaIsEffectivelyFinished(r,m){
+  if(!r)return false;
+  let status=superligaTerminalStatusText(r);
+  if(r.finished||status==='FT'||/\bFT\b/.test(status)||status.includes('FULL TIME')||status.includes('FINISHED')||status.includes('FINAL'))return true;
+  if(!r.started)return false;
+  if(/\b(POSTPONED|SUSPENDED|ABANDONED|CANCELLED|CANCELED|DELAYED)\b/.test(status))return false;
+  let observed=superligaResultObservedAt(r),providerOrder=superligaClockMinuteOrder(r.providerMinute??r.minute);
+  if(providerOrder>=90&&Number.isFinite(observed)&&Date.now()-observed>=SUPERLIGA_LATE_LIVE_CLOCK_STALE_MS)return true;
+  let kickoff=Number(r._kickoffMs);
+  if(!Number.isFinite(kickoff)){
+    let fixture=m||(r._fixtureId&&FX_BY_ID[r._fixtureId])||null;
+    if(fixture)kickoff=fixtureKickoff(fixture);
+  }
+  return Number.isFinite(kickoff)&&Date.now()>=kickoff+SUPERLIGA_ABSOLUTE_LIVE_CUTOFF_MS;
+}
+function superligaShouldDisplayLive(r,m){return !!(r&&r.started&&!superligaIsEffectivelyFinished(r,m))}
+function matchLockState(m){let r=LIVE_RESULTS[m.id];if(r&&superligaIsEffectivelyFinished(r,m))return'finished';if(r&&r.started)return'live';return Date.now()>=fixtureKickoff(m)?'live':'open'}
 function actualFor(m){return LIVE_RESULTS[m.id]||null}
 function fmtPts(n){let x=Math.round((+n||0)*100)/100;return(Math.round(x*100)%50===0)?x.toFixed(1):x.toFixed(2)}
 function tipScore(m){let p=getPred(m.id),r=actualFor(m);if(!p||!r||!(r.started||r.finished)||!validScore(r.h)||!validScore(r.a))return{cat:'',pts:0};let ph=+p.h,pa=+p.a,rh=+r.h,ra=+r.a;if(ph===rh&&pa===ra)return{cat:'exact',pts:1};let pdiff=ph-pa,rdiff=rh-ra;if(pdiff===rdiff)return{cat:'diff',pts:0.5};let pout=Math.sign(ph-pa),rout=Math.sign(rh-ra);if(pout===rout)return{cat:'outcome',pts:0.25};return{cat:'miss',pts:0}}
@@ -473,8 +506,15 @@ function superligaClientClockLabel(id,r){
 function superligaRefreshVisibleClockPills(){
   if(FROZEN_MODE)return;
   document.querySelectorAll('.match-row[data-mid],.match-row[data-ko-mid]').forEach(row=>{
-    let id=row.getAttribute('data-mid')||row.getAttribute('data-ko-mid'),r=LIVE_RESULTS[id];
-    if(!r||!r.started||r.finished)return;
+    let id=row.getAttribute('data-mid')||row.getAttribute('data-ko-mid'),r=LIVE_RESULTS[id],fixture=FX_BY_ID[id]||null;
+    if(!r||!r.started)return;
+    if(!superligaShouldDisplayLive(r,fixture)){
+      let clockRow=row.querySelector('.mr-clock-row');
+      if(clockRow)clockRow.remove();
+      row.classList.remove('live-locked');
+      row.classList.add('finished','locked');
+      return;
+    }
     let label=superligaClientClockLabel(id,r);
     let pill=row.querySelector('.mr-clock');
     if(pill&&label&&pill.textContent!==label)pill.textContent=label;
@@ -482,13 +522,20 @@ function superligaRefreshVisibleClockPills(){
 
   let ov=document.querySelector('.tip-overlay[data-tip-id]');
   if(ov){
-    let id=ov.dataset.tipId,r=LIVE_RESULTS[id];
-    if(r&&r.started&&!r.finished){
-      let label=superligaClientClockLabel(id,r);
+    let id=ov.dataset.tipId,r=LIVE_RESULTS[id],fixture=FX_BY_ID[id]||null;
+    if(r&&r.started){
       let pill=ov.querySelector('.wc26-modal-pill');
-      if(pill&&label&&pill.textContent!==label){
-        pill.textContent=label;
-        pill.dataset.state=/^(HT|AET|PEN)$/.test(label)?label.toLowerCase():'live';
+      if(!superligaShouldDisplayLive(r,fixture)){
+        if(pill){
+          pill.textContent='FT';
+          pill.dataset.state='ft';
+        }
+      }else{
+        let label=superligaClientClockLabel(id,r);
+        if(pill&&label&&pill.textContent!==label){
+          pill.textContent=label;
+          pill.dataset.state=/^(HT|AET|PEN)$/.test(label)?label.toLowerCase():'live';
+        }
       }
     }
   }
