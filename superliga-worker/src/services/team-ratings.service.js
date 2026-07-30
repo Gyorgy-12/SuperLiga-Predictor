@@ -211,7 +211,7 @@ export async function refreshTeamRatings(env, opts = {}) {
     writeElo: true,
     writeMarketValues: true,
     task: 'ratings',
-    source: opts.source || 'weekly-elo-tm-refresh-b33'
+    source: opts.source || 'daily-elo-tm-refresh-b42'
   });
 
   return {

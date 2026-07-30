@@ -34,7 +34,7 @@ ELOFOOTBALL_BASE_URL = "https://elofootball.com/country.php"
 ELOFOOTBALL_COUNTRY_ISO = "ROU"
 ELOFOOTBALL_SEASON = ""
 ELOFOOTBALL_TIMEOUT_MS = "15000"
-TRANSFERMARKT_MARKET_SOURCE_URL = ""
+TRANSFERMARKT_MARKET_VALUES_URL = ""
 
 LIVE_WRITE_TO_FIRESTORE = "false"
 FINAL_WRITE_TO_FIRESTORE = "true"
@@ -69,20 +69,18 @@ LIVE_SYNC_START_BEFORE_MINUTES = "5"
 LIVE_SYNC_END_AFTER_MINUTES = "120"
 LIVE_SYNC_INTERVAL_SECONDS = "30"
 
-# Weekly Elo points + Transfermarkt market values refresh.
-# Wednesday at 10:00 Europe/Bucharest local time.
-# Day: 0=Sunday, 1=Monday, ... 6=Saturday.
-WEEKLY_RATINGS_ENABLED = "true"
-WEEKLY_RATINGS_DAY = "3"
-WEEKLY_RATINGS_HOUR_LOCAL = "10"
-WEEKLY_RATINGS_MINUTE_LOCAL = "0"
+# Daily Elo points + Transfermarkt market values refresh.
+# Runs every day at 10:00 Europe/Bucharest local time.
+DAILY_RATINGS_ENABLED = "true"
+DAILY_RATINGS_HOUR_LOCAL = "10"
+DAILY_RATINGS_MINUTE_LOCAL = "0"
 
 FLASHSCORE_FIXTURE_MAX_FEEDS = "18"
 FLASHSCORE_MID_MAX_FEEDS = "18"
 
 [triggers]
 # One daily safety wake-up only. It does not necessarily fetch anything: the
-# Durable Object calculates the next exact daily/prematch/live/weekly alarm.
+# Durable Object calculates the next exact daily/prematch/live/ratings alarm.
 crons = ["20 2 * * *"]
 
 [[durable_objects.bindings]]

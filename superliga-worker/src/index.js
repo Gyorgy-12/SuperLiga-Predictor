@@ -25,7 +25,7 @@ export default {
 
       // The daily cron is the primary safety wake-up. Normal app bootstrap also
       // makes sure the Durable Object alarm exists, without running any source
-      // fetch unless an actual daily/prematch/live/weekly job is due.
+      // fetch unless an actual daily/prematch/live/ratings job is due.
       if (path === '/' || path === '/health' || path === '/bootstrap-light' || path === '/bootstrap' || path === '/live-results' || path === '/admin/coordinator') {
         ctx?.waitUntil?.(ensureCoordinatorAlarm(env).catch(() => null));
       }
@@ -52,7 +52,7 @@ export default {
           ok: true,
           now: new Date().toISOString(),
           coordinator: await coordinatorState(env).catch(() => null),
-          note: 'B28 uses one daily schedule/odds scan, per-match -30m odds refresh, and 30-second Durable Object live alarms only inside -5m/+120m match windows.'
+          note: 'B42 uses a daily schedule/odds scan, daily Elo + Transfermarkt refresh, per-match -30m odds refresh, and Durable Object live alarms only inside match windows.'
         }, {}, env);
       }
 
@@ -68,7 +68,7 @@ export default {
     ctx.waitUntil(
       runCoordinator(env, 'wake', { cron })
         .catch(error => {
-          console.error('B28 scheduler wake failed', error);
+          console.error('B42 scheduler wake failed', error);
           return null;
         })
     );

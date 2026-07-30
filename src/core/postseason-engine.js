@@ -144,6 +144,10 @@ function superligaMinuteOrder(value){
   if(!m)return-1;
   return Number(m[1])+(m[2]?Math.min(99,Number(m[2]))/100:0);
 }
+function superligaTrustedClockSource(value){
+  let s=String(value||'').toLowerCase();
+  return s.includes('provider')||s.includes('flashscore-list')||s.includes('flashscore-mobile')||s.includes('mobile-page')||s.includes('flashscore-clock');
+}
 function superligaLatestIncidentMinute(r){
   let events=[...(r?.scorers||[]),...(r?.yellowCards||[]),...(r?.redCards||[]),...(r?.doubleYellowCards||[]),...(r?.substitutions||[])];
   let best=null,bestOrder=-1;
@@ -199,12 +203,22 @@ function liveClockLabel(r){
   if(/\bAET\b/.test(statusBlob)||statusBlob.includes('EXTRA TIME'))return'AET';
   if(/\bPEN\b/.test(statusBlob)||statusBlob.includes('SHOOTOUT'))return'PEN';
 
-  let token=superligaMinuteToken(r.providerMinute);
   let source=String(r.minuteSource||'').toLowerCase();
-  if(!token&&source&&(source.includes('provider')||source.includes('flashscore-list')))token=superligaMinuteToken(r.minute);
+  let token=superligaMinuteToken(r.providerMinute);
+  if(!token&&superligaTrustedClockSource(source)){
+    token=[r.minute,r.status,r.displayClock,r.statusText]
+      .map(superligaMinuteToken).find(Boolean)||null;
+  }
   if(!token&&!String(r.source||'').toLowerCase().includes('flashscore')){
     token=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
       .map(superligaMinuteToken).find(Boolean)||null;
+  }
+
+  // In stoppage time an incident timestamp is a safe lower bound: once a
+  // 90+x event exists, the match cannot still be shown merely as “Élő”.
+  if(!token){
+    let incident=superligaLatestIncidentMinute(r);
+    if(/^90\+\d{1,2}$/.test(String(incident||'')))token=incident;
   }
   if(!token)return'Élő';
 

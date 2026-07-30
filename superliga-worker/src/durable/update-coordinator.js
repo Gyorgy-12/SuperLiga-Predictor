@@ -9,7 +9,7 @@ const STATE_KEY = 'coordinator-state';
 const LOCK_KEY = 'coordinator-lock';
 const SCHEDULER_KEY = 'event-scheduler-state-b28';
 const PREMATCH_ODDS_KEY = 'prematch-odds-state-b28';
-const LIVE_RESULTS_CACHE_KEY = 'live-results-cache-b40';
+const LIVE_RESULTS_CACHE_KEY = 'live-results-cache-b41';
 
 const DEFAULT_TIMEZONE = 'Europe/Bucharest';
 const DEFAULT_DAILY_HOUR = 6;
@@ -144,12 +144,18 @@ export class UpdateCoordinator {
         : await getFixtures(this.env, { skipCoordinatorCache: true }).catch(() => fixtures);
     }
 
-    const weekly = this.weeklySchedule(now, timezone, scheduler);
-    if (weekly.enabled && weekly.due) {
-      results.ratings = await this.runRatings({ ...opts, scheduler: true, weekly: true });
+    const dailyRatings = this.dailyRatingsSchedule(now, timezone, scheduler);
+    if (dailyRatings.enabled && dailyRatings.due) {
+      results.ratings = await this.runRatings({
+        ...opts,
+        force: true,
+        scheduler: true,
+        daily: true,
+        source: 'daily-elo-tm-refresh-b42'
+      });
       ran.push('ratings');
-      scheduler.lastWeeklyRatingsKey = weekly.key;
-      scheduler.lastWeeklyRatingsAt = new Date().toISOString();
+      scheduler.lastDailyRatingsKey = dailyRatings.key;
+      scheduler.lastDailyRatingsAt = new Date().toISOString();
       await this.writeSchedulerState(scheduler);
     }
 
@@ -186,7 +192,7 @@ export class UpdateCoordinator {
     return {
       ok: Object.values(results).every(row => row?.ok !== false),
       task: 'scheduler',
-      source: 'event-driven-scheduler-b28',
+      source: 'event-driven-scheduler-b42-daily-ratings',
       ran,
       skipped: !ran.length,
       results,
@@ -393,7 +399,7 @@ export class UpdateCoordinator {
     const result = await syncLive(this.env, {
       ...opts,
       force: !!opts.force,
-      source: 'coordinator-live-manual-b40-mobile-clock-cache-bust'
+      source: 'coordinator-live-manual-b41-firestore-persist-cache-bust'
     });
     await this.storeLiveResultsCache(result, 'coordinator-manual');
     return result;
@@ -462,8 +468,13 @@ export class UpdateCoordinator {
       candidates.push({ at: nextDaily, type: 'daily_scan' });
     }
 
-    const weekly = this.weeklySchedule(now, timezone, scheduler);
-    if (weekly.enabled) candidates.push({ at: weekly.nextAt, type: weekly.due ? 'weekly_ratings_overdue' : 'weekly_ratings' });
+    const dailyRatings = this.dailyRatingsSchedule(now, timezone, scheduler);
+    if (dailyRatings.enabled) {
+      candidates.push({
+        at: dailyRatings.nextAt,
+        type: dailyRatings.due ? 'daily_ratings_overdue' : 'daily_ratings'
+      });
+    }
 
     const rollingIntervalMs = this.rollingOddsRefreshMinutes() * 60_000;
     const lastRollingMs = Date.parse(scheduler.lastRollingOddsAt || '');
@@ -543,27 +554,28 @@ export class UpdateCoordinator {
     return zonedDateTimeToEpoch(date, this.dailyHour(), this.dailyMinute(), timezone);
   }
 
-  weeklySchedule(now, timezone, scheduler) {
-    const enabled = String(this.env.WEEKLY_RATINGS_ENABLED || 'false').toLowerCase() === 'true';
-    if (!enabled) return { enabled: false, due: false, nextAt: Number.POSITIVE_INFINITY, key: null };
-
-    const day = clampInt(this.env.WEEKLY_RATINGS_DAY ?? 3, 0, 6);
-    const hour = clampInt(this.env.WEEKLY_RATINGS_HOUR_LOCAL ?? 10, 0, 23);
-    const minute = clampInt(this.env.WEEKLY_RATINGS_MINUTE_LOCAL ?? 0, 0, 59);
-    const localDate = dateKeyInZone(now, timezone);
-    const currentDay = weekdayInZone(now, timezone);
-    const daysUntil = (day - currentDay + 7) % 7;
-    let targetDate = addLocalDays(localDate, daysUntil);
-    let targetAt = zonedDateTimeToEpoch(targetDate, hour, minute, timezone);
-    const key = `${targetDate}@${hour}:${String(minute).padStart(2, '0')}`;
-    const due = daysUntil === 0 && now + ALARM_EARLY_GRACE_MS >= targetAt && scheduler.lastWeeklyRatingsKey !== key;
-
-    if (!due && targetAt <= now) {
-      targetDate = addLocalDays(targetDate, 7);
-      targetAt = zonedDateTimeToEpoch(targetDate, hour, minute, timezone);
+  dailyRatingsSchedule(now, timezone, scheduler) {
+    const enabled = String(this.env.DAILY_RATINGS_ENABLED || 'false').toLowerCase() === 'true';
+    if (!enabled) {
+      return { enabled: false, due: false, nextAt: Number.POSITIVE_INFINITY, key: null };
     }
 
-    return { enabled: true, due, nextAt: due ? now + 1_000 : targetAt, key };
+    const hour = clampInt(this.env.DAILY_RATINGS_HOUR_LOCAL ?? 10, 0, 23);
+    const minute = clampInt(this.env.DAILY_RATINGS_MINUTE_LOCAL ?? 0, 0, 59);
+    const localDate = dateKeyInZone(now, timezone);
+    const targetAt = zonedDateTimeToEpoch(localDate, hour, minute, timezone);
+    const key = `${localDate}@${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    const due = now + ALARM_EARLY_GRACE_MS >= targetAt
+      && scheduler.lastDailyRatingsKey !== key;
+
+    if (due) {
+      return { enabled: true, due: true, nextAt: now + 1_000, key };
+    }
+
+    const nextDate = targetAt > now ? localDate : addLocalDays(localDate, 1);
+    const nextAt = zonedDateTimeToEpoch(nextDate, hour, minute, timezone);
+    const nextKey = `${nextDate}@${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    return { enabled: true, due: false, nextAt, key: nextKey };
   }
 
   timezone() {
@@ -638,15 +650,15 @@ export class UpdateCoordinator {
 
   async readSchedulerState() {
     return await this.state.storage.get(SCHEDULER_KEY) || {
-      version: 'b28-event-driven',
+      version: 'b42-daily-ratings',
       createdAt: new Date().toISOString(),
       lastDailyLocalDate: null,
-      lastWeeklyRatingsKey: null
+      lastDailyRatingsKey: null
     };
   }
 
   async writeSchedulerState(state) {
-    state.version = 'b28-event-driven';
+    state.version = 'b42-daily-ratings';
     state.updatedAt = new Date().toISOString();
     await this.state.storage.put(SCHEDULER_KEY, state);
   }
@@ -670,9 +682,8 @@ export class UpdateCoordinator {
         liveStartBeforeMinutes: this.liveStartBeforeMinutes(),
         liveEndAfterMinutes: this.liveEndAfterMinutes(),
         liveIntervalSeconds: this.liveIntervalSeconds(),
-        weeklyRatingsEnabled: String(this.env.WEEKLY_RATINGS_ENABLED || 'false').toLowerCase() === 'true',
-        weeklyRatingsDay: Number(this.env.WEEKLY_RATINGS_DAY ?? 3),
-        weeklyRatingsLocalTime: `${String(clampInt(this.env.WEEKLY_RATINGS_HOUR_LOCAL ?? 10, 0, 23)).padStart(2, '0')}:${String(clampInt(this.env.WEEKLY_RATINGS_MINUTE_LOCAL ?? 0, 0, 59)).padStart(2, '0')}`
+        dailyRatingsEnabled: String(this.env.DAILY_RATINGS_ENABLED || 'false').toLowerCase() === 'true',
+        dailyRatingsLocalTime: `${String(clampInt(this.env.DAILY_RATINGS_HOUR_LOCAL ?? 10, 0, 23)).padStart(2, '0')}:${String(clampInt(this.env.DAILY_RATINGS_MINUTE_LOCAL ?? 0, 0, 59)).padStart(2, '0')}`
       }
     };
   }

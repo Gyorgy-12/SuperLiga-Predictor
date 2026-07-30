@@ -447,6 +447,10 @@ function superligaTickerMinuteOrder(value){
   if(!m)return-1;
   return Number(m[1])+(m[2]?Math.min(99,Number(m[2]))/100:0);
 }
+function superligaTickerTrustedClockSource(value){
+  let s=String(value||'').toLowerCase();
+  return s.includes('provider')||s.includes('flashscore-list')||s.includes('flashscore-mobile')||s.includes('mobile-page')||s.includes('flashscore-clock');
+}
 function superligaTickerLatestIncidentMinute(r){
   let events=[...(r?.scorers||[]),...(r?.events||[]),...(r?.yellowCards||[]),...(r?.redCards||[]),...(r?.doubleYellowCards||[]),...(r?.substitutions||[])];
   let best=null,bestOrder=-1;
@@ -483,14 +487,21 @@ function superligaClientClockLabel(id,r){
   // feed contains future/corrected incidents.
   let providerToken=superligaTickerMinuteToken(r.providerMinute);
   let source=String(r.minuteSource||'').toLowerCase();
-  if(!providerToken&&source&&(source.includes('provider')||source.includes('flashscore-list'))){
-    providerToken=superligaTickerMinuteToken(r.minute);
+  if(!providerToken&&superligaTickerTrustedClockSource(source)){
+    providerToken=[r.minute,r.status,r.displayClock,r.statusText]
+      .map(superligaTickerMinuteToken).find(Boolean)||null;
   }
   // Non-Flashscore fallbacks may still expose a genuine minute without the
   // new source marker.
   if(!providerToken&&!String(r.source||'').toLowerCase().includes('flashscore')){
     providerToken=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
       .map(superligaTickerMinuteToken).find(Boolean)||null;
+  }
+  // Stoppage-time events are a safe lower bound for the visible clock. This
+  // prevents a 90+x match from falling back to the generic “Élő” label.
+  if(!providerToken){
+    let incident=superligaTickerLatestIncidentMinute(r);
+    if(/^90\+\d{1,2}$/.test(String(incident||'')))providerToken=incident;
   }
   if(!providerToken)return'Élő';
 
