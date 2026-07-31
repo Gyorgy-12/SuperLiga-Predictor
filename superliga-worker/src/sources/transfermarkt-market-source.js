@@ -1,62 +1,179 @@
-import { matchTeamName, normTeam, uniqueTeamsFromFixtures } from '../core/team-match.js';
+import {
+  matchTeamName,
+  normTeam,
+  uniqueTeamsFromFixtures
+} from '../core/team-match.js';
 
-const DEFAULT_TM_URL = 'https://www.transfermarkt.com/superliga/marktwerteverein/wettbewerb/RO1';
+const DEFAULT_TM_URL = 'https://www.transfermarkt.com/liga-1/marktwerteverein/wettbewerb/RO1';
+const ALTERNATE_TM_URLS = [
+  'https://www.transfermarkt.co.uk/liga-1/marktwerteverein/wettbewerb/RO1',
+  'https://www.transfermarkt.ro/liga-1/marktwerteverein/wettbewerb/RO1',
+  'https://www.transfermarkt.de/liga-1/marktwerteverein/wettbewerb/RO1'
+];
+const DEFAULT_TIMEOUT_MS = 22000;
 
 export async function fetchTransfermarktMarketValues(env, fixtures = [], opts = {}) {
   const knownTeams = uniqueTeamsFromFixtures(fixtures);
-  const url = opts.url || env.TRANSFERMARKT_MARKET_VALUES_URL || DEFAULT_TM_URL;
+  const configured = opts.url
+    || env.TRANSFERMARKT_MARKET_VALUES_URL
+    || env.TRANSFERMARKET_MARKET_VALUES_URL
+    || DEFAULT_TM_URL;
+  const targets = unique([configured, DEFAULT_TM_URL, ...ALTERNATE_TM_URLS]);
+  const attempts = [];
 
-  const res = await fetch(url, {
-    headers: {
-      'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'accept-language': 'en-US,en;q=0.9,ro;q=0.8,hu;q=0.7',
-      'cache-control': 'no-cache',
-      'user-agent': env.TRANSFERMARKT_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36'
-    },
-    cf: { cacheTtl: opts.force ? 0 : 1800, cacheEverything: false }
-  });
+  // 1) Try the current canonical page and regional mirrors directly.
+  for (const targetUrl of targets) {
+    const url = withCacheBust(targetUrl, opts.force);
+    const response = await fetchText(env, url, opts, { source: 'transfermarkt-direct' });
+    const blocked = looksBlocked(response.text);
+    const rows = response.ok && !blocked ? parseTransfermarktRows(response.text) : [];
+    const mapped = mapRows(rows, knownTeams);
 
-  if (!res.ok) {
-    return { ok: false, source: 'transfermarkt-market-values', error: `HTTP ${res.status}`, marketValues: {}, url };
-  }
+    attempts.push(makeAttempt(response, {
+      source: 'transfermarkt-direct',
+      url,
+      blocked,
+      parsedRows: rows.length,
+      mappedCount: Object.keys(mapped.marketValues).length
+    }));
 
-  const html = await res.text();
-  const rows = parseTransfermarktRows(html);
-  const marketValues = {};
-  const raw = [];
-  const unmatched = [];
-
-  for (const row of rows) {
-    const canonical = matchTeamName(row.team, knownTeams);
-    if (!canonical || !knownTeams.includes(canonical)) {
-      unmatched.push(row);
-      continue;
+    if (Object.keys(mapped.marketValues).length) {
+      return buildSuccess({
+        source: 'transfermarkt-market-values-b43-direct',
+        url: response.finalUrl || targetUrl,
+        rows,
+        mapped,
+        knownTeams,
+        attempts,
+        warnings: []
+      });
     }
-    marketValues[canonical] = row.valueM;
-    raw.push({ ...row, team: canonical, sourceTeam: row.team });
   }
 
-  const warnings = [];
-  if (!Object.keys(marketValues).length) {
-    warnings.push('No SuperLiga team market values parsed from Transfermarkt HTML. The page may be blocked or layout changed.');
-  }
-  if (knownTeams.length && Object.keys(marketValues).length && Object.keys(marketValues).length < knownTeams.length) {
-    const missing = knownTeams.filter(team => marketValues[team] == null);
-    warnings.push(`Missing market values for: ${missing.join(', ')}`);
+  // 2) Transfermarkt often returns 405/robot verification to Cloudflare
+  // datacenter requests. Reader uses a JS-capable browser and returns a plain
+  // markdown table that we parse without needing a paid API.
+  for (const targetUrl of targets.slice(0, 2)) {
+    const readerUrl = buildReaderUrl(env, withCacheBust(targetUrl, true));
+    const response = await fetchText(env, readerUrl, opts, {
+      source: 'transfermarkt-jina-reader',
+      reader: true
+    });
+    const blocked = looksBlocked(response.text);
+    const rows = response.ok && !blocked
+      ? parseTransfermarktMarkdownRows(response.text, knownTeams)
+      : [];
+    const mapped = mapRows(rows, knownTeams);
+
+    attempts.push(makeAttempt(response, {
+      source: 'transfermarkt-jina-reader',
+      url: readerUrl,
+      targetUrl,
+      blocked,
+      parsedRows: rows.length,
+      mappedCount: Object.keys(mapped.marketValues).length
+    }));
+
+    if (Object.keys(mapped.marketValues).length) {
+      return buildSuccess({
+        source: 'transfermarkt-market-values-b43-reader',
+        url: targetUrl,
+        rows,
+        mapped,
+        knownTeams,
+        attempts,
+        warnings: [
+          'Transfermarkt blocked the direct Worker request, therefore the current club values were read through the browser-rendered Reader fallback.'
+        ]
+      });
+    }
   }
 
   return {
-    ok: true,
-    source: 'transfermarkt-market-values',
-    url,
-    fetched: rows.length,
-    count: Object.keys(marketValues).length,
-    marketValues,
-    raw,
-    unmatched: unmatched.slice(0, 24),
-    updatedAt: new Date().toISOString(),
-    warnings
+    ok: false,
+    source: 'transfermarkt-market-values-b43-fallback-chain',
+    url: configured,
+    fetched: 0,
+    count: 0,
+    coverage: 0,
+    marketValues: {},
+    raw: [],
+    unmatched: [],
+    attempts,
+    error: attempts.at(-1)?.error || 'all_transfermarkt_sources_unavailable',
+    warnings: [
+      'Transfermarkt returned no usable current club values through either the direct page or the browser-rendered Reader fallback. Existing stored values were preserved.'
+    ],
+    updatedAt: new Date().toISOString()
   };
+}
+
+async function fetchText(env, url, opts = {}, mode = {}) {
+  const timeoutMs = clampInt(
+    opts.timeoutMs || env.TRANSFERMARKT_TIMEOUT_MS,
+    DEFAULT_TIMEOUT_MS,
+    5000,
+    60000
+  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
+  const startedAt = Date.now();
+
+  const headers = {
+    accept: mode.reader ? 'text/plain,text/markdown;q=0.9,*/*;q=0.8' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language': 'en-US,en;q=0.9,ro;q=0.8,hu;q=0.7',
+    'cache-control': 'no-cache',
+    'user-agent':
+      env.TRANSFERMARKT_USER_AGENT
+      || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+         '(KHTML, like Gecko) Chrome/125 Safari/537.36'
+  };
+
+  if (mode.reader) {
+    headers['x-no-cache'] = 'true';
+    headers['x-engine'] = 'browser';
+    headers['x-timeout'] = '30';
+    headers['x-retain-links'] = 'text';
+    headers['x-retain-images'] = 'none';
+    if (env.JINA_API_KEY) headers.authorization = `Bearer ${env.JINA_API_KEY}`;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      headers,
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    const text = await response.text();
+    return {
+      ok: response.ok && !!text.trim(),
+      status: response.status,
+      text,
+      bytes: text.length,
+      contentType: response.headers.get('content-type') || '',
+      finalUrl: response.url || url,
+      elapsedMs: Date.now() - startedAt,
+      error: response.ok ? null : `HTTP ${response.status}`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      text: '',
+      bytes: 0,
+      contentType: null,
+      finalUrl: url,
+      elapsedMs: Date.now() - startedAt,
+      error:
+        error?.name === 'AbortError'
+          ? `timeout_after_${timeoutMs}ms`
+          : (error?.message || String(error))
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function parseTransfermarktRows(html = '') {
@@ -66,56 +183,145 @@ export function parseTransfermarktRows(html = '') {
   for (const row of rows) {
     const value = parseMarketValue(row);
     if (!value || !Number.isFinite(value.valueM) || value.valueM <= 0) continue;
-
     const team = extractTeamName(row);
     if (!team) continue;
+    out.push({ team, ...value, display: formatMarketValue(value.valueM) });
+  }
 
+  return dedupeRows(out);
+}
+
+export function parseTransfermarktMarkdownRows(text = '', knownTeams = []) {
+  const out = [];
+  const lines = String(text || '').replace(/\r/g, '').split('\n');
+
+  for (const rawLine of lines) {
+    const line = cleanMarkdown(rawLine);
+    if (!line || !/[€]|\bEUR\b/i.test(line)) continue;
+    if (/current value|market value|gesamtmarktwert|cota de piață/i.test(line) && /^\s*[#|]/.test(rawLine)) continue;
+
+    const team = extractKnownTeamFromLine(line, knownTeams);
+    if (!team) continue;
+    const value = parseMarketValue(line);
+    if (!value || !Number.isFinite(value.valueM) || value.valueM <= 0) continue;
     out.push({
       team,
-      valueM: value.valueM,
+      ...value,
       display: formatMarketValue(value.valueM),
-      sourceDisplay: value.sourceDisplay,
-      unit: value.unit,
-      valueColumn: value.valueColumn,
-      allSourceValues: value.allSourceValues
+      rawLine: rawLine.slice(0, 600)
     });
   }
 
   return dedupeRows(out);
 }
 
+function mapRows(rows, knownTeams) {
+  const marketValues = {};
+  const raw = [];
+  const unmatched = [];
+
+  for (const row of rows || []) {
+    const canonical = matchTeamName(row.team, knownTeams);
+    if (!canonical || !knownTeams.includes(canonical)) {
+      unmatched.push(row);
+      continue;
+    }
+    marketValues[canonical] = row.valueM;
+    raw.push({ ...row, team: canonical, sourceTeam: row.team });
+  }
+
+  return { marketValues, raw, unmatched };
+}
+
+function buildSuccess(config) {
+  const missing = config.knownTeams.filter(team => config.mapped.marketValues[team] == null);
+  const warnings = [...(config.warnings || [])];
+  if (missing.length) {
+    warnings.push(`Missing current Transfermarkt club value for: ${missing.join(', ')}. Previously stored values are preserved for those teams.`);
+  }
+
+  return {
+    ok: true,
+    source: config.source,
+    url: config.url,
+    fetched: config.rows.length,
+    count: Object.keys(config.mapped.marketValues).length,
+    coverage: config.knownTeams.length
+      ? Number((Object.keys(config.mapped.marketValues).length / config.knownTeams.length).toFixed(3))
+      : 0,
+    marketValues: config.mapped.marketValues,
+    raw: config.mapped.raw,
+    unmatched: config.mapped.unmatched.slice(0, 40),
+    missing,
+    attempts: config.attempts,
+    warnings,
+    updatedAt: new Date().toISOString()
+  };
+}
+
 function extractTeamName(row) {
   const links = [...String(row).matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)]
-    .map(m => cleanText(m[1]))
+    .map(match => cleanText(match[1]))
     .filter(Boolean)
-    .filter(t => !/^€|^\d|market value|profile|squad/i.test(t));
-
-  const candidates = links.filter(t => /[a-zăâîșț]/i.test(t) && !/superliga|romania|league|club/i.test(t));
+    .filter(text => !/^€|^\d|market value|profile|squad/i.test(text));
+  const candidates = links.filter(text =>
+    /[a-zăâîșț]/i.test(text) && !/superliga|romania|league|club/i.test(text)
+  );
   if (candidates.length) return candidates.sort((a, b) => b.length - a.length)[0];
 
   const text = cleanText(row);
-  const beforeValue = text.split(/€|mil\.|mio\.|m\b/i)[0] || text;
-  return beforeValue.split(/\s{2,}/).find(x => /[a-zăâîșț]/i.test(x)) || '';
+  const beforeValue = text.split(/€|EUR/i)[0] || text;
+  return beforeValue.split(/\s{2,}/).find(value => /[a-zăâîșț]/i.test(value)) || '';
+}
+
+function extractKnownTeamFromLine(line, knownTeams) {
+  const cells = String(line).split('|').map(cleanText).filter(Boolean);
+  for (const cell of cells) {
+    if (/superliga|liga\s*[12]|romania|current value|market value|%/i.test(cell)) continue;
+    const canonical = matchTeamName(cell, knownTeams);
+    if (canonical && knownTeams.includes(canonical)) return canonical;
+  }
+
+  const normalized = normTeam(line);
+  let best = null;
+  let bestLength = 0;
+  for (const team of knownTeams) {
+    const key = normTeam(team);
+    if (key && normalized.includes(key) && key.length > bestLength) {
+      best = team;
+      bestLength = key.length;
+    }
+  }
+  return best;
 }
 
 function parseMarketValue(row) {
   const text = cleanText(row).replace(/\s+/g, ' ');
+  const tokens = extractMoneyTokens(text);
+  if (!tokens.length) return null;
 
-  const matches = [...text.matchAll(/(?:€|EUR)\s*([\d.,]+)\s*(bn|b|m|mil\.?|mio\.?|k|th\.?)\b/gi)];
-  if (!matches.length) return null;
-
-  const parsed = matches
-    .map(match => parsedMarketToken(match[1], match[2]))
-    .filter(v => v && Number.isFinite(v.valueM) && v.valueM > 0);
-
-  if (!parsed.length) return null;
-
-  const current = parsed[parsed.length - 1];
+  // Transfermarkt's club-value table contains the historical comparison first
+  // and the current value second. Therefore the last valid money token is the
+  // current club value.
+  const current = tokens[tokens.length - 1];
   return {
     ...current,
-    valueColumn: parsed.length > 1 ? 'current-value-last-money-token' : 'only-money-token',
-    allSourceValues: parsed.map(v => v.sourceDisplay)
+    valueColumn: tokens.length > 1 ? 'current-value-last-money-token' : 'only-money-token',
+    allSourceValues: tokens.map(value => value.sourceDisplay)
   };
+}
+
+function extractMoneyTokens(text) {
+  const output = [];
+  const regex = /(?:€|EUR)\s*([\d.,]+)\s*(bn|b|m|mil\.?|mio\.?|k|th\.?)\b|([\d.,]+)\s*(bn|b|m|mil\.?|mio\.?|k|th\.?)\s*(?:€|EUR)/gi;
+  let match;
+  while ((match = regex.exec(text))) {
+    const numberPart = match[1] || match[3];
+    const unitPart = match[2] || match[4];
+    const parsed = parsedMarketToken(numberPart, unitPart);
+    if (parsed) output.push(parsed);
+  }
+  return output;
 }
 
 function parsedMarketToken(numberPart, unitPart) {
@@ -136,50 +342,51 @@ function parsedMarketToken(numberPart, unitPart) {
 }
 
 function parseLocalizedNumber(input) {
-  let s = String(input || '').trim();
-  if (!s) return NaN;
-
-  const lastDot = s.lastIndexOf('.');
-  const lastComma = s.lastIndexOf(',');
+  let value = String(input || '').trim();
+  if (!value) return NaN;
+  const lastDot = value.lastIndexOf('.');
+  const lastComma = value.lastIndexOf(',');
 
   if (lastDot >= 0 && lastComma >= 0) {
-    if (lastDot > lastComma) {
-      s = s.replace(/,/g, '');
-    } else {
-      s = s.replace(/\./g, '').replace(',', '.');
-    }
-    return Number(s);
+    value = lastDot > lastComma
+      ? value.replace(/,/g, '')
+      : value.replace(/\./g, '').replace(',', '.');
+    return Number(value);
   }
 
-  const sep = lastDot >= 0 ? '.' : (lastComma >= 0 ? ',' : '');
-  if (!sep) return Number(s);
-
-  const [head, tail] = s.split(sep);
+  const separator = lastDot >= 0 ? '.' : (lastComma >= 0 ? ',' : '');
+  if (!separator) return Number(value);
+  const [head, tail] = value.split(separator);
   if (!tail) return Number(head);
-
-  if (/^\d{1,2}$/.test(tail)) {
-    return Number(head.replace(/[.,]/g, '') + '.' + tail);
-  }
-
-  if (/^\d{3}$/.test(tail)) {
-    return Number(s.replace(/[.,]/g, ''));
-  }
-
-  return Number(s.replace(',', '.'));
+  if (/^\d{1,2}$/.test(tail)) return Number(head.replace(/[.,]/g, '') + '.' + tail);
+  if (/^\d{3}$/.test(tail)) return Number(value.replace(/[.,]/g, ''));
+  return Number(value.replace(',', '.'));
 }
 
-function cleanText(s) {
-  return String(s || '')
+function cleanText(value) {
+  return String(value || '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&#039;|&apos;/g, "'")
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&#039;|&apos;/gi, "'")
     .replace(/&euro;/gi, '€')
     .replace(/&[^;]+;/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function cleanMarkdown(value) {
+  return cleanText(String(value || '')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[*_`#]/g, ' '));
+}
+
+function looksBlocked(text) {
+  const sample = String(text || '').slice(0, 25000);
+  return /verify that you(?:'|’)re not a robot|javascript is disabled|access denied|captcha|cloudflare ray id|temporarily blocked/i.test(sample);
 }
 
 function formatMarketValue(valueM) {
@@ -190,10 +397,51 @@ function formatMarketValue(valueM) {
 
 function dedupeRows(rows) {
   const seen = new Map();
-  for (const row of rows) {
+  for (const row of rows || []) {
     const key = normTeam(row.team);
     if (!key) continue;
-    if (!seen.has(key) || seen.get(key).valueM < row.valueM) seen.set(key, row);
+    // Same team can appear in navigation or historical tables. Prefer the row
+    // with more money columns, then the latest encountered row.
+    const previous = seen.get(key);
+    const score = (row.allSourceValues?.length || 0) * 1000 + row.valueM;
+    const previousScore = previous
+      ? (previous.allSourceValues?.length || 0) * 1000 + previous.valueM
+      : -1;
+    if (!previous || score >= previousScore) seen.set(key, row);
   }
   return [...seen.values()];
+}
+
+function withCacheBust(rawUrl, enabled) {
+  if (!enabled) return rawUrl;
+  const url = new URL(rawUrl);
+  url.searchParams.set('_slratings', String(Date.now()));
+  return url.toString();
+}
+
+function buildReaderUrl(env, targetUrl) {
+  const base = String(env.JINA_READER_BASE_URL || 'https://r.jina.ai').replace(/\/$/, '');
+  return `${base}/${targetUrl}`;
+}
+
+function makeAttempt(response, extra) {
+  return {
+    ...extra,
+    ok: response.ok,
+    status: response.status,
+    bytes: response.bytes,
+    elapsedMs: response.elapsedMs,
+    contentType: response.contentType,
+    finalUrl: response.finalUrl,
+    error: response.error || null
+  };
+}
+
+function clampInt(value, fallback, min, max) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, Math.round(number))) : fallback;
+}
+
+function unique(values) {
+  return [...new Set(values.map(String).map(value => value.trim()).filter(Boolean))];
 }

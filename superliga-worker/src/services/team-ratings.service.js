@@ -79,10 +79,10 @@ export async function refreshEloRatings(env, opts = {}) {
     { skipCoordinatorCache: true }
   ).catch(() => emptyRatingsPack());
 
-  const eloPack = await fetchEloFootballRatings(env, fixtures, opts)
+  const eloPack = await fetchConfiguredEloRatings(env, fixtures, previous, opts)
     .catch(error => ({
       ok: false,
-      source: 'elofootball-country-page-b33',
+      source: 'current-external-club-elo-b47-unavailable',
       ratings: {},
       count: 0,
       error: error?.message || String(error),
@@ -103,13 +103,13 @@ export async function refreshEloRatings(env, opts = {}) {
     writeElo: true,
     writeMarketValues: false,
     task: 'elo',
-    source: opts.source || 'elo-refresh-b33'
+    source: opts.source || 'current-external-elo-refresh-b47'
   });
 
   return {
     ...result,
     ok: !!eloPack.ok,
-    source: eloPack.source || 'elofootball-country-page-b33',
+    source: eloPack.source || 'current-external-club-elo-b47-unavailable',
     sourceCount: Object.keys(eloPack.ratings || {}).length,
     preservedCount:
       Object.keys(previous.ratings || {}).length
@@ -153,7 +153,7 @@ export async function refreshMarketValues(env, opts = {}) {
     writeElo: false,
     writeMarketValues: true,
     task: 'market-values',
-    source: opts.source || 'market-values-refresh-b32'
+    source: opts.source || 'market-values-refresh-b43'
   });
 
   return {
@@ -173,10 +173,10 @@ export async function refreshTeamRatings(env, opts = {}) {
   ).catch(() => emptyRatingsPack());
 
   const [eloPack, marketPack] = await Promise.all([
-    fetchEloFootballRatings(env, fixtures, opts)
+    fetchConfiguredEloRatings(env, fixtures, previous, opts)
       .catch(error => ({
         ok: false,
-        source: 'elofootball-country-page-b33',
+        source: 'current-external-club-elo-b47-unavailable',
         ratings: {},
         count: 0,
         error: error?.message || String(error),
@@ -211,7 +211,7 @@ export async function refreshTeamRatings(env, opts = {}) {
     writeElo: true,
     writeMarketValues: true,
     task: 'ratings',
-    source: opts.source || 'daily-elo-tm-refresh-b42'
+    source: opts.source || 'daily-current-elo-tm-refresh-b47'
   });
 
   return {
@@ -220,6 +220,12 @@ export async function refreshTeamRatings(env, opts = {}) {
     elo: summarize(eloPack),
     marketValuesSource: summarize(marketPack)
   };
+}
+
+async function fetchConfiguredEloRatings(env, fixtures, previous, opts = {}) {
+  // Use the first current external club-Elo provider that reaches the configured
+  // coverage threshold. Different Elo models are never merged in one run.
+  return fetchEloFootballRatings(env, fixtures, opts);
 }
 
 async function persistRatingsState(env, previous, config) {
@@ -282,7 +288,7 @@ async function persistRatingsState(env, previous, config) {
           {
             ratings,
             updatedAt,
-            source: config.eloPack?.source || 'elofootball-country-page-b33',
+            source: config.eloPack?.source || 'current-external-club-elo-b47-unavailable',
             hash: await sha256Hex(stableStringify(ratings)),
             warnings: config.eloPack?.warnings || []
           }
@@ -321,7 +327,7 @@ async function persistRatingsState(env, previous, config) {
           patchDocument(env, COLLECTIONS.elo, team, {
             elo,
             updatedAt,
-            source: config.eloPack?.source || 'elofootball-country-page-b33'
+            source: config.eloPack?.source || 'current-external-club-elo-b47-unavailable'
           })
         )
       );
@@ -353,11 +359,14 @@ async function persistRatingsState(env, previous, config) {
     }
   }
 
+  const eloStateWritten = false;
+
   return {
     ok: true,
     task: config.task,
     changed,
-    written: changed && writeEnabled && writeErrors.length === 0,
+    written: writeEnabled && writeErrors.length === 0 && (changed || eloStateWritten),
+    eloStateWritten,
     writeEnabled,
     writeErrors,
     count: Object.keys(ratings).length,
@@ -473,12 +482,33 @@ function summarize(pack = {}) {
   return {
     ok: !!pack.ok,
     source: pack.source || null,
+    sourceKind: pack.sourceKind || null,
+    url: pack.url || null,
+    selectedSeason: pack.selectedSeason || null,
+    seasonKey: pack.seasonKey || null,
+    baselineDate: pack.baselineDate || null,
+    baselineSource: pack.baselineSource || null,
+    seeded: !!pack.seeded,
+    appliedCount: pack.appliedCount ?? null,
+    model: pack.model || null,
     count:
       pack.count
       ?? Object.keys(pack.ratings || pack.marketValues || {}).length,
     fetched: pack.fetched ?? null,
     coverage: pack.coverage ?? null,
     error: pack.error || null,
-    warnings: pack.warnings || []
+    warnings: pack.warnings || [],
+    attempts: Array.isArray(pack.attempts)
+      ? pack.attempts.slice(-12).map(attempt => ({
+          source: attempt.source || null,
+          status: attempt.status ?? null,
+          ok: !!attempt.ok,
+          url: attempt.url || attempt.targetUrl || null,
+          rowCount: attempt.rowCount ?? attempt.parsedRows ?? null,
+          mappedCount: attempt.mappedCount ?? null,
+          blocked: attempt.blocked ?? null,
+          error: attempt.error || null
+        }))
+      : []
   };
 }

@@ -23,15 +23,23 @@ import { syncLive } from '../services/sync.service.js';
 import { getLiveSnapshot } from '../services/memory-cache.service.js';
 import { backfillFlashscoreMids } from '../services/flashscore-mid-backfill.service.js';
 
-const SOURCE_TEST_ROUTE_VERSION = 'b33b-elofootball-write-import-fix';
+const SOURCE_TEST_ROUTE_VERSION = 'b47-current-multi-elo-source-test';
 
 export async function sourceTestRoute(request, env) {
   if (!requireAdmin(request, env)) return unauthorized(env);
 
   const url = new URL(request.url);
   const source = (url.searchParams.get('source') || 'livescore').toLowerCase();
+  const ratingsSources = new Set([
+    'ratings', 'team-ratings',
+    'elo', 'elofootball', 'clubelo',
+    'market-values', 'market', 'tm', 'transfermarkt',
+    'read-ratings'
+  ]);
+  const isRatingsSource = ratingsSources.has(source);
   const force = url.searchParams.get('force') === '1';
   const write = url.searchParams.get('write') === '1';
+  const resetElo = url.searchParams.get('reset') === '1' || url.searchParams.get('resetElo') === '1';
   const date = url.searchParams.get('date') || undefined;
   const includeScheduled = url.searchParams.get('scheduled') === '1' || url.searchParams.get('includeScheduled') === '1';
   const sourceUrl = url.searchParams.get('url') || undefined;
@@ -41,14 +49,20 @@ export async function sourceTestRoute(request, env) {
   const eventId = url.searchParams.get('eventId') || url.searchParams.get('sofascoreId') || url.searchParams.get('sofaScoreId') || url.searchParams.get('espnId') || url.searchParams.get('espnEventId') || url.searchParams.get('fotmobId') || url.searchParams.get('matchId') || url.searchParams.get('soccerwayId') || url.searchParams.get('soccerwayUrl') || undefined;
 
   const fixtures = await getFixtures(env, { skipCoordinatorCache: true });
-  const stored = await readStoredResults(env).catch(() => ({ results: {} }));
+  // Ratings checks only need the fixture list to derive the 16 club names.
+  // Do not load the entire stored-results collection for these lightweight diagnostics.
+  const stored = isRatingsSource
+    ? { results: {} }
+    : await readStoredResults(env).catch(() => ({ results: {} }));
   const isFlashscoreMidBackfill = source === 'flashscore-mid-backfill'
     || source === 'flashscore-auto-mid'
     || source === 'flashscore-mids'
     || source === 'flashscore-b25';
-  let active = url.searchParams.get('all') === '1' || force || isFlashscoreMidBackfill
-    ? fixtures
-    : interestingFixtures(fixtures, stored.results);
+  let active = isRatingsSource
+    ? []
+    : (url.searchParams.get('all') === '1' || force || isFlashscoreMidBackfill
+      ? fixtures
+      : interestingFixtures(fixtures, stored.results));
   if (round) active = active.filter(f => String(f.r) === String(round));
   if (date) active = active.filter(f => String(f.date || '').slice(0, 10) === String(date).slice(0, 10));
   if (ids.length) active = active.filter(f => ids.includes(String(f.id)));
@@ -116,6 +130,7 @@ export async function sourceTestRoute(request, env) {
     flashscoreMid: url.searchParams.get('mid') || url.searchParams.get('flashscoreMid') || url.searchParams.get('matchKey') || undefined,
     fixtureId: url.searchParams.get('id') || url.searchParams.get('fixtureId') || url.searchParams.get('fixture') || undefined,
     write,
+    resetElo,
     overwrite: url.searchParams.get('overwrite') === '1',
     feed: url.searchParams.get('feed') || url.searchParams.get('feeds') || undefined,
     feedTemplate: url.searchParams.get('feedTemplate') || undefined,
@@ -317,25 +332,58 @@ export async function sourceTestRoute(request, env) {
       ? await refreshOdds(env, { ...sourceOpts, force: true, date, url: sourceUrl, source: 'source-test-write' })
       : await fetchOdds(env, active, { ...sourceOpts, force, date, url: sourceUrl });
   } else if (source === 'ratings' || source === 'team-ratings') {
-    if (write) pack = await refreshTeamRatings(env, { force: true, url: sourceUrl, source: 'source-test-write' });
-    else {
+    if (write) {
+      pack = await refreshTeamRatings(env, {
+        force: true,
+        source: 'source-test-ratings-write-b47'
+      });
+    } else {
       const [elo, marketValues] = await Promise.all([
-        fetchEloFootballRatings(env, fixtures, { force, url: sourceUrl }),
-        fetchTransfermarktMarketValues(env, fixtures, { force, url: sourceUrl })
+        fetchEloFootballRatings(env, fixtures, {
+          force,
+          url: sourceUrl,
+          timeoutMs: sourceOpts.timeoutMs
+        }),
+        fetchTransfermarktMarketValues(env, fixtures, {
+          force,
+          url: sourceUrl,
+          timeoutMs: sourceOpts.timeoutMs
+        })
       ]);
-      pack = { ok: !!(elo.ok || marketValues.ok), source: 'ratings-source-test', elo, marketValues };
+      pack = {
+        ok: !!(elo.ok || marketValues.ok),
+        source: 'ratings-source-test-b47-current-external-elo',
+        elo,
+        marketValues
+      };
     }
-  } else if (source === 'elo' || source === 'elofootball' || source === 'clubelo') {
+  } else if (
+    source === 'elo'
+    || source === 'elofootball'
+    || source === 'external-elo'
+    || source === 'official-elo'
+    || source === 'current-elo'
+    || source === 'prediction-game'
+    || source === 'clubelo'
+    || source === 'multi-elo'
+  ) {
     pack = write
       ? await refreshEloRatings(env, {
           force: true,
-          url: sourceUrl,
-          source: 'source-test-elo-write-b33'
+          source: 'source-test-current-elo-write-b47'
         })
       : await fetchEloFootballRatings(env, fixtures, {
           force,
-          url: sourceUrl
+          url: sourceUrl,
+          timeoutMs: sourceOpts.timeoutMs
         });
+  } else if (source === 'internal-elo' || source === 'superliga-elo') {
+    pack = {
+      ok: false,
+      source: 'external-current-elo-only-b47',
+      error: 'disabled_internal_elo_model',
+      warning: 'The daily pipeline uses current external club-Elo providers and does not calculate an internal rating.'
+    };
   } else if (source === 'market-values' || source === 'market' || source === 'tm' || source === 'transfermarkt') {
     pack = write
       ? await refreshMarketValues(env, {
@@ -345,7 +393,8 @@ export async function sourceTestRoute(request, env) {
         })
       : await fetchTransfermarktMarketValues(env, fixtures, {
           force,
-          url: sourceUrl
+          url: sourceUrl,
+          timeoutMs: sourceOpts.timeoutMs
         });
   } else if (source === 'read-odds') {
     pack = await readOdds(env, { skipCoordinatorCache: true });
@@ -354,6 +403,10 @@ export async function sourceTestRoute(request, env) {
   } else {
     pack = await fetchLiveScoreResults(env, active, sourceOpts);
   }
+
+  const ratingTeams = isRatingsSource
+    ? [...new Set((fixtures || []).flatMap(f => [f?.h, f?.a]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)))
+    : [];
 
   return json({
     ok: !!pack?.ok,
@@ -367,8 +420,12 @@ export async function sourceTestRoute(request, env) {
     },
     force,
     write,
+    resetElo,
     scheduled: includeScheduled,
     activeCount: active.length,
+    fixtureCount: fixtures.length,
+    teamCount: ratingTeams.length || undefined,
+    teams: isRatingsSource ? ratingTeams : undefined,
     envHints: {
       liveScoreConfigured: !!(env.LIVE_SCORE_APP_BASE_URL || env.LIVESCORE_APP_BASE_URL) || true,
       sofaScoreConfigured: !!(env.SOFASCORE_BASE_URL) || true,
@@ -384,7 +441,7 @@ export async function sourceTestRoute(request, env) {
       flashscoreBase: env.FLASHSCORE_BASE_URL || 'https://www.flashscore.com',
       officialSuperligaBase: env.OFFICIAL_SUPERLIGA_BASE_URL || 'https://www.superliga.ro'
     },
-    active: active.map(f => ({
+    active: isRatingsSource ? undefined : active.map(f => ({
       id: f.id,
       r: f.r,
       date: f.date,

@@ -1,256 +1,329 @@
-// B33A — CLOUDFLARE WORKER ONLY
-// This file contains no browser UI code.
-// Expected export:
-//   fetchEloFootballRatings(env, fixtures, opts)
-//
-// Replace exactly:
-//   src/sources/elofootball-source.js
-//
-// Do not append this file to an existing script.
+import {
+  normTeam,
+  teamVariants,
+  uniqueTeamsFromFixtures
+} from '../core/team-match.js';
 
-import { uniqueTeamsFromFixtures } from '../core/team-match.js';
-
-const DEFAULT_BASE_URL = 'https://elofootball.com/country.php';
-const DEFAULT_COUNTRY_ISO = 'ROU';
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_PRIMARY_URL =
+  'https://www.prediction-game.com/en/elo-rating-football-teams/';
+const DEFAULT_FALLBACK_URL = 'https://clubelo.com/ROM';
+const DEFAULT_TIMEOUT_MS = 12000;
+const DEFAULT_MIN_COUNT = 12;
 const MIN_ELO = 900;
-const MAX_ELO = 2500;
+const MAX_ELO = 2300;
 
-const TEAM_ALIASES = {
-  'FCSB': [
-    'FCSB'
-  ],
-  'CFR Cluj': [
-    'CFR Cluj'
-  ],
-  'Universitatea Craiova': [
-    'CS Universitatea Craiova',
-    'Universitatea Craiova',
-    'CSU Craiova'
-  ],
-  'Rapid București': [
-    'Rapid Bucuresti',
-    'Rapid București'
-  ],
-  'Farul Constanța': [
-    'Farul Constanta',
-    'Farul Constanța'
-  ],
-  'Universitatea Cluj': [
-    'Universitatea Cluj',
-    'U Cluj'
-  ],
-  'Sepsi OSK': [
-    'Sepsi OSK'
-  ],
-  'Dinamo': [
-    'FC Dinamo Bucuresti',
-    'FC Dinamo București',
-    'Dinamo Bucuresti',
-    'Dinamo București'
-  ],
-  'Oțelul Galați': [
-    'Otelul Galati',
-    'Oțelul Galați'
-  ],
-  'Petrolul Ploiești': [
-    'Petrolul Ploiesti',
-    'Petrolul Ploiești'
-  ],
-  'UTA Arad': [
-    'UTA Arad'
-  ],
-  'FC Botoșani': [
-    'FC Botosani',
-    'FC Botoșani',
-    'Botosani',
-    'Botoșani'
-  ],
-  'FC Voluntari': [
-    'FC Voluntari',
-    'Voluntari'
-  ],
-  'FC Argeș': [
-    'Arges Pitesti',
-    'Argeș Pitești',
-    'FC Arges',
-    'FC Argeș'
-  ],
-  'Csikszereda': [
-    'FK Csikszereda',
-    'FK Csíkszereda',
-    'Csikszereda'
-  ],
-  'Corvinul Hunedoara': [
-    'Corvinul Hunedoara',
-    'FC Corvinul Hunedoara',
-    'Corvinul 1921 Hunedoara'
-  ]
-};
-
-const ALIAS_INDEX = buildAliasIndex();
-
+/**
+ * Historical export name kept so the rest of the Worker does not need a broad
+ * refactor. B47 no longer insists on EloFootball. It reads one current external
+ * club-Elo provider at a time and never mixes two different Elo models.
+ */
 export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
+  const startedAt = Date.now();
   const knownTeams = uniqueTeamsFromFixtures(fixtures);
-  const countryIso = clean(
-    opts.countryIso
-      || env.ELOFOOTBALL_COUNTRY_ISO
-      || DEFAULT_COUNTRY_ISO
-  ).toUpperCase();
-
-  const configuredSeason = normalizeSeason(
-    opts.season || env.ELOFOOTBALL_SEASON
+  const minCount = clampInt(
+    opts.minCount || env.CURRENT_ELO_MIN_COUNT,
+    Math.min(DEFAULT_MIN_COUNT, knownTeams.length || DEFAULT_MIN_COUNT),
+    1,
+    Math.max(1, knownTeams.length || 16)
   );
 
-  const seasons = configuredSeason
-    ? [configuredSeason]
-    : buildSeasonCandidates(new Date());
-
-  const baseUrl = clean(
+  const primaryUrl = clean(
     opts.url
-      || env.ELOFOOTBALL_BASE_URL
-      || DEFAULT_BASE_URL
+      || env.CURRENT_ELO_PRIMARY_URL
+      || env.ELO_PRIMARY_URL
+      || DEFAULT_PRIMARY_URL
+  );
+  const fallbackUrl = clean(
+    opts.fallbackUrl
+      || env.CURRENT_ELO_FALLBACK_URL
+      || env.ELO_FALLBACK_URL
+      || DEFAULT_FALLBACK_URL
   );
 
-  const attempts = [];
-  let selected = null;
-
-  for (const season of seasons) {
-    const url = buildCountryUrl(baseUrl, countryIso, season);
-    const response = await fetchPage(env, url, opts);
-    const parsed = response.ok
-      ? parseEloFootballRows(response.text)
-      : { rows: [], noData: false, sectionFound: false };
-
-    const attempt = {
-      url,
-      season,
-      ok: response.ok,
-      status: response.status,
-      bytes: response.bytes,
-      elapsedMs: response.elapsedMs,
-      contentType: response.contentType,
-      finalUrl: response.finalUrl || url,
-      rowCount: parsed.rows.length,
-      sectionFound: parsed.sectionFound,
-      noData: parsed.noData,
-      error: response.error || null
-    };
-
-    if (response.ok && !parsed.rows.length) {
-      attempt.error = parsed.noData
-        ? 'season_has_no_ranking_data'
-        : 'no_parseable_ranking_rows';
+  const plans = unique([
+    primaryUrl && {
+      id: 'prediction-game-current-club-elo',
+      url: cacheBust(primaryUrl, opts.force),
+      parser: parsePredictionGameRatings
+    },
+    fallbackUrl && {
+      id: 'clubelo-romania-current',
+      url: cacheBust(fallbackUrl, opts.force),
+      parser: parseClubEloCountryRatings
     }
+  ].filter(Boolean), plan => plan.url);
 
-    attempts.push(attempt);
+  const results = await Promise.all(plans.map(plan => runPlan(env, plan, knownTeams, opts)));
+  const attempts = results.map(result => result.attempt);
 
-    if (response.ok && parsed.rows.length) {
-      selected = {
-        season,
-        url: response.finalUrl || url,
-        rows: parsed.rows
-      };
-      break;
-    }
-  }
+  // Prefer a provider with enough current coverage. If both satisfy the
+  // threshold, keep the configured order to avoid changing Elo scale between
+  // daily runs without a real outage.
+  const selected = results.find(result => result.count >= minCount)
+    || [...results].sort((a, b) => b.count - a.count)[0]
+    || null;
 
-  if (!selected) {
-    return {
-      ok: false,
-      source: 'elofootball-country-page-b33',
-      ratings: {},
-      count: 0,
-      fetched: 0,
-      coverage: 0,
-      countryIso,
-      selectedSeason: null,
-      attemptedSeasons: seasons,
+  if (selected && selected.count >= minCount) {
+    return buildSuccess({
+      ...selected,
+      knownTeams,
       attempts,
-      missing: knownTeams,
-      unmatched: [],
-      warnings: [
-        'EloFootball did not return a parseable Romania ranking. Existing stored Elo values were preserved.'
-      ],
-      error: attempts.at(-1)?.error || 'elofootball_unavailable',
-      updatedAt: new Date().toISOString()
-    };
-  }
-
-  const ratings = {};
-  const matched = [];
-  const unmatched = [];
-
-  for (const row of selected.rows) {
-    const canonical = canonicalTeam(row.team, knownTeams);
-
-    if (!canonical) {
-      unmatched.push(row);
-      continue;
-    }
-
-    const elo = normalizeElo(row.elo);
-    if (elo == null) {
-      unmatched.push(row);
-      continue;
-    }
-
-    ratings[canonical] = elo;
-    matched.push({
-      team: canonical,
-      sourceTeam: row.team,
-      elo,
-      rank: row.rank ?? null,
-      clubId: row.clubId ?? null
+      minCount,
+      elapsedMs: Date.now() - startedAt
     });
   }
 
-  const missing = knownTeams.filter(team => ratings[team] == null);
-  const warnings = [];
-
-  if (selected.season !== seasons[0]) {
-    warnings.push(
-      `The ${seasons[0]} Romania page has no ranking data yet; Elo values were read from ${selected.season}.`
-    );
-  }
-
-  if (missing.length) {
-    warnings.push(
-      `EloFootball has no matched current value for ${missing.length} team(s): ${missing.join(', ')}. ` +
-      'Previously stored values are preserved and no rating is fabricated.'
-    );
-  }
-
+  const bestCount = selected?.count || 0;
   return {
-    ok: Object.keys(ratings).length > 0,
-    source: 'elofootball-country-page-b33',
-    countryIso,
-    selectedSeason: selected.season,
-    url: selected.url,
-    attemptedSeasons: seasons,
-    fetched: selected.rows.length,
-    count: Object.keys(ratings).length,
+    ok: false,
+    source: 'current-external-club-elo-b47-unavailable',
+    sourceKind: null,
+    ratings: {},
+    count: 0,
+    fetched: bestCount,
     coverage: knownTeams.length
-      ? Number((Object.keys(ratings).length / knownTeams.length).toFixed(3))
+      ? Number((bestCount / knownTeams.length).toFixed(3))
       : 0,
-    ratings,
-    matched,
-    unmatched: unmatched.slice(0, 80),
-    missing,
+    minCount,
     attempts,
-    warnings,
+    missing: knownTeams,
+    unmatched: selected?.unmatched || [],
+    warnings: [
+      `No current external Elo provider reached the minimum coverage (${minCount}/${knownTeams.length || 0}). Existing stored Elo values were preserved.`
+    ],
+    error: attempts.at(-1)?.error || 'current_elo_sources_unavailable',
+    elapsedMs: Date.now() - startedAt,
     updatedAt: new Date().toISOString()
   };
 }
 
-async function fetchPage(env, url, opts = {}) {
+async function runPlan(env, plan, knownTeams, opts) {
+  const response = await fetchText(env, plan.url, opts);
+  const parsed = response.ok
+    ? plan.parser(response.text, knownTeams)
+    : emptyParsed(knownTeams);
+  const count = Object.keys(parsed.ratings).length;
+
+  return {
+    id: plan.id,
+    source: `${plan.id}-b47`,
+    sourceKind: plan.id,
+    url: response.finalUrl || plan.url,
+    ratings: parsed.ratings,
+    matched: parsed.matched,
+    unmatched: parsed.unmatched,
+    missing: parsed.missing,
+    warnings: parsed.warnings,
+    count,
+    fetched: parsed.fetched,
+    response,
+    attempt: {
+      source: plan.id,
+      url: plan.url,
+      ok: response.ok && count > 0,
+      status: response.status,
+      bytes: response.bytes,
+      elapsedMs: response.elapsedMs,
+      contentType: response.contentType,
+      finalUrl: response.finalUrl,
+      mappedCount: count,
+      fetched: parsed.fetched,
+      missing: parsed.missing,
+      error: response.ok
+        ? (count ? null : 'no_parseable_current_elo_rows')
+        : response.error
+    }
+  };
+}
+
+export function parsePredictionGameRatings(html = '', knownTeams = []) {
+  // The global page contains many clubs with generic names (for example several
+  // clubs containing "Rapid"). Only inspect text segments enclosed by Romanian
+  // flag markers, so a foreign club can never be mapped to a SuperLiga team.
+  const lines = htmlToText(html)
+    .split('\n')
+    .map(clean)
+    .filter(Boolean);
+  const markerIndexes = lines
+    .map((line, index) => (/^(romania|rom)$/i.test(line) ? index : -1))
+    .filter(index => index >= 0);
+  const ratings = {};
+  const matched = [];
+  const unmatched = [];
+
+  for (let marker = 0; marker < markerIndexes.length; marker += 1) {
+    const from = markerIndexes[marker] + 1;
+    const to = marker + 1 < markerIndexes.length
+      ? markerIndexes[marker + 1]
+      : Math.min(lines.length, from + 8);
+    const segmentLines = lines.slice(from, to).filter(Boolean);
+    if (!segmentLines.length) continue;
+    const block = segmentLines.join(' ');
+    const canonical = findCanonicalTeam(block, knownTeams);
+    if (!canonical || ratings[canonical] != null) continue;
+    const teamPosition = bestTeamPosition(block, canonical);
+    const elo = firstElo(block.slice(teamPosition));
+    if (elo == null) continue;
+    ratings[canonical] = elo;
+    matched.push({ team: canonical, sourceTeam: block.slice(0, 180), elo });
+  }
+
+  // Some HTML variants omit flag alt text. In that case use a conservative
+  // proximity parser, but ignore one-word aliases that are too ambiguous on a
+  // global page.
+  if (Object.keys(ratings).length < Math.min(8, knownTeams.length)) {
+    const fallback = parseByKnownTeamProximity(html, knownTeams, {
+      source: 'prediction-game',
+      searchAfterChars: 700,
+      minimumVariantWords: 2
+    });
+    for (const [team, elo] of Object.entries(fallback.ratings)) {
+      if (ratings[team] == null) ratings[team] = elo;
+    }
+    for (const row of fallback.matched) {
+      if (!matched.some(item => item.team === row.team)) matched.push(row);
+    }
+  }
+
+  return finishParsed(ratings, matched, unmatched, knownTeams, matched.length);
+}
+
+export function parseClubEloCountryRatings(html = '', knownTeams = []) {
+  // ClubElo's country page is a compact table. Restricting searches to the row
+  // around each team prevents dates such as 2026-07-30 being mistaken for Elo.
+  const rows = String(html || '').match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+  const ratings = {};
+  const matched = [];
+  const unmatched = [];
+
+  for (const rowHtml of rows) {
+    const rowText = htmlToText(rowHtml);
+    const canonical = findCanonicalTeam(rowText, knownTeams);
+    if (!canonical || ratings[canonical] != null) continue;
+
+    const teamPosition = bestTeamPosition(rowText, canonical);
+    const tail = rowText.slice(Math.max(0, teamPosition));
+    const elo = firstElo(tail);
+    if (elo == null) continue;
+
+    ratings[canonical] = elo;
+    matched.push({ team: canonical, sourceTeam: rowText.slice(0, 180), elo });
+  }
+
+  // Some versions of ClubElo are not wrapped in normal table rows.
+  if (!Object.keys(ratings).length) {
+    return parseByKnownTeamProximity(html, knownTeams, {
+      source: 'clubelo',
+      searchAfterChars: 500,
+      requireRomaniaMarker: false
+    });
+  }
+
+  return finishParsed(ratings, matched, unmatched, knownTeams, rows.length);
+}
+
+function parseByKnownTeamProximity(html, knownTeams, config = {}) {
+  const text = htmlToText(html);
+  const normalized = normWithOffsets(text);
+  const ratings = {};
+  const matched = [];
+  const unmatched = [];
+
+  for (const team of knownTeams) {
+    const variants = teamVariants(team)
+      .filter(Boolean)
+      .filter(variant => {
+        const minimumWords = Number(config.minimumVariantWords) || 1;
+        return variant.split(' ').filter(Boolean).length >= minimumWords;
+      })
+      .sort((a, b) => b.length - a.length);
+
+    let best = null;
+    for (const variant of variants) {
+      const index = normalized.norm.indexOf(variant);
+      if (index < 0) continue;
+      const originalIndex = normalized.offsets[index] ?? 0;
+      const segment = text.slice(
+        originalIndex,
+        originalIndex + (config.searchAfterChars || 600)
+      );
+      const elo = firstElo(segment);
+      if (elo == null) continue;
+      best = { variant, originalIndex, elo, segment };
+      break;
+    }
+
+    if (!best) continue;
+    ratings[team] = best.elo;
+    matched.push({
+      team,
+      sourceTeam: best.variant,
+      elo: best.elo,
+      raw: clean(best.segment).slice(0, 260)
+    });
+  }
+
+  return finishParsed(ratings, matched, unmatched, knownTeams, matched.length);
+}
+
+function finishParsed(ratings, matched, unmatched, knownTeams, fetched) {
+  const missing = knownTeams.filter(team => ratings[team] == null);
+  const warnings = missing.length
+    ? [`No current Elo value was matched for: ${missing.join(', ')}. Previously stored values are preserved for those teams.`]
+    : [];
+
+  return {
+    ratings,
+    matched,
+    unmatched,
+    missing,
+    warnings,
+    fetched
+  };
+}
+
+function emptyParsed(knownTeams) {
+  return {
+    ratings: {},
+    matched: [],
+    unmatched: [],
+    missing: [...knownTeams],
+    warnings: [],
+    fetched: 0
+  };
+}
+
+function buildSuccess(config) {
+  const count = Object.keys(config.ratings).length;
+  return {
+    ok: true,
+    source: config.source,
+    sourceKind: config.sourceKind,
+    ratings: config.ratings,
+    count,
+    fetched: config.fetched,
+    coverage: config.knownTeams.length
+      ? Number((count / config.knownTeams.length).toFixed(3))
+      : 0,
+    minCount: config.minCount,
+    url: config.url,
+    matched: config.matched,
+    unmatched: (config.unmatched || []).slice(0, 80),
+    missing: config.missing,
+    attempts: config.attempts,
+    warnings: config.warnings || [],
+    elapsedMs: config.elapsedMs,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function fetchText(env, url, opts = {}) {
   const timeoutMs = clampInt(
-    opts.timeoutMs || env.ELOFOOTBALL_TIMEOUT_MS,
+    opts.timeoutMs || env.CURRENT_ELO_TIMEOUT_MS,
     DEFAULT_TIMEOUT_MS,
     3000,
     30000
   );
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
   const startedAt = Date.now();
@@ -259,33 +332,31 @@ async function fetchPage(env, url, opts = {}) {
     const response = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
+      cache: 'no-store',
+      signal: controller.signal,
       headers: {
         accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
         'accept-language': 'en-US,en;q=0.9,ro;q=0.8',
-        'cache-control': opts.force ? 'no-cache' : 'max-age=0',
+        'cache-control': 'no-cache',
         'user-agent':
-          env.ELOFOOTBALL_USER_AGENT
+          env.CURRENT_ELO_USER_AGENT
           || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-             '(KHTML, like Gecko) Chrome/125 Safari/537.36'
-      },
-      signal: controller.signal,
-      cf: {
-        cacheTtl: opts.force ? 0 : 1800,
-        cacheEverything: false
+             '(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
       }
     });
-
     const text = await response.text();
-
+    const blocked = /captcha|access denied|service unavailable|site overloaded/i.test(text);
     return {
-      ok: response.ok,
+      ok: response.ok && !!text.trim() && !blocked,
       status: response.status,
       text,
       bytes: text.length,
       contentType: response.headers.get('content-type') || '',
       finalUrl: response.url || url,
       elapsedMs: Date.now() - startedAt,
-      error: response.ok ? null : `HTTP ${response.status}`
+      error: response.ok
+        ? (blocked ? 'provider_page_blocked_or_overloaded' : null)
+        : `HTTP ${response.status}`
     };
   } catch (error) {
     return {
@@ -306,329 +377,127 @@ async function fetchPage(env, url, opts = {}) {
   }
 }
 
-export function parseEloFootballRows(html = '') {
-  const source = String(html || '');
-  if (!source.trim()) {
-    return {
-      rows: [],
-      sectionFound: false,
-      noData: false
-    };
-  }
-
-  const section = extractRankingSection(source);
-  const sectionFound = section !== source;
-  const plain = cleanHtml(section);
-  const noData = /no data available/i.test(plain);
-
-  const rows = parseTableRows(section);
-  if (rows.length) {
-    return {
-      rows: dedupeRows(rows),
-      sectionFound,
-      noData
-    };
-  }
-
-  return {
-    rows: dedupeRows(parseAnchorBlocks(section)),
-    sectionFound,
-    noData
-  };
-}
-
-function extractRankingSection(html) {
-  const startPatterns = [
-    /Elo ranking for Romania/i,
-    /Elo ranking for [A-Za-z ]+/i
-  ];
-
-  let start = -1;
-
-  for (const pattern of startPatterns) {
-    const match = pattern.exec(html);
-    if (match) {
-      start = match.index;
-      break;
-    }
-  }
-
-  if (start < 0) return html;
-
-  const tail = html.slice(start);
-  const endPatterns = [
-    /season:\s*Games and upcoming fixtures/i,
-    /Games and upcoming fixtures/i,
-    /<footer\b/i
-  ];
-
-  let end = tail.length;
-
-  for (const pattern of endPatterns) {
-    const match = pattern.exec(tail);
-    if (match && match.index > 0) {
-      end = Math.min(end, match.index);
-    }
-  }
-
-  return tail.slice(0, end);
-}
-
-function parseTableRows(section) {
-  const output = [];
-  const rows = section.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
-
-  for (const rowHtml of rows) {
-    const club = extractClubAnchor(rowHtml);
-    if (!club) continue;
-
-    const cells = [...rowHtml.matchAll(
-      /<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi
-    )].map(match => cleanHtml(match[1]));
-
-    const teamIndex = cells.findIndex(cell =>
-      clubKey(cell) === clubKey(club.team)
-      || clubKey(cell).includes(clubKey(club.team))
-    );
-
-    const afterTeam = teamIndex >= 0
-      ? cells.slice(teamIndex + 1)
-      : cells;
-
-    const elo = firstEloValue(afterTeam);
-    if (elo == null) continue;
-
-    const rank = firstRankValue(
-      teamIndex > 0 ? cells.slice(0, teamIndex) : cells.slice(0, 2)
-    );
-
-    output.push({
-      team: club.team,
-      elo,
-      rank,
-      clubId: club.clubId
-    });
-  }
-
-  return output;
-}
-
-function parseAnchorBlocks(section) {
-  const output = [];
-  const anchors = [...section.matchAll(
-    /<a\b[^>]*href=["'][^"']*club\.php\?clubid=(\d+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi
-  )];
-
-  for (let index = 0; index < anchors.length; index += 1) {
-    const match = anchors[index];
-    const team = cleanHtml(match[2]);
-    if (!isPlausibleTeamName(team)) continue;
-
-    const start = (match.index || 0) + match[0].length;
-    const end = index + 1 < anchors.length
-      ? anchors[index + 1].index
-      : Math.min(section.length, start + 2500);
-
-    const chunk = cleanHtml(section.slice(start, end));
-    const elo = firstEloValue([chunk]);
-
-    if (elo == null) continue;
-
-    output.push({
-      team,
-      elo,
-      rank: null,
-      clubId: Number(match[1])
-    });
-  }
-
-  return output;
-}
-
-function extractClubAnchor(rowHtml) {
-  const match = /<a\b[^>]*href=["'][^"']*club\.php\?clubid=(\d+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i
-    .exec(rowHtml);
-
-  if (!match) return null;
-
-  const team = cleanHtml(match[2]);
-  if (!isPlausibleTeamName(team)) return null;
-
-  return {
-    team,
-    clubId: Number(match[1])
-  };
-}
-
-function firstEloValue(values) {
-  for (const value of values) {
-    const tokens = String(value || '').match(/\b\d{3,4}\b/g) || [];
-
-    for (const token of tokens) {
-      const elo = normalizeElo(token);
-      if (elo != null) return elo;
-    }
-  }
-
-  return null;
-}
-
-function firstRankValue(values) {
-  for (const value of values) {
-    const tokens = String(value || '').match(/\b\d{1,4}\b/g) || [];
-
-    for (const token of tokens) {
-      const number = Number(token);
-      if (Number.isInteger(number) && number > 0 && number < 5000) {
-        return number;
+function findCanonicalTeam(text, knownTeams) {
+  const normalizedText = normTeam(text);
+  let best = null;
+  let bestLength = 0;
+  for (const team of knownTeams) {
+    for (const variant of teamVariants(team)) {
+      if (variant && normalizedText.includes(variant) && variant.length > bestLength) {
+        best = team;
+        bestLength = variant.length;
       }
     }
   }
+  return best;
+}
 
+function bestTeamPosition(text, team) {
+  const normalized = normWithOffsets(text);
+  let best = -1;
+  for (const variant of teamVariants(team).sort((a, b) => b.length - a.length)) {
+    const index = normalized.norm.indexOf(variant);
+    if (index >= 0) {
+      best = normalized.offsets[index] ?? 0;
+      break;
+    }
+  }
+  return best < 0 ? 0 : best;
+}
+
+function firstElo(value) {
+  const text = String(value || '');
+  const tokens = [...text.matchAll(/\b\d{3,4}(?:\.\d+)?\b/g)];
+  for (const token of tokens) {
+    const number = Number(token[0]);
+    if (!Number.isFinite(number)) continue;
+    if (number >= MIN_ELO && number <= MAX_ELO) return Math.round(number);
+  }
   return null;
 }
 
-function canonicalTeam(sourceName, knownTeams) {
-  const key = clubKey(sourceName);
-  if (!key) return null;
+function normWithOffsets(value) {
+  const source = stripDiacritics(String(value || '')).toLowerCase();
+  let norm = '';
+  const offsets = [];
+  let previousSpace = true;
 
-  const alias = ALIAS_INDEX.get(key);
-  if (alias && knownTeams.includes(alias)) return alias;
-
-  const exact = knownTeams.find(team => clubKey(team) === key);
-  return exact || null;
-}
-
-function buildAliasIndex() {
-  const output = new Map();
-
-  for (const [canonical, aliases] of Object.entries(TEAM_ALIASES)) {
-    for (const alias of [canonical, ...aliases]) {
-      const key = clubKey(alias);
-      if (key) output.set(key, canonical);
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const output = /[a-z0-9]/.test(char) ? char : ' ';
+    if (output === ' ') {
+      if (previousSpace) continue;
+      norm += ' ';
+      offsets.push(index);
+      previousSpace = true;
+    } else {
+      norm += output;
+      offsets.push(index);
+      previousSpace = false;
     }
   }
 
+  return { norm: norm.trim(), offsets };
+}
+
+function htmlToText(html) {
+  return decodeHtml(
+    String(html || '')
+      .replace(/<img\b[^>]*\balt=["']([^"']+)["'][^>]*>/gi, '\n$1\n')
+      .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<(?:br|\/p|\/div|\/li|\/tr|\/td|\/th|\/h\d)>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+  )
+    .replace(/\r/g, '')
+    .replace(/[\t ]+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .trim();
+}
+
+function decodeHtml(value) {
+  const named = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' '
+  };
+  return String(value || '')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&([a-z]+);/gi, (full, name) => named[name.toLowerCase()] ?? full);
+}
+
+function stripDiacritics(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function cacheBust(rawUrl, force) {
+  if (!force) return rawUrl;
+  try {
+    const url = new URL(rawUrl);
+    url.searchParams.set('_slratings', String(Date.now()));
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+function unique(items, keyFn = item => item) {
+  const seen = new Set();
+  const output = [];
+  for (const item of items || []) {
+    const key = keyFn(item);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    output.push(item);
+  }
   return output;
 }
 
-function clubKey(value) {
-  return clean(value)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/&amp;/g, ' and ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function normalizeElo(value) {
-  const number = Number(String(value ?? '').replace(/[^\d.-]/g, ''));
-
-  if (
-    !Number.isFinite(number)
-    || number < MIN_ELO
-    || number > MAX_ELO
-  ) {
-    return null;
-  }
-
-  return Math.round(number);
-}
-
-function buildCountryUrl(baseUrl, countryIso, season) {
-  const url = new URL(baseUrl);
-  url.searchParams.set('countryiso', countryIso);
-  url.searchParams.set('season', season);
-  return url.toString();
-}
-
-function buildSeasonCandidates(now) {
-  const current = seasonForDate(now);
-  const [startYear] = current.split('-').map(Number);
-  const previous = `${startYear - 1}-${startYear}`;
-
-  return [current, previous];
-}
-
-function seasonForDate(date) {
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + 1;
-  const startYear = month >= 7 ? year : year - 1;
-  return `${startYear}-${startYear + 1}`;
-}
-
-function normalizeSeason(value) {
-  const text = clean(value);
-  return /^\d{4}-\d{4}$/.test(text) ? text : null;
-}
-
-function isPlausibleTeamName(value) {
-  const text = clean(value);
-  if (!text || text.length < 2 || text.length > 100) return false;
-  if (!/[A-Za-zĂÂÎȘȚăâîșț]/.test(text)) return false;
-  return !/^(ranking|statistics|club|rating|record)$/i.test(text);
-}
-
-function cleanHtml(value) {
-  return decodeEntities(
-    String(value || '')
-      .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-  )
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function decodeEntities(value) {
-  return String(value || '')
-    .replace(/&nbsp;|&#160;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#039;|&apos;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&#(\d+);/g, (_, number) => {
-      const code = Number(number);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : ' ';
-    })
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
-      const code = Number.parseInt(hex, 16);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : ' ';
-    })
-    .replace(/&[a-z0-9#]+;/gi, ' ');
-}
-
-function dedupeRows(rows) {
-  const map = new Map();
-
-  for (const row of rows || []) {
-    const key = clubKey(row?.team);
-    const elo = normalizeElo(row?.elo);
-
-    if (!key || elo == null) continue;
-
-    if (!map.has(key)) {
-      map.set(key, {
-        team: clean(row.team),
-        elo,
-        rank: Number.isFinite(Number(row.rank)) ? Number(row.rank) : null,
-        clubId: Number.isFinite(Number(row.clubId)) ? Number(row.clubId) : null
-      });
-    }
-  }
-
-  return [...map.values()];
-}
-
 function clean(value) {
-  return value == null ? '' : String(value).trim();
+  return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
 function clampInt(value, fallback, min, max) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
-  return Math.max(min, Math.min(max, Math.trunc(number)));
+  return Math.max(min, Math.min(max, Math.round(number)));
 }
