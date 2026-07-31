@@ -1,6 +1,6 @@
 import { COLLECTIONS, PUBLIC_CACHE_DOCS } from '../config/collections.js';
 import { getDocument, listDocuments, patchDocument } from './firestore.service.js';
-import { getMemory, setFinalResult } from './memory-cache.service.js';
+import { getMemory, setFinalResult, setFinalResultsHydrated } from './memory-cache.service.js';
 import { sha256Hex, liveFingerprint } from '../core/hash.js';
 import { isFinished } from '../core/match-window.js';
 
@@ -10,14 +10,20 @@ export async function readStoredResults(env, opts = {}) {
   const skipMemory = forceCollection || !!opts.skipMemory;
   const skipPublicCache = forceCollection || !!opts.skipPublicCache;
 
-  if (!skipMemory && Object.keys(mem.finalResults).length) {
-    return { results: mem.finalResults, source: 'memory' };
+  // Only a fully hydrated aggregate may satisfy /results from memory. A lone
+  // final write creates a sparse map, which previously made older completed
+  // matches disappear after a Worker cold start.
+  if (!skipMemory && mem.finalResultsHydrated) {
+    return { results: mem.finalResults, source: 'memory-hydrated' };
   }
 
   if (!skipPublicCache) {
     const publicDoc = await getDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results).catch(() => null);
-    if (publicDoc?.results) {
-      mem.finalResults = publicDoc.results;
+    if (publicDoc?.results && typeof publicDoc.results === 'object') {
+      // Preserve any finals written in this isolate after the public aggregate
+      // was last rebuilt.
+      mem.finalResults = { ...publicDoc.results, ...mem.finalResults };
+      setFinalResultsHydrated(true);
       return { results: mem.finalResults, source: 'firestore-public-cache' };
     }
   }
@@ -28,6 +34,7 @@ export async function readStoredResults(env, opts = {}) {
     if (doc.id) results[doc.id] = stripMeta(doc);
   }
   mem.finalResults = results;
+  setFinalResultsHydrated(true);
   return { results, source: docs.length ? 'firestore-collection' : 'empty' };
 }
 
@@ -63,6 +70,7 @@ export async function refreshPublicResultsCache(env, results) {
   await patchDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results, payload).catch(() => null);
   const mem = getMemory();
   mem.finalResults = { ...cleanResults };
+  setFinalResultsHydrated(true);
   mem.updatedAt = payload.updatedAt;
   return payload;
 }

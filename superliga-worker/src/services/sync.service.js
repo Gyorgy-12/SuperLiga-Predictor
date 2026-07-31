@@ -2,7 +2,7 @@ import { normalizeLiveMatch } from '../core/normalize-live.js';
 import { interestingFixtures } from '../core/match-window.js';
 import { kickoffMs } from '../utils/time.js';
 import { mergeLiveResults, getLiveSnapshot } from './memory-cache.service.js';
-import { readStoredResults, writeFinalIfChanged } from './results.service.js';
+import { readStoredResults, refreshPublicResultsCache, writeFinalIfChanged } from './results.service.js';
 import { getFixtures } from './fixtures.service.js';
 import { fetchSofaScoreEvents } from '../sources/sofascore-events-source.js';
 import { fetchEspnEvents } from '../sources/espn-source.js';
@@ -150,6 +150,24 @@ export async function syncLive(env, opts = {}) {
     if (write.written || write.error) finalWrites.push(write);
   }
 
+  // Rebuild the public aggregate once after any new FT write. This guarantees
+  // that a new browser session receives every historical final result, not only
+  // the rows touched by the current Worker isolate.
+  let publicResultsCache = null;
+  if (finalWrites.some(row => row?.written)) {
+    const complete = await readStoredResults(env, {
+      forceCollection: true,
+      skipMemory: true,
+      skipPublicCache: true
+    }).catch(() => null);
+    if (complete?.results) {
+      publicResultsCache = await refreshPublicResultsCache(env, complete.results).catch(error => ({
+        ok: false,
+        error: error?.message || String(error)
+      }));
+    }
+  }
+
   return {
     ok: true,
     source: opts.source || 'sync-live-flashscore-first',
@@ -170,6 +188,7 @@ export async function syncLive(env, opts = {}) {
     scoreSource: summarizeSource(scorePack),
     eventSource: summarizeSource(eventPack),
     finalWrites,
+    publicResultsCache,
     results: visibleResults,
     updatedAt: new Date().toISOString(),
     debug: opts.debug ? {

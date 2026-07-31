@@ -1361,29 +1361,29 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   else if (/\b(HT|HALF TIME|HALFTIME|BREAK|INT)\b/.test(blob)) status = 'HT';
 
   // Only a genuine provider clock may become the public running minute.
-  // Event timestamps (goals/cards/substitutions) are lower-bound history, not
-  // the clock. Mixing them caused future substitution rows to show 62' while
-  // the match itself was only in the 53rd minute.
+  // Keep strict source priority and use the first valid clock. Never choose the
+  // numerically largest signal: Flashscore metadata can expose a 45'/90' period
+  // boundary while the real provider clock is still, for example, 41'.
   const minuteSignals = [
-    listClock.liveMinute,
-    pack.providerMinute,
-    pack.minute,
-    pack.matchMinute,
-    pack.statusMinute,
-    pack.displayClock,
-    pack.matchStatus,
-    pack.statusText,
-    meta.currentMinute,
-    meta.minute
-  ].filter(v => v != null && String(v).trim() !== '');
+    { value: listClock.liveMinute, source: listClock.minuteSource || 'flashscore-list-clock', observedAt: listClock.clockObservedAt },
+    { value: pack.providerMinute, source: pack.minuteSource || 'provider-detail', observedAt: pack.clockObservedAt },
+    { value: pack.minute, source: pack.minuteSource || 'provider-detail', observedAt: pack.clockObservedAt },
+    { value: pack.matchMinute, source: 'provider-detail', observedAt: pack.clockObservedAt },
+    { value: pack.statusMinute, source: 'provider-detail', observedAt: pack.clockObservedAt },
+    { value: meta.currentMinute, source: 'provider-meta', observedAt: pack.clockObservedAt },
+    { value: meta.minute, source: 'provider-meta', observedAt: pack.clockObservedAt }
+  ];
 
   let providerMinute = null;
+  let providerMinuteSource = null;
+  let providerClockObservedAt = null;
   for (const signal of minuteSignals) {
-    const m = String(signal).match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:['’]|\s|$)/);
-    if (m) {
-      const candidate = m[1];
-      if (!providerMinute || flashscoreMinuteNumber(candidate) > flashscoreMinuteNumber(providerMinute)) providerMinute = candidate;
-    }
+    const m = String(signal.value ?? '').match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:['’]|\s|$)/);
+    if (!m) continue;
+    providerMinute = m[1];
+    providerMinuteSource = signal.source;
+    providerClockObservedAt = signal.observedAt || new Date().toISOString();
+    break;
   }
 
   const eventMinutes = [
@@ -1424,8 +1424,8 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
     minute,
     providerMinute,
     latestIncidentMinute,
-    minuteSource: providerMinute ? (listClock.minuteSource || (listClock.liveMinute ? 'flashscore-list-bx' : 'provider-detail')) : null,
-    clockObservedAt: providerMinute ? (listClock.clockObservedAt || new Date().toISOString()) : null,
+    minuteSource: providerMinute ? (providerMinuteSource || 'provider-detail') : null,
+    clockObservedAt: providerMinute ? providerClockObservedAt : null,
     staleHtSuppressed,
     score
   };

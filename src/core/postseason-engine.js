@@ -148,53 +148,6 @@ function superligaTrustedClockSource(value){
   let s=String(value||'').toLowerCase();
   return s.includes('provider')||s.includes('flashscore-list')||s.includes('flashscore-mobile')||s.includes('mobile-page')||s.includes('flashscore-clock');
 }
-function superligaLatestIncidentMinute(r){
-  let events=[...(r?.scorers||[]),...(r?.yellowCards||[]),...(r?.redCards||[]),...(r?.doubleYellowCards||[]),...(r?.substitutions||[])];
-  let best=null,bestOrder=-1;
-  events.forEach(e=>{
-    let token=superligaMinuteToken(e?.minute??e?.matchMinute??e?.elapsed??e?.time??e?.statusMinute),order=superligaMinuteOrder(token);
-    if(token&&order>bestOrder){best=token;bestOrder=order;}
-  });
-  return best;
-}
-function superligaAdvanceProviderMinute(token,delta,secondHalf){
-  let m=String(token||'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
-  if(!m)return token||null;
-  let base=Number(m[1]),extra=Number(m[2]||0),add=Math.max(0,Math.min(2,Number(delta)||0));
-  if(!add)return token;
-  if(secondHalf){
-    if(base>=90)return `90+${Math.max(1,extra+add)}`;
-    return String(Math.min(90,Math.max(46,base+add)));
-  }
-  if(base>=45)return `45+${Math.max(1,extra+add)}`;
-  return String(Math.min(45,Math.max(1,base+add)));
-}
-function superligaEstimatedRunningMinute(r,baseMinute){
-  if(!r||r.finished||!r.started)return null;
-  let token=superligaMinuteToken(baseMinute);
-  if(token){
-    let s=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.matchMeta?.currentPeriod]
-      .map(v=>String(v||'')).join(' ').toUpperCase();
-    let secondHalf=s.includes('2ND HALF')||s.includes('SECOND HALF')||/\b2H\b/.test(s)||superligaMinuteOrder(token)>=46;
-    let receivedAt=Number(r._receivedAt),ageMinutes=Number.isFinite(receivedAt)
-      ?Math.floor(Math.max(0,Date.now()-receivedAt)/60000):0;
-    return superligaAdvanceProviderMinute(token,ageMinutes,secondHalf);
-  }
-
-  // Only metadata-only live records fall back to the scheduled kickoff.
-  let kickoff=Number(r._kickoffMs);
-  if(!Number.isFinite(kickoff)&&r._fixtureId){
-    let fixture=(typeof FX_BY_ID!=='undefined'&&FX_BY_ID[r._fixtureId])||(typeof FX!=='undefined'&&FX.find(x=>String(x.id)===String(r._fixtureId)));
-    if(fixture&&typeof fixtureKickoff==='function')kickoff=fixtureKickoff(fixture);
-  }
-  if(!Number.isFinite(kickoff))return null;
-  let elapsed=Math.floor((Date.now()-kickoff)/60000)+1;
-  if(elapsed<1)return null;
-  let s=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.matchMeta?.currentPeriod]
-    .map(v=>String(v||'')).join(' ').toUpperCase();
-  if(s.includes('2ND HALF')||s.includes('SECOND HALF')||/\b2H\b/.test(s))return String(Math.min(90,Math.max(46,elapsed-15)));
-  return String(Math.min(45,elapsed));
-}
 function liveClockLabel(r){
   if(!r||!r.started||superligaIsEffectivelyFinished(r))return'';
   let statusBlob=[r.status,r.period,r.shortDetail,r.detail,r.statusText,r.matchMeta?.currentPeriod]
@@ -203,29 +156,16 @@ function liveClockLabel(r){
   if(/\bAET\b/.test(statusBlob)||statusBlob.includes('EXTRA TIME'))return'AET';
   if(/\bPEN\b/.test(statusBlob)||statusBlob.includes('SHOOTOUT'))return'PEN';
 
+  // The UI mirrors the exact provider clock. Status/display fields, incident
+  // timestamps and time-based interpolation must never manufacture 45'/90'.
   let source=String(r.minuteSource||'').toLowerCase();
   let token=superligaMinuteToken(r.providerMinute);
-  if(!token&&superligaTrustedClockSource(source)){
-    token=[r.minute,r.status,r.displayClock,r.statusText]
-      .map(superligaMinuteToken).find(Boolean)||null;
-  }
+  if(!token&&superligaTrustedClockSource(source))token=superligaMinuteToken(r.minute);
   if(!token&&!String(r.source||'').toLowerCase().includes('flashscore')){
-    token=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute,r.displayClock]
+    token=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute]
       .map(superligaMinuteToken).find(Boolean)||null;
   }
-
-  // In stoppage time an incident timestamp is a safe lower bound: once a
-  // 90+x event exists, the match cannot still be shown merely as “Élő”.
-  if(!token){
-    let incident=superligaLatestIncidentMinute(r);
-    if(/^90\+\d{1,2}$/.test(String(incident||'')))token=incident;
-  }
-  if(!token)return'Élő';
-
-  let observedAt=Number(r._clockObservedAt||r._receivedAt),ageMinutes=Number.isFinite(observedAt)
-    ?Math.floor(Math.max(0,Date.now()-observedAt)/60000):0;
-  let secondHalf=statusBlob.includes('2ND HALF')||statusBlob.includes('SECOND HALF')||/\b2H\b/.test(statusBlob)||superligaMinuteOrder(token)>=46;
-  return (superligaAdvanceProviderMinute(token,Math.min(1,ageMinutes),secondHalf)||token)+"'";
+  return token?token+"'":'Élő';
 }
 
 function superligaStatusBlob(r){

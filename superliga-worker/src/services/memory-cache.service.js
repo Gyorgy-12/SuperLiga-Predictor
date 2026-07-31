@@ -1,6 +1,7 @@
 const memory = globalThis.__SUPERLIGA_WORKER_CACHE__ || (globalThis.__SUPERLIGA_WORKER_CACHE__ = {
   liveResults: {},
   finalResults: {},
+  finalResultsHydrated: false,
   hashes: {},
   updatedAt: null,
   expiresAt: 0,
@@ -48,7 +49,15 @@ export function clearManualLive() {
 }
 
 export function setFinalResult(id, result) {
+  // A single freshly written final row must not make the in-memory aggregate
+  // look complete. readStoredResults() will hydrate the full collection/cache
+  // before serving /results unless finalResultsHydrated is already true.
   memory.finalResults[id] = result;
   delete memory.liveResults[id];
   memory.updatedAt = new Date().toISOString();
 }
+
+export function setFinalResultsHydrated(value = true) {
+  memory.finalResultsHydrated = !!value;
+}
+
