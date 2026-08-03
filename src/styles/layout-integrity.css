@@ -1,0 +1,267 @@
+/* Structural rules for dynamic states that are not present in the initial view. */
+
+/* Match cards: keep actual and predicted scores in distinct columns. */
+.matches-main .mr-score-compare,
+.matches-main .mr-score-actual-only,
+.matches-main .mr-score-tip-only{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:clamp(5px,.52vw,8px)!important;
+  width:100%;
+  min-width:0;
+}
+
+.matches-main .mr-score-row{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(1.1ch,auto));
+  align-items:center;
+  justify-content:center;
+  column-gap:clamp(8px,.8vw,12px)!important;
+  width:100%;
+  min-height:1.18em;
+}
+
+.matches-main .mr-score-row.single{
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+}
+
+.matches-main .mr-score-real,
+.matches-main .mr-score-tip,
+.matches-main .mr-score-single{
+  display:inline-flex!important;
+  align-items:baseline;
+  justify-content:center;
+  min-width:1.1ch;
+  line-height:1!important;
+  white-space:nowrap;
+}
+
+.matches-main .mr-score-real{
+  color:#ff6f84!important;
+  font-weight:950!important;
+}
+
+.matches-main .mr-score-tip{
+  color:#d7e0e6!important;
+  font-weight:900!important;
+}
+
+/* Playoff/playout: separate every halved-points item and the explanatory note. */
+.main:has(.halving-meta) > .card{
+  overflow:visible;
+}
+
+.main:has(.halving-meta) > .card + .card{
+  margin-top:clamp(10px,2.6vw,15px);
+}
+
+.halving-meta{
+  margin-top:clamp(10px,2.4vw,16px);
+  padding-top:clamp(9px,2vw,13px);
+  border-top:1px solid rgba(255,255,255,.06);
+  color:var(--muted2);
+  font-size:clamp(12.2px,.82vw,15.5px);
+  font-weight:760;
+  line-height:1.45;
+}
+
+.halving-title{
+  margin-bottom:clamp(5px,1vw,8px);
+  color:#e8edf0;
+  font-size:clamp(13px,.86vw,16.5px);
+  font-weight:900;
+}
+
+.halving-list{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:clamp(6px,1.2vw,10px) clamp(12px,2vw,18px)!important;
+}
+
+.halving-list span{
+  display:inline-flex;
+  align-items:baseline;
+  gap:.32em;
+  max-width:100%;
+  color:#c5d0d7;
+  white-space:nowrap;
+}
+
+.halving-list b{
+  color:#e8edf0;
+  font-weight:950;
+}
+
+.halving-note{
+  margin-top:clamp(6px,1.2vw,9px);
+  color:var(--muted);
+  font-size:clamp(11.2px,.72vw,13.8px);
+  font-weight:720;
+}
+
+/* Baraj: restore the structural layout beneath the visual theme. */
+.baraj-main .baraj-match-card{
+  appearance:none;
+  display:block!important;
+  width:100%;
+  min-width:0!important;
+  color:var(--text);
+  text-align:inherit;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.baraj-main .baraj-match-top,
+.baraj-main .baraj-match-bottom{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:clamp(7px,.65vw,10px)!important;
+  line-height:1.25!important;
+}
+
+.baraj-main .baraj-match-top span,
+.baraj-main .baraj-match-top b,
+.baraj-main .baraj-match-bottom span,
+.baraj-main .baraj-match-bottom strong{
+  min-width:0;
+  white-space:nowrap;
+}
+
+.baraj-main .baraj-match-top b{
+  color:#e8edf0;
+  font-weight:850;
+  font-variant-numeric:tabular-nums;
+}
+
+.baraj-main .baraj-match-bottom strong{
+  color:#27c96a;
+  font-weight:900;
+}
+
+.baraj-main .baraj-match-card.locked .baraj-match-bottom strong{
+  color:#8a969f;
+}
+
+.baraj-main .baraj-match-card.live .baraj-match-bottom strong{
+  color:#ff7b87;
+}
+
+.baraj-main .baraj-match-body{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) clamp(48px,4.5vw,72px) minmax(0,1fr)!important;
+  align-items:center!important;
+}
+
+.baraj-main .baraj-team{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  min-width:0!important;
+  text-align:center!important;
+  line-height:1.1!important;
+}
+
+.baraj-main .baraj-team span{
+  display:block;
+  max-width:100%!important;
+  min-width:0;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+
+.baraj-main .baraj-score{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-variant-numeric:tabular-nums;
+}
+
+.baraj-main .baraj-score-stack{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+}
+
+.baraj-main .baraj-score-main,
+.baraj-main .baraj-score-pen{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+}
+
+.baraj-main .baraj-score-main{
+  gap:clamp(5px,1.4vw,8px);
+  line-height:1;
+}
+
+.baraj-main .baraj-score-pen{
+  gap:4px;
+  color:#f4b241;
+  font-size:clamp(9px,1.65vw,11px);
+  font-weight:900;
+}
+
+.baraj-main .baraj-aggregate{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px;
+}
+
+.baraj-main .baraj-aggregate-right{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  min-width:0;
+  margin-left:auto;
+  text-align:right;
+}
+
+.baraj-main .baraj-relegated-grid{
+  display:grid!important;
+}
+
+.baraj-main .baraj-relegated-tile > span{
+  display:block;
+  color:var(--muted);
+  font-weight:850;
+}
+
+.baraj-main .baraj-relegated-tile > div{
+  display:flex!important;
+  align-items:center!important;
+  gap:clamp(8px,2vw,11px)!important;
+  min-width:0;
+  margin:clamp(8px,2vw,10px) 0 clamp(6px,1.4vw,8px);
+}
+
+.baraj-main .baraj-relegated-tile b{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+@media (max-width:720px){
+  .baraj-main .baraj-aggregate{
+    flex-direction:column;
+    align-items:flex-start!important;
+  }
+
+  .baraj-main .baraj-aggregate-right{
+    width:100%;
+    justify-content:space-between;
+    text-align:left;
+  }
+}
