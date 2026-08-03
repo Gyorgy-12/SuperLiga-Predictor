@@ -7,6 +7,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "check": "node ../scripts/check-syntax.mjs src",
+    "test": "node --test test/*.test.mjs",
     "build": "wrangler deploy --dry-run"
   },
   "devDependencies": {

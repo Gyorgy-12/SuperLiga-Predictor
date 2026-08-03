@@ -60,5 +60,7 @@ export async function coordinatorLiveResultsCache(env) {
 }
 export async function coordinatorRatingsCache(env) {
   const data = await coordinatorFetchJson(env, '/ratings-cache');
-  return data?.ratings || data?.marketValues ? data : null;
+  const ratingCount = Object.keys(data?.ratings || {}).length;
+  const marketCount = Object.keys(data?.marketValues || {}).length;
+  return ratingCount > 0 || marketCount > 0 ? data : null;
 }

@@ -40,26 +40,52 @@ export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
       || DEFAULT_FALLBACK_URL
   );
 
-  const plans = unique([
+  const directPlans = unique([
     primaryUrl && {
       id: 'prediction-game-current-club-elo',
-      url: cacheBust(primaryUrl, opts.force),
+      url: primaryUrl,
       parser: parsePredictionGameRatings
     },
     fallbackUrl && {
       id: 'clubelo-romania-current',
-      url: cacheBust(fallbackUrl, opts.force),
+      url: fallbackUrl,
       parser: parseClubEloCountryRatings
     }
   ].filter(Boolean), plan => plan.url);
 
-  const results = await Promise.all(plans.map(plan => runPlan(env, plan, knownTeams, opts)));
+  const results = [];
+  for (const plan of directPlans) {
+    const result = await runPlan(env, plan, knownTeams, opts);
+    results.push(result);
+    if (result.count >= minCount) break;
+  }
+
+  // Datacenter requests are occasionally rejected by otherwise healthy rating
+  // pages. Only pay for the browser-reader fallback when neither direct source
+  // reaches the required coverage.
+  if (!selectResult(results, minCount) && readerEnabled(env)) {
+    const readerTargets = unique([
+      primaryUrl,
+      primaryUrl?.replace(/^https:/i, 'http:')
+    ].filter(Boolean));
+    const readerResults = await Promise.all(
+      readerTargets.map((target, index) => runPlan(env, {
+        id: `prediction-game-reader-${index + 1}`,
+        sourceKind: 'prediction-game-current-club-elo',
+        url: buildReaderUrl(env, target),
+        parser: parsePredictionGameMarkdownRatings,
+        reader: true
+      }, knownTeams, opts))
+    );
+    results.push(...readerResults);
+  }
+
   const attempts = results.map(result => result.attempt);
 
   // Prefer a provider with enough current coverage. If both satisfy the
   // threshold, keep the configured order to avoid changing Elo scale between
   // daily runs without a real outage.
-  const selected = results.find(result => result.count >= minCount)
+  const selected = selectResult(results, minCount)
     || [...results].sort((a, b) => b.count - a.count)[0]
     || null;
 
@@ -98,7 +124,7 @@ export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
 }
 
 async function runPlan(env, plan, knownTeams, opts) {
-  const response = await fetchText(env, plan.url, opts);
+  const response = await fetchText(env, plan.url, opts, { reader: !!plan.reader });
   const parsed = response.ok
     ? plan.parser(response.text, knownTeams)
     : emptyParsed(knownTeams);
@@ -107,7 +133,7 @@ async function runPlan(env, plan, knownTeams, opts) {
   return {
     id: plan.id,
     source: `${plan.id}-b47`,
-    sourceKind: plan.id,
+    sourceKind: plan.sourceKind || plan.id,
     url: response.finalUrl || plan.url,
     ratings: parsed.ratings,
     matched: parsed.matched,
@@ -136,7 +162,13 @@ async function runPlan(env, plan, knownTeams, opts) {
   };
 }
 
+function selectResult(results, minCount) {
+  return (results || []).find(result => result.count >= minCount) || null;
+}
+
 export function parsePredictionGameRatings(html = '', knownTeams = []) {
+  const structured = parsePredictionGameStructuredRatings(html, knownTeams);
+
   // The global page contains many clubs with generic names (for example several
   // clubs containing "Rapid"). Only inspect text segments enclosed by Romanian
   // flag markers, so a foreign club can never be mapped to a SuperLiga team.
@@ -147,8 +179,8 @@ export function parsePredictionGameRatings(html = '', knownTeams = []) {
   const markerIndexes = lines
     .map((line, index) => (/^(romania|rom)$/i.test(line) ? index : -1))
     .filter(index => index >= 0);
-  const ratings = {};
-  const matched = [];
+  const ratings = { ...structured.ratings };
+  const matched = [...structured.matched];
   const unmatched = [];
 
   for (let marker = 0; marker < markerIndexes.length; marker += 1) {
@@ -186,6 +218,57 @@ export function parsePredictionGameRatings(html = '', knownTeams = []) {
   }
 
   return finishParsed(ratings, matched, unmatched, knownTeams, matched.length);
+}
+
+function parsePredictionGameStructuredRatings(html = '', knownTeams = []) {
+  const ratings = {};
+  const matched = [];
+  const recordRegex = /<img\b[^>]*(?:alt|title)=["']Romania["'][^>]*>[\s\S]*?<span\b[^>]*class=["']team-n["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<div\b[^>]*grid-column\s*:\s*3[^>]*>\s*(\d{3,4}(?:\.\d+)?)\s*<\/div>/gi;
+  let match;
+
+  while ((match = recordRegex.exec(String(html || '')))) {
+    const sourceTeam = clean(htmlToText(match[1]));
+    const canonical = findCanonicalTeam(sourceTeam, knownTeams);
+    const elo = firstElo(match[2]);
+    if (!canonical || elo == null || ratings[canonical] != null) continue;
+    ratings[canonical] = elo;
+    matched.push({ team: canonical, sourceTeam, elo, parser: 'structured-html' });
+  }
+
+  return { ratings, matched };
+}
+
+export function parsePredictionGameMarkdownRatings(markdown = '', knownTeams = []) {
+  const lines = String(markdown || '')
+    .replace(/\r/g, '')
+    .split('\n')
+    .map(clean)
+    .filter(Boolean);
+  const ratings = {};
+  const matched = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!/!\[[^\]]*Romania[^\]]*\]/i.test(line)) continue;
+    const sourceTeam = clean(
+      line
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    );
+    const canonical = findCanonicalTeam(sourceTeam, knownTeams);
+    if (!canonical || ratings[canonical] != null) continue;
+
+    let elo = null;
+    for (let offset = 1; offset <= 4 && index + offset < lines.length; offset += 1) {
+      elo = firstElo(lines[index + offset]);
+      if (elo != null) break;
+    }
+    if (elo == null) continue;
+    ratings[canonical] = elo;
+    matched.push({ team: canonical, sourceTeam, elo, parser: 'reader-markdown' });
+  }
+
+  return finishParsed(ratings, matched, [], knownTeams, matched.length);
 }
 
 export function parseClubEloCountryRatings(html = '', knownTeams = []) {
@@ -317,7 +400,7 @@ function buildSuccess(config) {
   };
 }
 
-async function fetchText(env, url, opts = {}) {
+async function fetchText(env, url, opts = {}, mode = {}) {
   const timeoutMs = clampInt(
     opts.timeoutMs || env.CURRENT_ELO_TIMEOUT_MS,
     DEFAULT_TIMEOUT_MS,
@@ -329,20 +412,32 @@ async function fetchText(env, url, opts = {}) {
   const startedAt = Date.now();
 
   try {
+    const headers = {
+      accept: mode.reader
+        ? 'text/plain,text/markdown;q=0.9,*/*;q=0.8'
+        : 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'en-US,en;q=0.9,ro;q=0.8',
+      'cache-control': 'no-cache',
+      'user-agent':
+        env.CURRENT_ELO_USER_AGENT
+        || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+           '(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+    };
+    if (mode.reader) {
+      headers['x-no-cache'] = 'true';
+      headers['x-engine'] = 'browser';
+      headers['x-timeout'] = '30';
+      headers['x-retain-links'] = 'text';
+      headers['x-retain-images'] = 'none';
+      if (env.JINA_API_KEY) headers.authorization = `Bearer ${env.JINA_API_KEY}`;
+    }
+
     const response = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
       cache: 'no-store',
       signal: controller.signal,
-      headers: {
-        accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
-        'accept-language': 'en-US,en;q=0.9,ro;q=0.8',
-        'cache-control': 'no-cache',
-        'user-agent':
-          env.CURRENT_ELO_USER_AGENT
-          || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-             '(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
-      }
+      headers
     });
     const text = await response.text();
     const blocked = /captcha|access denied|service unavailable|site overloaded/i.test(text);
@@ -469,15 +564,13 @@ function stripDiacritics(value) {
   return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-function cacheBust(rawUrl, force) {
-  if (!force) return rawUrl;
-  try {
-    const url = new URL(rawUrl);
-    url.searchParams.set('_slratings', String(Date.now()));
-    return url.toString();
-  } catch {
-    return rawUrl;
-  }
+function readerEnabled(env) {
+  return String(env.CURRENT_ELO_READER_ENABLED || 'true').toLowerCase() !== 'false';
+}
+
+function buildReaderUrl(env, targetUrl) {
+  const base = String(env.JINA_READER_BASE_URL || 'https://r.jina.ai').replace(/\/$/, '');
+  return `${base}/${targetUrl}`;
 }
 
 function unique(items, keyFn = item => item) {

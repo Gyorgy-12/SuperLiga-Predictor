@@ -22,6 +22,8 @@ const DEFAULT_ROLLING_ODDS_STALE_MINUTES = 360;
 const DEFAULT_LIVE_START_BEFORE_MINUTES = 5;
 const DEFAULT_LIVE_END_AFTER_MINUTES = 120;
 const DEFAULT_LIVE_INTERVAL_SECONDS = 30;
+const DEFAULT_RATINGS_RETRY_MINUTES = 30;
+const RATINGS_REFRESH_REVISION = 'b51-localized-market-values';
 const ALARM_EARLY_GRACE_MS = 1_500;
 
 export class UpdateCoordinator extends DurableObject {
@@ -150,8 +152,22 @@ export class UpdateCoordinator extends DurableObject {
         source: 'daily-elo-tm-refresh-b42'
       });
       ran.push('ratings');
-      scheduler.lastDailyRatingsKey = dailyRatings.key;
-      scheduler.lastDailyRatingsAt = new Date().toISOString();
+      const ratingsAttemptAt = new Date().toISOString();
+      const ratingsOk = results.ratings?.ok === true;
+      scheduler.lastDailyRatingsAttemptKey = dailyRatings.key;
+      scheduler.lastDailyRatingsAttemptAt = ratingsAttemptAt;
+      scheduler.lastDailyRatingsAttemptRevision = RATINGS_REFRESH_REVISION;
+      scheduler.lastDailyRatingsOk = ratingsOk;
+      scheduler.lastDailyRatingsError = ratingsOk
+        ? null
+        : (results.ratings?.error || 'daily_ratings_refresh_failed');
+      if (ratingsOk) {
+        scheduler.lastDailyRatingsKey = dailyRatings.key;
+        scheduler.lastDailyRatingsAt = ratingsAttemptAt;
+        scheduler.dailyRatingsFailureCount = 0;
+      } else {
+        scheduler.dailyRatingsFailureCount = Number(scheduler.dailyRatingsFailureCount || 0) + 1;
+      }
       await this.writeSchedulerState(scheduler);
     }
 
@@ -561,14 +577,32 @@ export class UpdateCoordinator extends DurableObject {
     const localDate = dateKeyInZone(now, timezone);
     const targetAt = zonedDateTimeToEpoch(localDate, hour, minute, timezone);
     const key = `${localDate}@${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    const due = now + ALARM_EARLY_GRACE_MS >= targetAt
-      && scheduler.lastDailyRatingsKey !== key;
+    const completed = scheduler.lastDailyRatingsKey === key
+      && scheduler.lastDailyRatingsOk === true;
+    const targetReached = now + ALARM_EARLY_GRACE_MS >= targetAt;
 
-    if (due) {
-      return { enabled: true, due: true, nextAt: now + 1_000, key };
+    if (targetReached && !completed) {
+      const isCurrentRevision = scheduler.lastDailyRatingsAttemptRevision === RATINGS_REFRESH_REVISION;
+      const isSameAttempt = isCurrentRevision && (
+        scheduler.lastDailyRatingsAttemptKey === key
+        || (scheduler.lastDailyRatingsKey === key && scheduler.lastDailyRatingsOk !== true)
+      );
+      const legacyOrCurrentAttemptAt = scheduler.lastDailyRatingsAttemptAt
+        || scheduler.lastDailyRatingsAt;
+      const lastAttemptMs = isSameAttempt
+        ? Date.parse(legacyOrCurrentAttemptAt || '')
+        : NaN;
+      const retryAt = Number.isFinite(lastAttemptMs)
+        ? lastAttemptMs + this.ratingsRetryMinutes() * 60_000
+        : now;
+
+      if (retryAt > now + ALARM_EARLY_GRACE_MS) {
+        return { enabled: true, due: false, retry: true, nextAt: retryAt, key };
+      }
+      return { enabled: true, due: true, retry: Number.isFinite(lastAttemptMs), nextAt: now + 1_000, key };
     }
 
-    const nextDate = targetAt > now ? localDate : addLocalDays(localDate, 1);
+    const nextDate = !targetReached ? localDate : addLocalDays(localDate, 1);
     const nextAt = zonedDateTimeToEpoch(nextDate, hour, minute, timezone);
     const nextKey = `${nextDate}@${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
     return { enabled: true, due: false, nextAt, key: nextKey };
@@ -616,6 +650,10 @@ export class UpdateCoordinator extends DurableObject {
     return clampInt(this.env.LIVE_SYNC_INTERVAL_SECONDS ?? DEFAULT_LIVE_INTERVAL_SECONDS, 30, 300);
   }
 
+  ratingsRetryMinutes() {
+    return clampInt(this.env.RATINGS_RETRY_MINUTES ?? DEFAULT_RATINGS_RETRY_MINUTES, 5, 180);
+  }
+
   async acquireLock(task, force = false) {
     const now = Date.now();
     const current = await this.ctx.storage.get(LOCK_KEY);
@@ -646,7 +684,7 @@ export class UpdateCoordinator extends DurableObject {
 
   async readSchedulerState() {
     return await this.ctx.storage.get(SCHEDULER_KEY) || {
-      version: 'b42-daily-ratings',
+      version: 'b48-ratings-retry',
       createdAt: new Date().toISOString(),
       lastDailyLocalDate: null,
       lastDailyRatingsKey: null
@@ -654,7 +692,7 @@ export class UpdateCoordinator extends DurableObject {
   }
 
   async writeSchedulerState(state) {
-    state.version = 'b42-daily-ratings';
+    state.version = 'b48-ratings-retry';
     state.updatedAt = new Date().toISOString();
     await this.ctx.storage.put(SCHEDULER_KEY, state);
   }
@@ -679,7 +717,8 @@ export class UpdateCoordinator extends DurableObject {
         liveEndAfterMinutes: this.liveEndAfterMinutes(),
         liveIntervalSeconds: this.liveIntervalSeconds(),
         dailyRatingsEnabled: String(this.env.DAILY_RATINGS_ENABLED || 'false').toLowerCase() === 'true',
-        dailyRatingsLocalTime: `${String(clampInt(this.env.DAILY_RATINGS_HOUR_LOCAL ?? 10, 0, 23)).padStart(2, '0')}:${String(clampInt(this.env.DAILY_RATINGS_MINUTE_LOCAL ?? 0, 0, 59)).padStart(2, '0')}`
+        dailyRatingsLocalTime: `${String(clampInt(this.env.DAILY_RATINGS_HOUR_LOCAL ?? 10, 0, 23)).padStart(2, '0')}:${String(clampInt(this.env.DAILY_RATINGS_MINUTE_LOCAL ?? 0, 0, 59)).padStart(2, '0')}`,
+        ratingsRetryMinutes: this.ratingsRetryMinutes()
       }
     };
   }
@@ -705,6 +744,8 @@ export class UpdateCoordinator extends DurableObject {
       at: new Date().toISOString(),
       ok: !!result?.ok,
       count: result?.count ?? result?.sourceCount ?? result?.marketCount ?? result?.selectedCount ?? null,
+      sourceCount: result?.sourceCount ?? null,
+      marketSourceCount: result?.marketSourceCount ?? null,
       changedCount: result?.changedCount ?? null,
       scheduleChangedCount: result?.scheduleChangedCount ?? null,
       midChangedCount: result?.midChangedCount ?? null,

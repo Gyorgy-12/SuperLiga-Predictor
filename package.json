@@ -5,6 +5,6 @@
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "check": "node scripts/check-syntax.mjs src --order src/app.order.txt",
-    "test": "npm run check && npm --prefix superliga-worker run check"
+    "test": "npm run check && npm --prefix superliga-worker run check && npm --prefix superliga-worker test"
   }
 }

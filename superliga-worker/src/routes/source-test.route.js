@@ -351,7 +351,8 @@ export async function sourceTestRoute(request, env) {
         })
       ]);
       pack = {
-        ok: !!(elo.ok || marketValues.ok),
+        ok: !!(elo.ok && marketValues.ok),
+        partial: !!elo.ok !== !!marketValues.ok,
         source: 'ratings-source-test-b47-current-external-elo',
         elo,
         marketValues
@@ -432,7 +433,7 @@ export async function sourceTestRoute(request, env) {
       oddsSourceUrlConfigured: !!env.ODDS_SOURCE_URL,
       oddspediaOddsUrl: env.ODDSPEDIA_ODDS_URL || env.ODDSPEDIA_LIGA1_ODDS_URL || 'https://oddspedia.com/football/romania/liga-1/odds',
       transfermarktUrl: env.TRANSFERMARKET_MARKET_VALUES_URL || env.TRANSFERMARKT_MARKET_VALUES_URL || 'default',
-      eloFootballUrl: env.ELOFOOTBALL_BASE_URL || 'https://elofootball.com/country.php',
+      currentEloUrl: env.CURRENT_ELO_PRIMARY_URL || 'https://www.prediction-game.com/en/elo-rating-football-teams/',
       espnLeague: env.ESPN_SOCCER_LEAGUE || env.ESPN_LEAGUE || 'rou.1',
       fotmobLeagueId: env.FOTMOB_LEAGUE_ID || '189',
       fotmobBase: env.FOTMOB_API_BASE_URL || 'https://www.fotmob.com/api',

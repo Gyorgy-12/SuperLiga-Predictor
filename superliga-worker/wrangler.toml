@@ -32,14 +32,17 @@ FLASHSCORE_ODDS_MAX_BOOKMAKERS = "5"
 FLASHSCORE_ODDS_MAX_FIXTURES = "24"
 FLASHSCORE_ODDS_CONCURRENCY = "4"
 FLASHSCORE_ODDS_TIMEOUT_MS = "8000"
-# B33 EloFootball Romania country ranking.
-# The source tries the current season first and automatically falls back to
-# the previous season while the new season page still says "No data available".
-ELOFOOTBALL_BASE_URL = "https://elofootball.com/country.php"
-ELOFOOTBALL_COUNTRY_ISO = "ROU"
-ELOFOOTBALL_SEASON = ""
-ELOFOOTBALL_TIMEOUT_MS = "15000"
-TRANSFERMARKT_MARKET_VALUES_URL = ""
+# Current club Elo. The Reader fallback is only used when direct datacenter
+# requests are rejected; different Elo models are never merged in one run.
+CURRENT_ELO_PRIMARY_URL = "https://www.prediction-game.com/en/elo-rating-football-teams/"
+CURRENT_ELO_FALLBACK_URL = "https://clubelo.com/ROM"
+CURRENT_ELO_MIN_COUNT = "12"
+CURRENT_ELO_TIMEOUT_MS = "15000"
+CURRENT_ELO_READER_ENABLED = "true"
+
+TRANSFERMARKT_MARKET_VALUES_URL = "https://www.transfermarkt.com/superliga/marktwerteverein/wettbewerb/RO1"
+TRANSFERMARKT_MIN_COUNT = "12"
+TRANSFERMARKT_TIMEOUT_MS = "22000"
 
 LIVE_WRITE_TO_FIRESTORE = "false"
 FINAL_WRITE_TO_FIRESTORE = "true"
@@ -79,6 +82,7 @@ LIVE_SYNC_INTERVAL_SECONDS = "30"
 DAILY_RATINGS_ENABLED = "true"
 DAILY_RATINGS_HOUR_LOCAL = "10"
 DAILY_RATINGS_MINUTE_LOCAL = "0"
+RATINGS_RETRY_MINUTES = "30"
 
 FLASHSCORE_FIXTURE_MAX_FEEDS = "18"
 FLASHSCORE_MID_MAX_FEEDS = "18"

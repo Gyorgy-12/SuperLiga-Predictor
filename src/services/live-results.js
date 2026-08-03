@@ -514,10 +514,12 @@ function startSuperligaUiClock(){
 startSuperligaUiClock();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)superligaRefreshVisibleClockPills()});
 
-let superligaRatingsInFlight=null;
+const SUPERLIGA_RATINGS_POLL_MS=30*60*1000;
+let superligaRatingsInFlight=null,superligaRatingsPullAt=0;
 async function applyTeamElo(opts={}){
   if(FROZEN_MODE)return false;
   if(superligaRatingsInFlight&&!opts.force)return superligaRatingsInFlight;
+  if(!opts.force&&Date.now()-superligaRatingsPullAt<SUPERLIGA_RATINGS_POLL_MS)return false;
 
   superligaRatingsInFlight=(async()=>{
     let base=superligaWorkerBase();
@@ -525,14 +527,14 @@ async function applyTeamElo(opts={}){
     let marketUrl=SUPERLIGA_MARKET_VALUES_URL||(base?base+'/market-values':'');
     let stamp=Date.now();
 
-    let [ratingsData,marketData]=await Promise.all([
-      ratingsUrl
-        ? fetchWorkerJson(addParams(ratingsUrl,{fresh:1,nocache:1,t:stamp})).catch(error=>({__error:error?.message||String(error)}))
-        : Promise.resolve(null),
-      marketUrl
-        ? fetchWorkerJson(addParams(marketUrl,{fresh:1,nocache:1,t:stamp})).catch(error=>({__error:error?.message||String(error)}))
-        : Promise.resolve(null)
-    ]);
+    let ratingsData=ratingsUrl
+      ? await fetchWorkerJson(addParams(ratingsUrl,{fresh:1,nocache:1,t:stamp})).catch(error=>({__error:error?.message||String(error)}))
+      : null;
+    let marketData=null;
+    let ratingsHasMarket=Object.keys(ratingsData?.marketValues||ratingsData?.values||{}).length>0;
+    if(!ratingsHasMarket&&marketUrl&&marketUrl!==ratingsUrl){
+      marketData=await fetchWorkerJson(addParams(marketUrl,{fresh:1,nocache:1,t:stamp})).catch(error=>({__error:error?.message||String(error)}));
+    }
 
     let changed=false;
     if(ratingsData&&!ratingsData.__error)changed=applyTeamRatingsData(ratingsData)||changed;
@@ -541,6 +543,7 @@ async function applyTeamElo(opts={}){
         marketValues:marketData.marketValues||marketData.values||{}
       })||changed;
     }
+    if((ratingsData&&!ratingsData.__error)||(marketData&&!marketData.__error))superligaRatingsPullAt=Date.now();
 
     try{
       window.SUPERLIGA_RATINGS_DEBUG={
@@ -548,7 +551,9 @@ async function applyTeamElo(opts={}){
         ratingsError:ratingsData?.__error||null,
         marketError:marketData?.__error||null,
         ratingsUpdatedAt:ratingsData?.updatedAt||null,
-        marketUpdatedAt:marketData?.updatedAt||null,
+        marketUpdatedAt:marketData?.updatedAt||ratingsData?.updatedAt||null,
+        checkedAt:ratingsData?.checkedAt||marketData?.checkedAt||null,
+        lastSuccessfulRefreshAt:ratingsData?.lastSuccessfulRefreshAt||marketData?.lastSuccessfulRefreshAt||null,
         ratingsCount:Object.keys(ratingsData?.ratings||{}).length,
         marketCount:Object.keys(marketData?.marketValues||marketData?.values||ratingsData?.marketValues||{}).length,
         changed,
@@ -563,6 +568,7 @@ async function applyTeamElo(opts={}){
   finally{superligaRatingsInFlight=null}
 }
 window.superligaRefreshRatings=()=>applyTeamElo({force:true});
+setInterval(()=>{if(!document.hidden)applyTeamElo()},SUPERLIGA_RATINGS_POLL_MS);
 let superligaOddsPullAt=0,superligaOddsPullInFlight=null;
 async function applyOddsFromWorker(opts={}){
   if(FROZEN_MODE)return false;

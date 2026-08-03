@@ -13,7 +13,7 @@ export async function readTeamRatings(env, opts = {}) {
     PUBLIC_CACHE_DOCS.teamRatings
   ).catch(() => null);
 
-  if (publicRatings?.ratings || publicRatings?.marketValues) {
+  if (hasUsableRatingsData(publicRatings)) {
     return normalizePack(publicRatings, 'firestore-public-cache');
   }
 
@@ -29,7 +29,7 @@ export async function readTeamRatings(env, opts = {}) {
     PUBLIC_CACHE_DOCS.marketValues
   ).catch(() => null);
 
-  if (publicElo?.ratings || publicMv?.marketValues) {
+  if (hasUsableRatingsData(publicElo) || hasUsableRatingsData(publicMv)) {
     return normalizePack(
       { ...(publicElo || {}), ...(publicMv || {}) },
       'firestore-public-cache-split'
@@ -40,7 +40,7 @@ export async function readTeamRatings(env, opts = {}) {
     ? null
     : await coordinatorRatingsCache(env).catch(() => null);
 
-  if (durable?.ratings || durable?.marketValues) {
+  if (hasUsableRatingsData(durable)) {
     return normalizePack(
       durable,
       durable.source || 'durable-object-cache'
@@ -108,7 +108,7 @@ export async function refreshEloRatings(env, opts = {}) {
 
   return {
     ...result,
-    ok: !!eloPack.ok,
+    ok: !!eloPack.ok && result.persistenceOk,
     source: eloPack.source || 'current-external-club-elo-b47-unavailable',
     sourceCount: Object.keys(eloPack.ratings || {}).length,
     preservedCount:
@@ -118,6 +118,9 @@ export async function refreshEloRatings(env, opts = {}) {
       ).length,
     missing: eloPack.missing || [],
     attempts: eloPack.attempts || [],
+    error: eloPack.ok
+      ? (result.persistenceOk ? null : 'elo_persistence_failed')
+      : (eloPack.error || 'elo_source_refresh_failed'),
     elo: summarize(eloPack)
   };
 }
@@ -158,9 +161,12 @@ export async function refreshMarketValues(env, opts = {}) {
 
   return {
     ...result,
-    ok: !!marketPack.ok,
+    ok: !!marketPack.ok && result.persistenceOk,
     source: marketPack.source || 'transfermarkt',
     sourceCount: Object.keys(marketPack.marketValues || {}).length,
+    error: marketPack.ok
+      ? (result.persistenceOk ? null : 'market_values_persistence_failed')
+      : (marketPack.error || 'market_values_source_refresh_failed'),
     marketValuesSource: summarize(marketPack)
   };
 }
@@ -214,9 +220,24 @@ export async function refreshTeamRatings(env, opts = {}) {
     source: opts.source || 'daily-current-elo-tm-refresh-b47'
   });
 
+  const eloOk = !!eloPack.ok && Object.keys(eloPack.ratings || {}).length > 0;
+  const marketOk = !!marketPack.ok && Object.keys(marketPack.marketValues || {}).length > 0;
+  const refreshOk = eloOk && marketOk && result.persistenceOk;
+
   return {
     ...result,
-    ok: !!(eloPack.ok || marketPack.ok),
+    ok: refreshOk,
+    partial: eloOk !== marketOk,
+    sourceCount: Object.keys(eloPack.ratings || {}).length,
+    marketSourceCount: Object.keys(marketPack.marketValues || {}).length,
+    successfulSources: [eloOk ? 'elo' : null, marketOk ? 'market-values' : null].filter(Boolean),
+    error: refreshOk
+      ? null
+      : [
+          !eloOk ? `elo:${eloPack.error || 'minimum_coverage_not_reached'}` : null,
+          !marketOk ? `market-values:${marketPack.error || 'minimum_coverage_not_reached'}` : null,
+          !result.persistenceOk ? 'persistence:write_failed' : null
+        ].filter(Boolean).join('; '),
     elo: summarize(eloPack),
     marketValuesSource: summarize(marketPack)
   };
@@ -229,18 +250,28 @@ async function fetchConfiguredEloRatings(env, fixtures, previous, opts = {}) {
 }
 
 async function persistRatingsState(env, previous, config) {
-  const updatedAt = new Date().toISOString();
+  const checkedAt = new Date().toISOString();
   const ratings = numbersOnly(config.ratings || {});
   const marketValues = numbersOnly(config.marketValues || {});
 
   const previousSources = previous.sources || {};
+  const eloAttempt = config.eloPack ? summarize(config.eloPack) : null;
+  const marketAttempt = config.marketPack ? summarize(config.marketPack) : null;
+  const eloSucceeded = sourceSucceeded(config.eloPack, 'ratings');
+  const marketSucceeded = sourceSucceeded(config.marketPack, 'marketValues');
+  const attemptedSources = [config.eloPack, config.marketPack].filter(Boolean).length;
+  const anySourceSucceeded = eloSucceeded || marketSucceeded;
+  const allAttemptedSourcesSucceeded = attemptedSources > 0
+    && (!config.eloPack || eloSucceeded)
+    && (!config.marketPack || marketSucceeded);
   const sources = {
-    elo: config.eloPack
-      ? summarize(config.eloPack)
-      : (previousSources.elo || null),
-    marketValues: config.marketPack
-      ? summarize(config.marketPack)
-      : (previousSources.marketValues || null)
+    elo: eloSucceeded ? eloAttempt : (previousSources.elo || null),
+    marketValues: marketSucceeded ? marketAttempt : (previousSources.marketValues || null)
+  };
+  const lastAttempts = {
+    ...(previous.lastAttempts || {}),
+    ...(eloAttempt ? { elo: eloAttempt } : {}),
+    ...(marketAttempt ? { marketValues: marketAttempt } : {})
   };
 
   const warnings = [
@@ -248,28 +279,36 @@ async function persistRatingsState(env, previous, config) {
     ...(config.marketPack?.warnings || [])
   ];
 
-  const payload = {
-    ratings,
-    marketValues,
-    hash: await sha256Hex(stableStringify({ ratings, marketValues })),
-    updatedAt,
-    source: config.source,
-    sources,
-    warnings
-  };
+  const hash = await sha256Hex(stableStringify({ ratings, marketValues }));
 
   const oldHash = await sha256Hex(stableStringify({
     ratings: previous.ratings || {},
     marketValues: previous.marketValues || {}
   }));
 
-  const changed = payload.hash !== oldHash;
+  const changed = hash !== oldHash;
+  const updatedAt = changed ? checkedAt : (previous.updatedAt || checkedAt);
+  const lastSuccessfulRefreshAt = allAttemptedSourcesSucceeded
+    ? checkedAt
+    : (previous.lastSuccessfulRefreshAt || null);
+  const payload = {
+    ratings,
+    marketValues,
+    hash,
+    updatedAt,
+    checkedAt,
+    lastSuccessfulRefreshAt,
+    source: config.source,
+    sources,
+    lastAttempts,
+    warnings
+  };
   const writeEnabled =
     String(env.RATINGS_WRITE_TO_FIRESTORE || 'true') === 'true';
 
   let writeErrors = [];
 
-  if (changed && writeEnabled) {
+  if ((changed || anySourceSucceeded) && writeEnabled) {
     const operations = [
       patchDocument(
         env,
@@ -279,7 +318,7 @@ async function persistRatingsState(env, previous, config) {
       )
     ];
 
-    if (config.writeElo) {
+    if (config.writeElo && eloSucceeded) {
       operations.push(
         patchDocument(
           env,
@@ -287,7 +326,8 @@ async function persistRatingsState(env, previous, config) {
           PUBLIC_CACHE_DOCS.elo,
           {
             ratings,
-            updatedAt,
+            updatedAt: config.eloPack?.updatedAt || checkedAt,
+            checkedAt,
             source: config.eloPack?.source || 'current-external-club-elo-b47-unavailable',
             hash: await sha256Hex(stableStringify(ratings)),
             warnings: config.eloPack?.warnings || []
@@ -296,7 +336,7 @@ async function persistRatingsState(env, previous, config) {
       );
     }
 
-    if (config.writeMarketValues) {
+    if (config.writeMarketValues && marketSucceeded) {
       operations.push(
         patchDocument(
           env,
@@ -304,7 +344,8 @@ async function persistRatingsState(env, previous, config) {
           PUBLIC_CACHE_DOCS.marketValues,
           {
             marketValues,
-            updatedAt,
+            updatedAt: config.marketPack?.updatedAt || checkedAt,
+            checkedAt,
             source: config.marketPack?.source || 'transfermarkt',
             hash: await sha256Hex(stableStringify(marketValues)),
             warnings: config.marketPack?.warnings || []
@@ -320,13 +361,14 @@ async function persistRatingsState(env, previous, config) {
         .map(result => result.reason?.message || String(result.reason))
     );
 
-    if (config.writeElo) {
-      const rows = Object.entries(config.eloPack?.ratings || {});
+    if (config.writeElo && eloSucceeded) {
+      const rows = Object.entries(config.eloPack?.ratings || {})
+        .filter(([team, elo]) => Number(previous.ratings?.[team]) !== Number(elo));
       const writes = await Promise.allSettled(
         rows.map(([team, elo]) =>
           patchDocument(env, COLLECTIONS.elo, team, {
             elo,
-            updatedAt,
+            updatedAt: config.eloPack?.updatedAt || checkedAt,
             source: config.eloPack?.source || 'current-external-club-elo-b47-unavailable'
           })
         )
@@ -339,13 +381,14 @@ async function persistRatingsState(env, previous, config) {
       );
     }
 
-    if (config.writeMarketValues) {
-      const rows = Object.entries(config.marketPack?.marketValues || {});
+    if (config.writeMarketValues && marketSucceeded) {
+      const rows = Object.entries(config.marketPack?.marketValues || {})
+        .filter(([team, valueM]) => Number(previous.marketValues?.[team]) !== Number(valueM));
       const writes = await Promise.allSettled(
         rows.map(([team, valueM]) =>
           patchDocument(env, COLLECTIONS.marketValues, team, {
             valueM,
-            updatedAt,
+            updatedAt: config.marketPack?.updatedAt || checkedAt,
             source: config.marketPack?.source || 'transfermarkt'
           })
         )
@@ -359,14 +402,14 @@ async function persistRatingsState(env, previous, config) {
     }
   }
 
-  const eloStateWritten = false;
+  const persistenceOk = writeErrors.length === 0;
 
   return {
-    ok: true,
+    ok: persistenceOk,
+    persistenceOk,
     task: config.task,
     changed,
-    written: writeEnabled && writeErrors.length === 0 && (changed || eloStateWritten),
-    eloStateWritten,
+    written: writeEnabled && persistenceOk && (changed || anySourceSucceeded),
     writeEnabled,
     writeErrors,
     count: Object.keys(ratings).length,
@@ -374,7 +417,11 @@ async function persistRatingsState(env, previous, config) {
     ratings,
     marketValues,
     warnings,
-    updatedAt
+    updatedAt,
+    checkedAt,
+    lastSuccessfulRefreshAt,
+    sources,
+    lastAttempts
   };
 }
 
@@ -384,7 +431,10 @@ export async function readElo(env, opts = {}) {
     ratings: pack.ratings || {},
     source: pack.source,
     updatedAt: pack.updatedAt || null,
+    checkedAt: pack.checkedAt || null,
+    lastSuccessfulRefreshAt: pack.lastSuccessfulRefreshAt || null,
     sources: pack.sources || null,
+    lastAttempts: pack.lastAttempts || null,
     warnings: pack.warnings || []
   };
 }
@@ -395,7 +445,10 @@ export async function readMarketValues(env, opts = {}) {
     marketValues: pack.marketValues || {},
     source: pack.source,
     updatedAt: pack.updatedAt || null,
+    checkedAt: pack.checkedAt || null,
+    lastSuccessfulRefreshAt: pack.lastSuccessfulRefreshAt || null,
     sources: pack.sources || null,
+    lastAttempts: pack.lastAttempts || null,
     warnings: pack.warnings || []
   };
 }
@@ -453,7 +506,10 @@ function normalizePack(doc = {}, source = 'unknown') {
     ratings: numbersOnly(doc.ratings || doc.elo || {}),
     marketValues: numbersOnly(doc.marketValues || doc.values || {}),
     updatedAt: doc.updatedAt || null,
+    checkedAt: doc.checkedAt || null,
+    lastSuccessfulRefreshAt: doc.lastSuccessfulRefreshAt || null,
     sources: doc.sources || null,
+    lastAttempts: doc.lastAttempts || null,
     warnings: doc.warnings || []
   };
 }
@@ -476,6 +532,21 @@ function numbersOnly(object = {}) {
   }
 
   return output;
+}
+
+export function hasUsableRatingsData(pack = {}) {
+  return countFiniteValues(pack.ratings || pack.elo || {}) > 0
+    || countFiniteValues(pack.marketValues || pack.values || {}) > 0;
+}
+
+function countFiniteValues(object = {}) {
+  return Object.entries(object || {}).filter(([key, value]) => {
+    return !!key && Number.isFinite(Number(value));
+  }).length;
+}
+
+function sourceSucceeded(pack, field) {
+  return !!pack?.ok && countFiniteValues(pack?.[field] || {}) > 0;
 }
 
 function summarize(pack = {}) {

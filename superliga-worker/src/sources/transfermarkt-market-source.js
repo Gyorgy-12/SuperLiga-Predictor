@@ -4,16 +4,25 @@ import {
   uniqueTeamsFromFixtures
 } from '../core/team-match.js';
 
-const DEFAULT_TM_URL = 'https://www.transfermarkt.com/liga-1/marktwerteverein/wettbewerb/RO1';
+const DEFAULT_TM_URL = 'https://www.transfermarkt.com/superliga/marktwerteverein/wettbewerb/RO1';
 const ALTERNATE_TM_URLS = [
+  'https://www.transfermarkt.be/liga-1/marktwerteverein/wettbewerb/RO1',
+  'https://www.transfermarkt.at/liga-1/marktwerteverein/wettbewerb/RO1',
   'https://www.transfermarkt.co.uk/liga-1/marktwerteverein/wettbewerb/RO1',
   'https://www.transfermarkt.ro/liga-1/marktwerteverein/wettbewerb/RO1',
   'https://www.transfermarkt.de/liga-1/marktwerteverein/wettbewerb/RO1'
 ];
 const DEFAULT_TIMEOUT_MS = 22000;
+const DEFAULT_MIN_COUNT = 12;
 
 export async function fetchTransfermarktMarketValues(env, fixtures = [], opts = {}) {
   const knownTeams = uniqueTeamsFromFixtures(fixtures);
+  const minCount = clampInt(
+    opts.minCount || env.TRANSFERMARKT_MIN_COUNT,
+    Math.min(DEFAULT_MIN_COUNT, knownTeams.length || DEFAULT_MIN_COUNT),
+    1,
+    Math.max(1, knownTeams.length || 16)
+  );
   const configured = opts.url
     || env.TRANSFERMARKT_MARKET_VALUES_URL
     || env.TRANSFERMARKET_MARKET_VALUES_URL
@@ -23,7 +32,10 @@ export async function fetchTransfermarktMarketValues(env, fixtures = [], opts = 
 
   // 1) Try the current canonical page and regional mirrors directly.
   for (const targetUrl of targets) {
-    const url = withCacheBust(targetUrl, opts.force);
+    // Transfermarkt's bot filter rejects otherwise valid table URLs when an
+    // arbitrary cache-busting query parameter is appended. `cache: no-store`
+    // below already prevents a stale Worker-side response.
+    const url = targetUrl;
     const response = await fetchText(env, url, opts, { source: 'transfermarkt-direct' });
     const blocked = looksBlocked(response.text);
     const rows = response.ok && !blocked ? parseTransfermarktRows(response.text) : [];
@@ -37,13 +49,14 @@ export async function fetchTransfermarktMarketValues(env, fixtures = [], opts = 
       mappedCount: Object.keys(mapped.marketValues).length
     }));
 
-    if (Object.keys(mapped.marketValues).length) {
+    if (Object.keys(mapped.marketValues).length >= minCount) {
       return buildSuccess({
         source: 'transfermarkt-market-values-b43-direct',
         url: response.finalUrl || targetUrl,
         rows,
         mapped,
         knownTeams,
+        minCount,
         attempts,
         warnings: []
       });
@@ -53,8 +66,13 @@ export async function fetchTransfermarktMarketValues(env, fixtures = [], opts = 
   // 2) Transfermarkt often returns 405/robot verification to Cloudflare
   // datacenter requests. Reader uses a JS-capable browser and returns a plain
   // markdown table that we parse without needing a paid API.
-  for (const targetUrl of targets.slice(0, 2)) {
-    const readerUrl = buildReaderUrl(env, withCacheBust(targetUrl, true));
+  const readerTargets = unique(
+    targets.slice(0, 2).flatMap(target => [target, target.replace(/^https:/i, 'http:')])
+  );
+  for (const targetUrl of readerTargets) {
+    // Reader honors x-no-cache itself. Adding an arbitrary query parameter to
+    // the nested target URL can make the Reader reject an otherwise valid page.
+    const readerUrl = buildReaderUrl(env, targetUrl);
     const response = await fetchText(env, readerUrl, opts, {
       source: 'transfermarkt-jina-reader',
       reader: true
@@ -74,13 +92,14 @@ export async function fetchTransfermarktMarketValues(env, fixtures = [], opts = 
       mappedCount: Object.keys(mapped.marketValues).length
     }));
 
-    if (Object.keys(mapped.marketValues).length) {
+    if (Object.keys(mapped.marketValues).length >= minCount) {
       return buildSuccess({
         source: 'transfermarkt-market-values-b43-reader',
         url: targetUrl,
         rows,
         mapped,
         knownTeams,
+        minCount,
         attempts,
         warnings: [
           'Transfermarkt blocked the direct Worker request, therefore the current club values were read through the browser-rendered Reader fallback.'
@@ -96,11 +115,12 @@ export async function fetchTransfermarktMarketValues(env, fixtures = [], opts = 
     fetched: 0,
     count: 0,
     coverage: 0,
+    minCount,
     marketValues: {},
     raw: [],
     unmatched: [],
     attempts,
-    error: attempts.at(-1)?.error || 'all_transfermarkt_sources_unavailable',
+    error: attempts.at(-1)?.error || 'transfermarkt_minimum_coverage_not_reached',
     warnings: [
       'Transfermarkt returned no usable current club values through either the direct page or the browser-rendered Reader fallback. Existing stored values were preserved.'
     ],
@@ -120,22 +140,23 @@ async function fetchText(env, url, opts = {}, mode = {}) {
   const startedAt = Date.now();
 
   const headers = {
-    accept: mode.reader ? 'text/plain,text/markdown;q=0.9,*/*;q=0.8' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'accept-language': 'en-US,en;q=0.9,ro;q=0.8,hu;q=0.7',
-    'cache-control': 'no-cache',
-    'user-agent':
-      env.TRANSFERMARKT_USER_AGENT
-      || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-         '(KHTML, like Gecko) Chrome/125 Safari/537.36'
+    accept: mode.reader
+      ? 'text/plain,text/markdown;q=0.9,*/*;q=0.8'
+      : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
   };
 
   if (mode.reader) {
+    // Keep Reader requests minimal. Browser-specific headers made r.jina.ai
+    // classify Worker-to-Worker requests as automated and return HTTP 403.
     headers['x-no-cache'] = 'true';
-    headers['x-engine'] = 'browser';
-    headers['x-timeout'] = '30';
-    headers['x-retain-links'] = 'text';
-    headers['x-retain-images'] = 'none';
     if (env.JINA_API_KEY) headers.authorization = `Bearer ${env.JINA_API_KEY}`;
+  } else {
+    headers['accept-language'] = 'en-US,en;q=0.9,ro;q=0.8,hu;q=0.7';
+    headers['cache-control'] = 'no-cache';
+    headers['user-agent'] =
+      env.TRANSFERMARKT_USER_AGENT
+      || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+         '(KHTML, like Gecko) Chrome/125 Safari/537.36';
   }
 
   try {
@@ -249,6 +270,7 @@ function buildSuccess(config) {
     coverage: config.knownTeams.length
       ? Number((Object.keys(config.mapped.marketValues).length / config.knownTeams.length).toFixed(3))
       : 0,
+    minCount: config.minCount,
     marketValues: config.mapped.marketValues,
     raw: config.mapped.raw,
     unmatched: config.mapped.unmatched.slice(0, 40),
@@ -313,7 +335,8 @@ function parseMarketValue(row) {
 
 function extractMoneyTokens(text) {
   const output = [];
-  const regex = /(?:€|EUR)\s*([\d.,]+)\s*(bn|b|m|mil\.?|mio\.?|k|th\.?)\b|([\d.,]+)\s*(bn|b|m|mil\.?|mio\.?|k|th\.?)\s*(?:€|EUR)/gi;
+  const units = '(bn|b|m|mil\\.?|mio\\.?|mln\\.?|mld\\.?|k|th\\.?|tsd\\.?|dzd\\.?)';
+  const regex = new RegExp(`(?:€|EUR)\\s*([\\d.,]+)\\s*${units}|([\\d.,]+)\\s*${units}\\s*(?:€|EUR)`, 'gi');
   let match;
   while ((match = regex.exec(text))) {
     const numberPart = match[1] || match[3];
@@ -331,7 +354,7 @@ function parsedMarketToken(numberPart, unitPart) {
 
   let valueM;
   if (unit.startsWith('b')) valueM = num * 1000;
-  else if (unit.startsWith('k') || unit.startsWith('th')) valueM = num / 1000;
+  else if (unit.startsWith('k') || unit.startsWith('th') || unit.startsWith('tsd') || unit.startsWith('dzd')) valueM = num / 1000;
   else valueM = num;
 
   return {
@@ -412,28 +435,25 @@ function dedupeRows(rows) {
   return [...seen.values()];
 }
 
-function withCacheBust(rawUrl, enabled) {
-  if (!enabled) return rawUrl;
-  const url = new URL(rawUrl);
-  url.searchParams.set('_slratings', String(Date.now()));
-  return url.toString();
-}
-
 function buildReaderUrl(env, targetUrl) {
   const base = String(env.JINA_READER_BASE_URL || 'https://r.jina.ai').replace(/\/$/, '');
   return `${base}/${targetUrl}`;
 }
 
 function makeAttempt(response, extra) {
+  const usable = response.ok && !extra.blocked && Number(extra.mappedCount || 0) > 0;
   return {
     ...extra,
-    ok: response.ok,
+    ok: usable,
     status: response.status,
     bytes: response.bytes,
     elapsedMs: response.elapsedMs,
     contentType: response.contentType,
     finalUrl: response.finalUrl,
-    error: response.error || null
+    error: response.error
+      || (extra.blocked ? 'provider_page_blocked' : null)
+      || (response.ok && !extra.parsedRows ? 'no_parseable_market_value_rows' : null)
+      || (response.ok && !extra.mappedCount ? 'no_market_values_matched_to_current_teams' : null)
   };
 }
 
