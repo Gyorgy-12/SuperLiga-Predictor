@@ -453,18 +453,7 @@ export async function readMarketValues(env, opts = {}) {
   };
 }
 
-export async function buildMatchContextSnapshot(env, match) {
-  const pack = await readTeamRatings(env)
-    .catch(() => ({
-      ratings: {},
-      marketValues: {},
-      source: 'ratings-error'
-    }));
-
-  const oddsPack = await import('./odds.service.js')
-    .then(module => module.readOdds(env))
-    .catch(() => ({ odds: {}, source: 'odds-error' }));
-
+export function buildMatchRatingsSnapshotFromPack(pack = {}, match = {}, frozenAt = null) {
   const home =
     match.homeTeam
     || match.hTeam
@@ -481,18 +470,22 @@ export async function buildMatchContextSnapshot(env, match) {
     || match.a
     || null;
 
+  const homeElo = finiteOrNull(home ? pack.ratings?.[home] : null);
+  const awayElo = finiteOrNull(away ? pack.ratings?.[away] : null);
+  const homeMarketValueM = finiteOrNull(home ? pack.marketValues?.[home] : null);
+  const awayMarketValueM = finiteOrNull(away ? pack.marketValues?.[away] : null);
+  if (![homeElo, awayElo, homeMarketValueM, awayMarketValueM].every(Number.isFinite)) return null;
+
   return {
-    frozenAt: new Date().toISOString(),
-    odds: oddsPack.odds?.[match.id] || match.odds || null,
-    oddsSource: oddsPack.source || match.oddsSource || null,
-    homeElo: home ? pack.ratings?.[home] ?? null : null,
-    awayElo: away ? pack.ratings?.[away] ?? null : null,
-    homeMarketValueM: home
-      ? pack.marketValues?.[home] ?? null
-      : null,
-    awayMarketValueM: away
-      ? pack.marketValues?.[away] ?? null
-      : null,
+    schemaVersion: 1,
+    frozenAt: frozenAt || new Date().toISOString(),
+    ratingsUpdatedAt: pack.updatedAt || null,
+    homeTeam: home,
+    awayTeam: away,
+    homeElo,
+    awayElo,
+    homeMarketValueM,
+    awayMarketValueM,
     ratingsSource: pack.sources?.elo?.source || pack.source || null,
     marketSource:
       pack.sources?.marketValues?.source || pack.source || null
@@ -532,6 +525,12 @@ function numbersOnly(object = {}) {
   }
 
   return output;
+}
+
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 export function hasUsableRatingsData(pack = {}) {

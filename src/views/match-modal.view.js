@@ -171,17 +171,24 @@ function modalGoalRows(r,m){
   let events=goalScorersHtml(r,m);
   return events?'<div class="tip-below-score">'+events+'</div>':'';
 }
-function superligaMarketValue(team){let v=TEAM_MARKET&&TEAM_MARKET[team];return Number.isFinite(+v)?+v:10}
-function superligaElo(team){let v=TEAM_ELO&&TEAM_ELO[team];return Number.isFinite(+v)?+v:1450}
+function superligaFrozenMetric(team,m,r,homeKey,awayKey){
+  let snap=r&&r.ratingsSnapshot;if(!snap)return null;
+  let home=team===(snap.homeTeam||m?.h)||superligaSameTeamName(team,snap.homeTeam||m?.h),away=team===(snap.awayTeam||m?.a)||superligaSameTeamName(team,snap.awayTeam||m?.a);
+  if(!home&&!away)return null;
+  let value=home?snap[homeKey]:snap[awayKey];
+  return{frozen:true,value:value===null||value===undefined||value===''?null:(Number.isFinite(+value)?+value:null)};
+}
+function superligaMarketValue(team,m,r){let frozen=superligaFrozenMetric(team,m,r,'homeMarketValueM','awayMarketValueM');if(frozen)return frozen.value??10;let v=TEAM_MARKET&&TEAM_MARKET[team];return Number.isFinite(+v)?+v:10}
+function superligaElo(team,m,r){let frozen=superligaFrozenMetric(team,m,r,'homeElo','awayElo');if(frozen)return frozen.value??1450;let v=TEAM_ELO&&TEAM_ELO[team];return Number.isFinite(+v)?+v:1450}
 function superligaMarketLabel(v){v=Number(v);return '€'+(Number.isFinite(v)?v:0).toFixed(2)+'M'}
-function teamModelScore(team){let elo=superligaElo(team),mv=superligaMarketValue(team),market=Math.log(mv+10)*72;return elo+market}
-function matchProb(m){let diff=teamModelScore(m.h)-teamModelScore(m.a),draw=Math.max(.18,Math.min(.30,.27-Math.abs(diff)/2800)),homeShare=1/(1+Math.exp(-diff/285)),rem=1-draw,home=rem*homeShare,away=rem*(1-homeShare),sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff}}
+function teamModelScore(team,m,r){let elo=superligaElo(team,m,r),mv=superligaMarketValue(team,m,r),market=Math.log(mv+10)*72;return elo+market}
+function matchProb(m,r){let diff=teamModelScore(m.h,m,r)-teamModelScore(m.a,m,r),draw=Math.max(.18,Math.min(.30,.27-Math.abs(diff)/2800)),homeShare=1/(1+Math.exp(-diff/285)),rem=1-draw,home=rem*homeShare,away=rem*(1-homeShare),sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff}}
 function impliedProbFromOdds(odds){if(!odds||!validOdds(odds.h)||!validOdds(odds.d)||!validOdds(odds.a))return null;let h=1/+odds.h,d=1/+odds.d,a=1/+odds.a,sum=h+d+a;if(!sum)return null;return{home:h/sum,draw:d/sum,away:a/sum}}
 function liveOrCachedOdds(m,r){return (r&&r.odds)||((typeof SUPERLIGA_ODDS!=='undefined'&&m&&m.id)?SUPERLIGA_ODDS[m.id]:null)||null}
-function matchProbWithMarket(m,r){let model=matchProb(m),market=impliedProbFromOdds(liveOrCachedOdds(m,r));if(!market)return{...model,fromMarket:false};let mw=.7,sw=.3,home=market.home*mw+model.home*sw,draw=market.draw*mw+model.draw*sw,away=market.away*mw+model.away*sw,sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff:model.diff,fromMarket:true}}
+function matchProbWithMarket(m,r){let model=matchProb(m,r),market=impliedProbFromOdds(liveOrCachedOdds(m,r));if(!market)return{...model,fromMarket:false};let mw=.7,sw=.3,home=market.home*mw+model.home*sw,draw=market.draw*mw+model.draw*sw,away=market.away*mw+model.away*sw,sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff:model.diff,fromMarket:true}}
 function pct(v){return Math.round((+v||0)*100)}
 function odd(v){return v?Math.max(1.01,1/v).toFixed(2):'-'}
-function modelMeta(team){return '<span class="model-pill">Elo '+Math.round(superligaElo(team))+'</span><span class="model-pill">'+superligaMarketLabel(superligaMarketValue(team))+'</span>'}
+function modelMeta(team,m,r){return '<span class="model-pill">Elo '+Math.round(superligaElo(team,m,r))+'</span><span class="model-pill">'+superligaMarketLabel(superligaMarketValue(team,m,r))+'</span>'}
 function modalTeamName(team){return typeof teamNameFor==='function'?teamNameFor(team,'match-modal'):(typeof stn==='function'?stn(team):team)}
 function probRow(name,v,clr,act,rawOdd){return '<div class="tip-prob-row'+(act?' tip-prob-row-actual':'')+'"><div class="tip-prob-name">'+esc(name)+'</div><div class="tip-prob-track"><div class="tip-prob-fill" style="width:'+pct(v)+'%;background:'+clr+'"></div></div><div class="tip-prob-pct">'+pct(v)+'%</div><div class="tip-prob-odd">'+(rawOdd!=null?(+rawOdd).toFixed(2):odd(v))+'</div></div>'}
 function modalProbCard(m,r){
@@ -208,11 +215,11 @@ function refreshOpenMatchModalModel(){
   let teams=ov.querySelectorAll('.tip-team');
   if(teams[0]){
     let meta=teams[0].querySelector('.tip-team-meta');
-    if(meta)meta.innerHTML=modelMeta(m.h);
+    if(meta)meta.innerHTML=modelMeta(m.h,m,r);
   }
   if(teams[1]){
     let meta=teams[1].querySelector('.tip-team-meta');
-    if(meta)meta.innerHTML=modelMeta(m.a);
+    if(meta)meta.innerHTML=modelMeta(m.a,m,r);
   }
 
   let hCell=ov.querySelector('.tip-real-h'),aCell=ov.querySelector('.tip-real-a');
@@ -331,7 +338,7 @@ function openMatchTipModal(cfg){
   ov.className='overlay tip-overlay';
   ov.dataset.tipId=id;
   ov.dataset.tipKind=isKo?'postseason':'regular';
-  ov.innerHTML='<div class="sheet tip-sheet '+grade+'"><div class="sheet-top"><div class="sheet-pill"></div><button class="sheet-x" type="button" data-close-tip>&times;</button></div><div class="sheet-title">'+esc(title)+'</div><div class="tip-head"><span>'+esc(date)+' &middot; '+esc(phase)+'</span><span class="tip-time-pill">🕒 '+esc(time)+'</span></div>'+yourTipHtml+'<div class="tip-match"><div class="tip-teams"><div class="tip-team">'+crest(m.h)+'<span>'+esc(modalTeamName(m.h))+'</span><div class="tip-team-meta">'+modelMeta(m.h)+'</div></div>'+scoreBox+'<div class="tip-team">'+crest(m.a)+'<span>'+esc(modalTeamName(m.a))+'</span><div class="tip-team-meta">'+modelMeta(m.a)+'</div></div></div>'+modalStatusPillHtml(r)+modalGoalRows(r,m)+'</div>'+modalProbCard(m,r)+modalBarajAggregateHtml(m,p)+modalBarajPenaltyHtml(m,p,locked)+'<div class="tip-msg" id="tipMsg"></div><div class="tip-actions"><button class="tip-btn clear" type="button" data-clear-tip'+dis+'>Tipp törlése</button><button class="tip-btn save" type="button" data-save-tip'+dis+'>'+(locked?'Zárolva':'Mentés')+'</button></div>'+lockNote+'</div>';
+  ov.innerHTML='<div class="sheet tip-sheet '+grade+'"><div class="sheet-top"><div class="sheet-pill"></div><button class="sheet-x" type="button" data-close-tip>&times;</button></div><div class="sheet-title">'+esc(title)+'</div><div class="tip-head"><span>'+esc(date)+' &middot; '+esc(phase)+'</span><span class="tip-time-pill">🕒 '+esc(time)+'</span></div>'+yourTipHtml+'<div class="tip-match"><div class="tip-teams"><div class="tip-team">'+crest(m.h)+'<span>'+esc(modalTeamName(m.h))+'</span><div class="tip-team-meta">'+modelMeta(m.h,m,r)+'</div></div>'+scoreBox+'<div class="tip-team">'+crest(m.a)+'<span>'+esc(modalTeamName(m.a))+'</span><div class="tip-team-meta">'+modelMeta(m.a,m,r)+'</div></div></div>'+modalStatusPillHtml(r)+modalGoalRows(r,m)+'</div>'+modalProbCard(m,r)+modalBarajAggregateHtml(m,p)+modalBarajPenaltyHtml(m,p,locked)+'<div class="tip-msg" id="tipMsg"></div><div class="tip-actions"><button class="tip-btn clear" type="button" data-clear-tip'+dis+'>Tipp törlése</button><button class="tip-btn save" type="button" data-save-tip'+dis+'>'+(locked?'Zárolva':'Mentés')+'</button></div>'+lockNote+'</div>';
   document.body.appendChild(ov);
   syncModalOpenClass();
   activateCrests();

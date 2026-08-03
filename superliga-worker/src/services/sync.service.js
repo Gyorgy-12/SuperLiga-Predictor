@@ -1,8 +1,17 @@
 import { normalizeLiveMatch } from '../core/normalize-live.js';
-import { interestingFixtures } from '../core/match-window.js';
+import { interestingFixtures, isFinished } from '../core/match-window.js';
 import { kickoffMs } from '../utils/time.js';
 import { mergeLiveResults, getLiveSnapshot } from './memory-cache.service.js';
-import { readStoredResults, refreshPublicResultsCache, writeFinalIfChanged } from './results.service.js';
+import {
+  readStoredResults,
+  refreshPublicResultsCache,
+  selectImmutableRatingsSnapshot,
+  writeFinalIfChanged
+} from './results.service.js';
+import {
+  buildMatchRatingsSnapshotFromPack,
+  readTeamRatings
+} from './team-ratings.service.js';
 import { getFixtures } from './fixtures.service.js';
 import { fetchSofaScoreEvents } from '../sources/sofascore-events-source.js';
 import { fetchEspnEvents } from '../sources/espn-source.js';
@@ -141,12 +150,38 @@ export async function syncLive(env, opts = {}) {
   const scorePack = combineScorePacksFlashFirst(active, flashscorePack, officialPack, espnPack, sofaPack);
   const previous = getLiveSnapshot().results || {};
   const merged = mergeScoreAndEvents(active, scorePack.results || {}, eventPack.results || {}, previous);
+
+  // Freeze the current team metrics once, when a match first becomes final.
+  // One shared ratings read covers every match ending in this scheduler tick.
+  const finalMatches = Object.values(merged).filter(isFinished);
+  const needsRatingsSnapshot = finalMatches.some(match => {
+    return !stored.results?.[match.id]?.ratingsSnapshot;
+  });
+  const finalObservedAt = new Date().toISOString();
+  const ratingsPack = needsRatingsSnapshot
+    ? await readTeamRatings(env).catch(() => null)
+    : null;
+
+  for (const match of finalMatches) {
+    const storedSnapshot = stored.results?.[match.id]?.ratingsSnapshot || null;
+    const currentSnapshot = ratingsPack
+      ? buildMatchRatingsSnapshotFromPack(ratingsPack, match, finalObservedAt)
+      : null;
+    const ratingsSnapshot = selectImmutableRatingsSnapshot(
+      storedSnapshot,
+      currentSnapshot
+    );
+    if (ratingsSnapshot) match.ratingsSnapshot = ratingsSnapshot;
+  }
+
   const changed = mergeLiveResults(merged, 'sync-live-b26');
   const visibleResults = { ...(getLiveSnapshot().results || {}), ...merged };
 
   const finalWrites = [];
   for (const match of Object.values(merged)) {
-    const write = await writeFinalIfChanged(env, match).catch(error => ({ written: false, id: match.id, error: error?.message || String(error) }));
+    const write = await writeFinalIfChanged(env, match, {
+      ratingsSnapshot: match.ratingsSnapshot || null
+    }).catch(error => ({ written: false, id: match.id, error: error?.message || String(error) }));
     if (write.written || write.error) finalWrites.push(write);
   }
 

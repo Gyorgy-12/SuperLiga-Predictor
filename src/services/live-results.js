@@ -80,6 +80,12 @@ function superligaPlayerNameScore(name){
 function superligaEventBlob(e){try{return JSON.stringify(e||{}).toLowerCase()}catch(_e){return''}}
 function superligaEventOwnGoal(e){let b=superligaEventBlob(e),t=String(e?.type||e?.kind||e?.label||e?.detail||e?.reason||e?.note||e?.goalType||e?.code||'').toLowerCase();return!!(e?.og===true||e?.ownGoal===true||e?.isOwnGoal===true||/\bown[ _-]?goal\b|\bautogol\b|\böngól\b/.test(t+' '+b))}
 function superligaEventPenalty(e){let b=superligaEventBlob(e),t=String(e?.type||e?.kind||e?.label||e?.detail||e?.reason||e?.note||e?.goalType||e?.code||'').toLowerCase();return!!(e?.penalty===true||e?.pen===true||e?.pk===true||e?.fromPenalty===true||t==='p'||t==='pg'||t==='pen'||t.includes('penalty')||t.includes('spot kick')||/"(?:penalty|pen|pk|frompenalty)"\s*:\s*true/.test(b))}
+function superligaFiniteOrNull(value){if(value===null||value===undefined||value==='')return null;let n=Number(value);return Number.isFinite(n)?n:null}
+function superligaNormalizeRatingsSnapshot(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  let out={schemaVersion:1,frozenAt:value.frozenAt||null,ratingsUpdatedAt:value.ratingsUpdatedAt||null,homeTeam:value.homeTeam||null,awayTeam:value.awayTeam||null,homeElo:superligaFiniteOrNull(value.homeElo),awayElo:superligaFiniteOrNull(value.awayElo),homeMarketValueM:superligaFiniteOrNull(value.homeMarketValueM),awayMarketValueM:superligaFiniteOrNull(value.awayMarketValueM),ratingsSource:value.ratingsSource||null,marketSource:value.marketSource||null};
+  return[out.homeElo,out.awayElo,out.homeMarketValueM,out.awayMarketValueM].every(Number.isFinite)?out:null;
+}
 function superligaNameKey(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
 const SUPERLIGA_EVENT_CORRECTIONS=[
   {h:'FC Voluntari',a:'FC Botoșani',minute:'15',aliases:['Diarra M.','D. M.','M. Diarra','Mamadou Diarra'],player:'Mamadou Diarra',team:'h',og:true},
@@ -128,7 +134,7 @@ function normalizeLiveResult(id,d){
   let liveCode=d.liveCode??matchMeta?.liveCode??null;
   let providerMinute=d.providerMinute??(superligaTickerTrustedClockSource(d.minuteSource)?d.minute:null);
   let clockObservedMs=Date.parse(d.clockObservedAt||'');
-  return{_fixtureId:id,_receivedAt:Date.now(),_clockObservedAt:Number.isFinite(clockObservedMs)?clockObservedMs:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,providerMinute,latestIncidentMinute:d.latestIncidentMinute??null,minuteSource:d.minuteSource??null,clockObservedAt:d.clockObservedAt??null,status:rawStatus,period,shortDetail,detail,displayClock,statusText,phaseCode,statusCode,liveCode,matchMeta,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
+  return{_fixtureId:id,_receivedAt:Date.now(),_clockObservedAt:Number.isFinite(clockObservedMs)?clockObservedMs:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,providerMinute,latestIncidentMinute:d.latestIncidentMinute??null,minuteSource:d.minuteSource??null,clockObservedAt:d.clockObservedAt??null,status:rawStatus,period,shortDetail,detail,displayClock,statusText,phaseCode,statusCode,liveCode,matchMeta,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,ratingsSnapshot:superligaNormalizeRatingsSnapshot(d.ratingsSnapshot),source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
 (function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([rawId,row])=>{let id=resolveIncomingFixtureId(rawId,row),r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
 function superligaLiveEventKey(e,kind='event'){
@@ -152,6 +158,7 @@ function superligaMergeEventRows(oldRows,newRows,kind='event'){
 }
 function superligaReconcileLiveResult(old,r){
   if(!old)return r;
+  if(old.ratingsSnapshot)r.ratingsSnapshot=old.ratingsSnapshot;
   let sameScore=old.h===r.h&&old.a===r.a,expected=Math.max(0,(+r.h||0)+(+r.a||0));
   let incomingScorers=Array.isArray(r.scorers)?r.scorers:[],oldScorers=Array.isArray(old.scorers)?old.scorers:[];
   if(sameScore&&incomingScorers.length<expected&&oldScorers.length){
@@ -168,7 +175,7 @@ function superligaReconcileLiveResult(old,r){
   }
   return r;
 }
-function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,pm:r.providerMinute,mis:r.minuteSource,lim:r.latestIncidentMinute,st:r.status,pr:r.period,sd:r.shortDetail,dt:r.detail,dc:r.displayClock,tx:r.statusText,pc:r.phaseCode,scd:r.statusCode,lc:r.liveCode,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds})}
+function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,pm:r.providerMinute,mis:r.minuteSource,lim:r.latestIncidentMinute,st:r.status,pr:r.period,sd:r.shortDetail,dt:r.detail,dc:r.displayClock,tx:r.statusText,pc:r.phaseCode,scd:r.statusCode,lc:r.liveCode,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds,rs:r.ratingsSnapshot})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
   Object.entries(next||{}).forEach(([rawId,obj])=>{
