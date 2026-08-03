@@ -1429,6 +1429,11 @@ body.modal-open{
   transform:translateY(1px);
 }
 
+.export-btn:disabled{
+  cursor:wait;
+  opacity:.45;
+}
+
 .export-hint{
   color:#9eadb6;
   font-size:clamp(10.5px,2.55vw,13px);

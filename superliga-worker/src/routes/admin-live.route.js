@@ -4,7 +4,7 @@ import { normalizeLiveMatch } from '../core/normalize-live.js';
 import { getFixtures } from '../services/fixtures.service.js';
 
 export async function adminLiveRoute(request, env) {
-  if (!requireAdmin(request, env)) return unauthorized(env);
+  if (!(await requireAdmin(request, env))) return unauthorized(env);
 
   if (request.method === 'DELETE') {
     clearManualLive();

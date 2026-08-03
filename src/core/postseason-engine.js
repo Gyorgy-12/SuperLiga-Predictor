@@ -115,7 +115,6 @@ function koPred(id){
   ['firstLegH','firstLegA','aggregateH','aggregateA'].forEach(k=>{if(validScore(p[k]))out[k]=+p[k]});
   return out;
 }
-function resultForMatch(m,isKo){let r=actualFor(m);if(r&&(r.started||r.finished)&&validScore(r.h)&&validScore(r.a))return r;return isKo?koPred(m.id):getPred(m.id)}
 function matchStageText(m,isKo){
   if(!isKo)return m.r+'. forduló';
   if(m.g==='PO')return 'Playoff '+String(m.r||'').replace('PO','')+'. ford.';
@@ -130,19 +129,11 @@ function matchStageText(m,isKo){
 function matchDateTitle(k){if(!k||k==='Rájátszás')return'Rájátszás';if(/^\d{4}-\d{2}-\d{2}$/.test(k)){let d=new Date(k+'T12:00:00+03:00');return d.toLocaleDateString('hu-HU',{month:'short',day:'numeric',timeZone:'Europe/Bucharest'}).replace(/\u00a0/g,' ')}return k}
 function matchGradeClass(tip,r,isKo){if(!tip||!r||!(r.started||r.finished)||!validScore(r.h)||!validScore(r.a))return'';let g=isKo?gradeKoTip(tip,r):gradeTip(tip,r);return' result-'+(g.cat==='exact'?'exact':g.cat==='diff'?'diff':g.cat==='outcome'?'outcome':'miss')}
 function superligaHasPenScore(obj){return obj&&validScore(obj.pH)&&validScore(obj.pA)}
-function superligaPenPair(obj){return superligaHasPenScore(obj)?(+obj.pH)+'-'+(+obj.pA):''}
-function superligaMiniPen(v){return validScore(v)?'<span class="wc26-mini-pen-label">('+esc(v)+')</span>':''}
-function superligaScoreWithPen(score,pen){return superligaMiniPen(pen)+'<span>'+esc(score)+'</span>'}
 function superligaMinuteToken(value){
   let s=String(value??'').trim();
   if(!s||/^\d{1,2}:\d{2}$/.test(s))return null;
   let m=s.match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:[’'′]|\s|$)/);
   return m?m[1]:null;
-}
-function superligaMinuteOrder(value){
-  let s=String(value||''),m=s.match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
-  if(!m)return-1;
-  return Number(m[1])+(m[2]?Math.min(99,Number(m[2]))/100:0);
 }
 function superligaTrustedClockSource(value){
   let s=String(value||'').toLowerCase();
@@ -173,14 +164,6 @@ function superligaStatusBlob(r){
   let meta=r.matchMeta&&typeof r.matchMeta==='object'?r.matchMeta:{};
   return [r.status,r.minute,r.period,r.shortDetail,r.detail,r.displayClock,r.statusText,r.name,r.description,r.phaseCode,r.statusCode,r.liveCode,meta.currentPeriod,meta.phaseCode,meta.statusCode,meta.liveCode]
     .map(v=>String(v||'')).join(' ').toUpperCase();
-}
-function superligaResultKickoffMs(r){
-  let kickoff=Number(r?._kickoffMs);
-  if(!Number.isFinite(kickoff)&&r?._fixtureId){
-    let fixture=(typeof FX_BY_ID!=='undefined'&&FX_BY_ID[r._fixtureId])||(typeof FX!=='undefined'&&FX.find(x=>String(x.id)===String(r._fixtureId)));
-    if(fixture&&typeof fixtureKickoff==='function')kickoff=fixtureKickoff(fixture);
-  }
-  return Number.isFinite(kickoff)?kickoff:null;
 }
 function superligaIsHalfTimeResult(r){
   if(!r||r.finished||!r.started)return false;
@@ -213,12 +196,6 @@ function superligaStatusMeta(r,opts={}){
   if(clock)return{state:'live',text:clock};
   return r.started?{state:'live',text:'Élő'}:null;
 }
-function superligaStatusPills(r,opts={}){
-  let meta=superligaStatusMeta(r,opts);
-  if(!meta)return'';
-  return '<span class="wc26-state-indicators"><span class="wc26-status-pill '+esc(meta.state)+'">'+esc(meta.text)+'</span></span>';
-}
-function superligaCardTipPenHtml(p){return''}
 function superligaCardScoreValue(score,pen){
   return '<span class="wc26-card-score">'+(validScore(pen)?'<span class="wc26-card-pen">('+esc(pen)+')</span>':'')+'<span>'+esc(score)+'</span></span>';
 }

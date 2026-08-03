@@ -121,8 +121,8 @@ FIXTURE_SOURCE_URL = "https://lpf.ro/etape-liga-1/{round}"
 Manual refresh examples:
 
 ```bash
-curl -X POST "WORKER_URL/admin/refresh?task=fixtures&round=1&force=1&secret=ADMIN_SECRET"
-curl -X POST "WORKER_URL/admin/refresh?task=fixtures&force=1&secret=ADMIN_SECRET"
+curl -X POST -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/refresh?task=fixtures&round=1&force=1"
+curl -X POST -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/refresh?task=fixtures&force=1"
 ```
 
 `round=1` refreshes only one round. Without `round`, the Worker refreshes all regular-season rounds 1-30.
@@ -215,15 +215,15 @@ The adapters map by direct source id first, then fuzzy home/away names. Once we 
 ## Manual refresh tests after deploy
 
 ```bash
-curl.exe -X POST "https://YOUR-WORKER.workers.dev/admin/refresh?task=fixtures&force=1&secret=YOUR_SECRET"
-curl.exe -X POST "https://YOUR-WORKER.workers.dev/admin/refresh?task=odds&force=1&secret=YOUR_SECRET"
-curl.exe -X POST "https://YOUR-WORKER.workers.dev/admin/refresh?task=daily&force=1&secret=YOUR_SECRET"
+curl.exe -X POST -H "x-admin-secret: YOUR_SECRET" "https://YOUR-WORKER.workers.dev/admin/refresh?task=fixtures&force=1"
+curl.exe -X POST -H "x-admin-secret: YOUR_SECRET" "https://YOUR-WORKER.workers.dev/admin/refresh?task=odds&force=1"
+curl.exe -X POST -H "x-admin-secret: YOUR_SECRET" "https://YOUR-WORKER.workers.dev/admin/refresh?task=daily&force=1"
 ```
 
 State:
 
-```text
-https://YOUR-WORKER.workers.dev/admin/coordinator?secret=YOUR_SECRET
+```bash
+curl.exe -H "x-admin-secret: YOUR_SECRET" "https://YOUR-WORKER.workers.dev/admin/coordinator"
 ```
 
 Odds:
@@ -243,7 +243,8 @@ https://YOUR-WORKER.workers.dev/fixtures
 This lets the frontend show WC26-style live states before real fixtures are live.
 
 ```bash
-curl -X POST "https://YOUR-WORKER.workers.dev/admin/live?secret=YOUR_SECRET" \
+curl -X POST "https://YOUR-WORKER.workers.dev/admin/live" \
+  -H "x-admin-secret: YOUR_SECRET" \
   -H "content-type: application/json" \
   -d '{
     "results": {
@@ -313,13 +314,13 @@ A live hot path nem Firebase-ből jön, hanem a Worker `/live-results` endpointj
 Admin diagnosztika deploy után:
 
 ```bat
-curl.exe "WORKER_URL/admin/source-test?source=livescore&force=1&all=1&secret=ADMIN_SECRET"
+curl.exe -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/source-test?source=livescore&force=1&all=1"
 ```
 
 Ha egy konkrét nem hivatalos XHR URL-t akarsz kipróbálni anélkül, hogy átírnád a `wrangler.toml`-t:
 
 ```bat
-curl.exe "WORKER_URL/admin/source-test?source=livescore&force=1&all=1&secret=ADMIN_SECRET&url=ENCODED_URL"
+curl.exe -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/source-test?source=livescore&force=1&all=1&url=ENCODED_URL"
 ```
 
 A frontend továbbra is csak ezt fogyasztja:
@@ -347,7 +348,7 @@ Useful production tests:
 curl.exe "WORKER_URL/bootstrap-light"
 curl.exe "WORKER_URL/live-results?fast=1"
 curl.exe "WORKER_URL/live-results?fresh=1&live=1"
-curl.exe "WORKER_URL/admin/source-test?source=livescore&force=1&all=1&secret=ADMIN_SECRET"
+curl.exe -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/source-test?source=livescore&force=1&all=1"
 ```
 
 ## SofaScore event-master adapter
@@ -363,19 +364,19 @@ A Worker most már külön SofaScore eseményforrást is tartalmaz:
 Teszt:
 
 ```bat
-curl.exe "WORKER_URL/admin/source-test?source=sofascore&date=2026-07-17&force=1&scheduled=1&secret=ADMIN_SECRET"
+curl.exe -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/source-test?source=sofascore&date=2026-07-17&force=1&scheduled=1"
 ```
 
 Csak konkrét meccs:
 
 ```bat
-curl.exe "WORKER_URL/admin/source-test?source=sofascore&ids=m5&force=1&scheduled=1&secret=ADMIN_SECRET"
+curl.exe -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/source-test?source=sofascore&ids=m5&force=1&scheduled=1"
 ```
 
 Csak forduló:
 
 ```bat
-curl.exe "WORKER_URL/admin/source-test?source=sofascore&round=1&force=1&scheduled=1&secret=ADMIN_SECRET"
+curl.exe -H "x-admin-secret: ADMIN_SECRET" "WORKER_URL/admin/source-test?source=sofascore&round=1&force=1&scheduled=1"
 ```
 
 A `/live-results` automatikusan összeolvasztja:

@@ -19,7 +19,7 @@ export async function fixturesRoute(request, env, ctx) {
     return res;
   }
   if (request.method === 'POST') {
-    if (!requireAdmin(request, env)) return unauthorized(env);
+    if (!(await requireAdmin(request, env))) return unauthorized(env);
     const body = await readJson(request);
     if (!body?.id) return badRequest('fixture id missing', env);
     const fixture = await writeFixtureOverride(env, body);

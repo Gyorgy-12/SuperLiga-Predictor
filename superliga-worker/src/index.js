@@ -27,7 +27,12 @@ export default {
       // makes sure the Durable Object alarm exists, without running any source
       // fetch unless an actual daily/prematch/live/ratings job is due.
       if (path === '/' || path === '/health' || path === '/bootstrap-light' || path === '/bootstrap' || path === '/live-results' || path === '/admin/coordinator') {
-        ctx?.waitUntil?.(ensureCoordinatorAlarm(env).catch(() => null));
+        if (ctx?.waitUntil) {
+          ctx.waitUntil(ensureCoordinatorAlarm(env).catch(error => {
+            console.error(JSON.stringify({ message: 'coordinator alarm setup failed', error: error?.message || String(error), path }));
+            return null;
+          }));
+        }
       }
 
       if (path === '/' || path === '/health') return healthRoute(request, env, ctx);
@@ -58,8 +63,10 @@ export default {
 
       return notFound(env);
     } catch (error) {
-      console.error(error);
-      return json({ ok: false, error: 'worker_error', message: error?.message || String(error) }, { status: 500 }, env);
+      const message = error?.message || String(error);
+      console.error(JSON.stringify({ message: 'request failed', error: message, path: new URL(request.url).pathname }));
+      const detail = env.ENVIRONMENT === 'production' ? {} : { message };
+      return json({ ok: false, error: 'worker_error', ...detail }, { status: 500 }, env);
     }
   },
 
@@ -68,7 +75,7 @@ export default {
     ctx.waitUntil(
       runCoordinator(env, 'wake', { cron })
         .catch(error => {
-          console.error('B42 scheduler wake failed', error);
+          console.error(JSON.stringify({ message: 'scheduler wake failed', error: error?.message || String(error), cron }));
           return null;
         })
     );

@@ -32,9 +32,15 @@ export async function readJson(request) {
   return request.json().catch(() => null);
 }
 
-export function requireAdmin(request, env) {
+export async function requireAdmin(request, env) {
   const secret = env.ADMIN_SECRET;
   if (!secret) return false;
   const got = request.headers.get('x-admin-secret') || new URL(request.url).searchParams.get('secret') || '';
-  return got && got === secret;
+  if (!got) return false;
+  const encoder = new TextEncoder();
+  const [providedHash, expectedHash] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(got)),
+    crypto.subtle.digest('SHA-256', encoder.encode(secret))
+  ]);
+  return crypto.subtle.timingSafeEqual(providedHash, expectedHash);
 }

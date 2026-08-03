@@ -1,13 +1,12 @@
 # SuperLiga Predictor Frontend
 
 Refaktorált, többfájlos frontend-verzió a korábbi egyfájlos SuperLiga predictor HTML-ből.
-Nincs build step, nincs backend-kényszer: az `index.html` sima statikus oldalként tölti be a CSS és JS részmodulokat.
+Nincs frontend build step: az `index.html` közvetlenül tölti be a CSS- és JS-modulokat.
 
 ## Indítás
 
 ```bash
-cd superliga-predictor-frontend
-python -m http.server 5173
+npm run dev
 ```
 
 Majd böngészőben: `http://localhost:5173`.
@@ -38,8 +37,8 @@ src/
   app/
     bootstrap.js              router, tabok, kontrollok, resize/scroll sync, render scheduler
   styles/
-    main.css                  CSS betöltési sorrend
-    00-...07-...css           szerepkör szerinti stílusblokkok
+    main.css                  az alkalmazás teljes stílusrendszere
+    parity-lock-*.css         célzott reszponzív és modal-stabilitási korrekciók
 ```
 
 ## Firebase takarékos logika
@@ -59,8 +58,9 @@ A korábbi `WC26_*` / `wc26*` maradványok ki lettek szedve. A konfiguráció é
 ## Ellenőrzés
 
 ```bash
-for f in src/**/*.js; do node --check "$f"; done
-cat $(cat src/app.order.txt) > /tmp/superliga-bundle.js && node --check /tmp/superliga-bundle.js
+npm --prefix superliga-worker install
+npm test
+npm --prefix superliga-worker run build
 ```
 
 ## 2026-07-05 pixel parity pass

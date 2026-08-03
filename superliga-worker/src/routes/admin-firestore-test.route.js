@@ -3,7 +3,7 @@ import { firestoreConfigured, patchDocument, getDocument, deleteDocument } from 
 import { json, requireAdmin, unauthorized } from '../utils/http.js';
 
 export async function adminFirestoreTestRoute(request, env) {
-  if (!requireAdmin(request, env)) return unauthorized(env);
+  if (!(await requireAdmin(request, env))) return unauthorized(env);
 
   const url = new URL(request.url);
   const write = url.searchParams.get('write') === '1';

@@ -54,7 +54,6 @@ function cmpTeam(a,b){
   return b.pts-a.pts||b.diff-a.diff||b.gf-a.gf||a.ga-b.ga||(fpB-fpA)||((TEAM_RANKS[a.name]||999)-(TEAM_RANKS[b.name]||999))||a.name.localeCompare(b.name);
 }
 function cmpTeamH2H(a,b,h2h){let ka=a.name+'|'+b.name,kb=b.name+'|'+a.name,ha=h2h[ka],hb=h2h[kb];if(ha&&hb){let ap=ha.w*3+ha.d,bp=hb.w*3+hb.d;if(ap!==bp)return bp-ap;let agd=ha.gf-ha.ga,bgd=hb.gf-hb.ga;if(agd!==bgd)return bgd-agd;if(ha.gf!==hb.gf)return hb.gf-ha.gf;}return 0;}
-function roundsWithData(){let has={};for(let i=1;i<=30;i++)has[i]=false;FX.forEach(m=>{let lr=LIVE_RESULTS[m.id],hasReal=lr&&lr.started&&validScore(lr.h)&&validScore(lr.a),hasPred=!!getPred(m.id);if(hasReal||hasPred)has[m.r]=true});return has}
 function groupRows(g){let rows={};g.teams.forEach(n=>rows[n]=mk(n,g.key));let h2h={};FX.filter(m=>m.g===g.key&&(!S.tblRound||m.r<=S.tblRound)).forEach(m=>{let lr=LIVE_RESULTS[m.id],p=(lr&&(lr.started||lr.finished)&&validScore(lr.h)&&validScore(lr.a))?{h:+lr.h,a:+lr.a}:getPred(m.id);if(p){applyResult(rows,m,p);let kh=m.h+'|'+m.a,ka=m.a+'|'+m.h;if(!h2h[kh])h2h[kh]={w:0,d:0,l:0,gf:0,ga:0};if(!h2h[ka])h2h[ka]={w:0,d:0,l:0,gf:0,ga:0};if(p.h>p.a){h2h[kh].w++;h2h[ka].l++;}else if(p.h<p.a){h2h[kh].l++;h2h[ka].w++;}else{h2h[kh].d++;h2h[ka].d++;}h2h[kh].gf+=p.h;h2h[kh].ga+=p.a;h2h[ka].gf+=p.a;h2h[ka].ga+=p.h;}});let sorted=Object.values(rows).sort(cmpTeam);// Apply head-to-head within tied groups
 let result=[];let i=0;while(i<sorted.length){let j=i+1;while(j<sorted.length&&sorted[j].pts===sorted[i].pts)j++;let group=sorted.slice(i,j);if(group.length>1)group.sort((a,b)=>cmpTeamH2H(a,b,h2h)||cmpTeam(a,b));result.push(...group);i=j;}return result;}
 function isLiveTeam(name){return FX.some(m=>{let lr=LIVE_RESULTS[m.id];return lr&&lr.started&&!lr.finished&&(m.h===name||m.a===name)})}
@@ -72,8 +71,6 @@ function teamNameFor(name,context){
 function postseasonStar(r){return r&&r.oddRegular?'*':'';}
 function tableTeamName(r,longView){return (longView?teamNameFor(r.name,'table-full'):stn(r.name))+postseasonStar(r);}
 function calcStandings(){return groupRows(GROUPS[0]);}
-function buildTables(){return GROUPS.map(g=>{let rows=groupRows(g);return{key:g.key,title:compLabel(g.key),zones:[{lbl:'Tov&aacute;bbjut&aacute;s a playoffba',clr:'var(--green)',rows:rows.slice(0,6)},{lbl:'Playout mez&#337;ny',clr:'var(--blue)',rows:rows.slice(6,16)}]}})}
-function thirdRows(){return GROUPS.map(g=>groupRows(g)[2]).sort(cmpTeam)}
 function ast(r){return S.filt==='home'?r.home:S.filt==='away'?r.away:r}
 function cmpFilteredRow(a,b){let aa=ast(a),bb=ast(b);return bb.pts-aa.pts||bb.diff-aa.diff||bb.gf-aa.gf||aa.ga-bb.ga||((TEAM_RANKS[a.name]||999)-(TEAM_RANKS[b.name]||999))||a.name.localeCompare(b.name)}
 function sortRowsForTable(rows){return S.filt==='all'?rows:rows.slice().sort(cmpFilteredRow)}

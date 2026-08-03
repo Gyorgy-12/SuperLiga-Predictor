@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "python -m http.server 5173"
+    "dev": "node scripts/serve.mjs",
+    "check": "node scripts/check-syntax.mjs src --order src/app.order.txt",
+    "test": "npm run check && npm --prefix superliga-worker run check"
   }
 }

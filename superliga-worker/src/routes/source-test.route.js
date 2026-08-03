@@ -26,7 +26,7 @@ import { backfillFlashscoreMids } from '../services/flashscore-mid-backfill.serv
 const SOURCE_TEST_ROUTE_VERSION = 'b47-current-multi-elo-source-test';
 
 export async function sourceTestRoute(request, env) {
-  if (!requireAdmin(request, env)) return unauthorized(env);
+  if (!(await requireAdmin(request, env))) return unauthorized(env);
 
   const url = new URL(request.url);
   const source = (url.searchParams.get('source') || 'livescore').toLowerCase();

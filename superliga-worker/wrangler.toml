@@ -1,7 +1,12 @@
 name = "superliga-predictor-worker"
 main = "src/index.js"
-compatibility_date = "2026-07-01"
+compatibility_date = "2026-08-03"
+compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1
 
 [vars]
 ENVIRONMENT = "production"

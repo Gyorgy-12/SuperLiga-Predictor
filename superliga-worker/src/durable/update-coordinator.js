@@ -1,3 +1,4 @@
+import { DurableObject } from 'cloudflare:workers';
 import { refreshFixtures } from '../services/fixture-refresh.service.js';
 import { readOdds, refreshOdds } from '../services/odds.service.js';
 import { refreshTeamRatings } from '../services/team-ratings.service.js';
@@ -23,12 +24,7 @@ const DEFAULT_LIVE_END_AFTER_MINUTES = 120;
 const DEFAULT_LIVE_INTERVAL_SECONDS = 30;
 const ALARM_EARLY_GRACE_MS = 1_500;
 
-export class UpdateCoordinator {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-  }
-
+export class UpdateCoordinator extends DurableObject {
   async fetch(request) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -40,16 +36,16 @@ export class UpdateCoordinator {
       return this.json(await this.readPublicState());
     }
     if (request.method === 'GET' && path === '/fixtures-cache') {
-      return this.json(await this.state.storage.get('fixtures-cache') || { ok: true, fixtures: [], source: 'empty' });
+      return this.json(await this.ctx.storage.get('fixtures-cache') || { ok: true, fixtures: [], source: 'empty' });
     }
     if (request.method === 'GET' && path === '/odds-cache') {
-      return this.json(await this.state.storage.get('odds-cache') || { ok: true, odds: {}, source: 'empty' });
+      return this.json(await this.ctx.storage.get('odds-cache') || { ok: true, odds: {}, source: 'empty' });
     }
     if (request.method === 'GET' && path === '/ratings-cache') {
-      return this.json(await this.state.storage.get('ratings-cache') || { ok: true, ratings: {}, marketValues: {}, source: 'empty' });
+      return this.json(await this.ctx.storage.get('ratings-cache') || { ok: true, ratings: {}, marketValues: {}, source: 'empty' });
     }
     if (request.method === 'GET' && path === '/live-results-cache') {
-      return this.json(await this.state.storage.get(LIVE_RESULTS_CACHE_KEY) || {
+      return this.json(await this.ctx.storage.get(LIVE_RESULTS_CACHE_KEY) || {
         ok: true,
         results: {},
         activeIds: [],
@@ -297,7 +293,7 @@ export class UpdateCoordinator {
       };
     }
     cleanupPrematchState(state, now);
-    await this.state.storage.put(PREMATCH_ODDS_KEY, state);
+    await this.ctx.storage.put(PREMATCH_ODDS_KEY, state);
 
     return {
       ok: result?.ok !== false,
@@ -343,7 +339,7 @@ export class UpdateCoordinator {
 
   async runFixtures(opts = {}) {
     const result = await refreshFixtures(this.env, { ...opts, skipCoordinatorCache: true });
-    await this.state.storage.put('fixtures-cache', result);
+    await this.ctx.storage.put('fixtures-cache', result);
     await this.updateState('fixtures', result, opts);
     return result;
   }
@@ -360,7 +356,7 @@ export class UpdateCoordinator {
     });
 
     if (Array.isArray(result?.fixtures)) {
-      await this.state.storage.put('fixtures-cache', {
+      await this.ctx.storage.put('fixtures-cache', {
         ok: !!result.ok,
         source: result.source,
         fixtures: result.fixtures,
@@ -383,14 +379,14 @@ export class UpdateCoordinator {
 
   async runOdds(opts = {}) {
     const result = await refreshOdds(this.env, { ...opts, skipCoordinatorCache: true });
-    await this.state.storage.put('odds-cache', result);
+    await this.ctx.storage.put('odds-cache', result);
     await this.updateState('odds', result, opts);
     return result;
   }
 
   async runRatings(opts = {}) {
     const result = await refreshTeamRatings(this.env, { ...opts, skipCoordinatorCache: true });
-    await this.state.storage.put('ratings-cache', result);
+    await this.ctx.storage.put('ratings-cache', result);
     await this.updateState('ratings', result, opts);
     return result;
   }
@@ -424,7 +420,7 @@ export class UpdateCoordinator {
       changed: result?.changed ?? null,
       updatedAt: result?.updatedAt || new Date().toISOString()
     };
-    await this.state.storage.put(LIVE_RESULTS_CACHE_KEY, payload);
+    await this.ctx.storage.put(LIVE_RESULTS_CACHE_KEY, payload);
     return payload;
   }
 
@@ -521,10 +517,10 @@ export class UpdateCoordinator {
       .filter(row => Number.isFinite(row.at) && row.at > now)
       .sort((a, b) => a.at - b.at);
     const next = valid[0] || { at: now + 24 * 60 * 60 * 1_000, type: 'daily_fallback' };
-    const currentAlarm = await this.state.storage.getAlarm();
+    const currentAlarm = await this.ctx.storage.getAlarm();
     const shouldSet = force || !currentAlarm || next.at + 1_000 < currentAlarm || currentAlarm <= now;
 
-    if (shouldSet) await this.state.storage.setAlarm(Math.max(now + 1_000, Math.floor(next.at)));
+    if (shouldSet) await this.ctx.storage.setAlarm(Math.max(now + 1_000, Math.floor(next.at)));
 
     const nextAlarmAt = shouldSet ? Math.max(now + 1_000, Math.floor(next.at)) : currentAlarm;
     scheduler.nextAlarmAt = new Date(nextAlarmAt).toISOString();
@@ -622,7 +618,7 @@ export class UpdateCoordinator {
 
   async acquireLock(task, force = false) {
     const now = Date.now();
-    const current = await this.state.storage.get(LOCK_KEY);
+    const current = await this.ctx.storage.get(LOCK_KEY);
     if (!force && current?.until && current.until > now) {
       return {
         ok: false,
@@ -634,22 +630,22 @@ export class UpdateCoordinator {
       };
     }
     const token = crypto.randomUUID();
-    await this.state.storage.put(LOCK_KEY, { task, token, since: now, until: now + 4 * 60 * 1_000 });
+    await this.ctx.storage.put(LOCK_KEY, { task, token, since: now, until: now + 4 * 60 * 1_000 });
     return { ok: true, token };
   }
 
   async releaseLock(token) {
-    const current = await this.state.storage.get(LOCK_KEY);
-    if (current?.token === token) await this.state.storage.delete(LOCK_KEY);
+    const current = await this.ctx.storage.get(LOCK_KEY);
+    if (current?.token === token) await this.ctx.storage.delete(LOCK_KEY);
   }
 
   async readState() {
-    const state = await this.state.storage.get(STATE_KEY);
+    const state = await this.ctx.storage.get(STATE_KEY);
     return state || { ok: true, lastRuns: {}, createdAt: new Date().toISOString() };
   }
 
   async readSchedulerState() {
-    return await this.state.storage.get(SCHEDULER_KEY) || {
+    return await this.ctx.storage.get(SCHEDULER_KEY) || {
       version: 'b42-daily-ratings',
       createdAt: new Date().toISOString(),
       lastDailyLocalDate: null,
@@ -660,11 +656,11 @@ export class UpdateCoordinator {
   async writeSchedulerState(state) {
     state.version = 'b42-daily-ratings';
     state.updatedAt = new Date().toISOString();
-    await this.state.storage.put(SCHEDULER_KEY, state);
+    await this.ctx.storage.put(SCHEDULER_KEY, state);
   }
 
   async readPrematchOddsState() {
-    return await this.state.storage.get(PREMATCH_ODDS_KEY) || {};
+    return await this.ctx.storage.get(PREMATCH_ODDS_KEY) || {};
   }
 
   async readPublicState() {
@@ -673,7 +669,7 @@ export class UpdateCoordinator {
       scheduler: await this.readSchedulerState(),
       prematchOdds: await this.readPrematchOddsState(),
       liveResultsCache: await this.liveResultsCacheSummary(),
-      alarmAt: await this.state.storage.getAlarm(),
+      alarmAt: await this.ctx.storage.getAlarm(),
       schedulerConfig: {
         timezone: this.timezone(),
         dailyScanLocalTime: `${String(this.dailyHour()).padStart(2, '0')}:${String(this.dailyMinute()).padStart(2, '0')}`,
@@ -689,7 +685,7 @@ export class UpdateCoordinator {
   }
 
   async liveResultsCacheSummary() {
-    const cache = await this.state.storage.get(LIVE_RESULTS_CACHE_KEY);
+    const cache = await this.ctx.storage.get(LIVE_RESULTS_CACHE_KEY);
     return cache ? {
       source: cache.source || null,
       syncSource: cache.syncSource || null,
@@ -719,7 +715,7 @@ export class UpdateCoordinator {
       error: result?.error || null
     };
     state.updatedAt = new Date().toISOString();
-    await this.state.storage.put(STATE_KEY, state);
+    await this.ctx.storage.put(STATE_KEY, state);
   }
 
   async storeSchedulerError(error) {

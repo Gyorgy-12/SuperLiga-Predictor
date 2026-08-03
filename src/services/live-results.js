@@ -11,7 +11,6 @@ function fixtureKickoff(m){return new Date(m.date+'T'+m.t+':00+03:00').getTime()
 function localMatchTime(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit',timeZone:tz||Intl.DateTimeFormat().resolvedOptions().timeZone})}catch(e){return m.t}}
 function localMatchDate(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleDateString('hu-HU',{month:'short',day:'numeric',timeZone:tz||Intl.DateTimeFormat().resolvedOptions().timeZone}).replace(/\u00a0/g,' ')}catch(e){return m.d}}
 function matchSortKey(m){return (m.date||'9999-99-99')+'T'+(m.t||'99:99')+'|'+String(m.r||'').padStart(2,'0')+'|'+(m.g||'')+'|'+(m.id||'')}
-function sortMatchesChronological(rows){return rows.slice().sort((a,b)=>matchSortKey(a).localeCompare(matchSortKey(b)))}
 const SUPERLIGA_LATE_LIVE_CLOCK_STALE_MS=15*60*1000;
 const SUPERLIGA_ABSOLUTE_LIVE_CUTOFF_MS=3*60*60*1000+15*60*1000;
 function superligaTerminalStatusText(r){
@@ -48,7 +47,6 @@ function superligaShouldDisplayLive(r,m){return !!(r&&r.started&&!superligaIsEff
 function matchLockState(m){let r=LIVE_RESULTS[m.id];if(r&&superligaIsEffectivelyFinished(r,m))return'finished';if(r&&r.started)return'live';return Date.now()>=fixtureKickoff(m)?'live':'open'}
 function actualFor(m){return LIVE_RESULTS[m.id]||null}
 function fmtPts(n){let x=Math.round((+n||0)*100)/100;return(Math.round(x*100)%50===0)?x.toFixed(1):x.toFixed(2)}
-function tipScore(m){let p=getPred(m.id),r=actualFor(m);if(!p||!r||!(r.started||r.finished)||!validScore(r.h)||!validScore(r.a))return{cat:'',pts:0};let ph=+p.h,pa=+p.a,rh=+r.h,ra=+r.a;if(ph===rh&&pa===ra)return{cat:'exact',pts:1};let pdiff=ph-pa,rdiff=rh-ra;if(pdiff===rdiff)return{cat:'diff',pts:0.5};let pout=Math.sign(ph-pa),rout=Math.sign(rh-ra);if(pout===rout)return{cat:'outcome',pts:0.25};return{cat:'miss',pts:0}}
 function gradeKoTip(p,r){if(!p||!r||!validScore(p.h)||!validScore(p.a)||!validScore(r.h)||!validScore(r.a))return{cat:'miss',pts:0,label:'Nincs tipp'};let ph=+p.h,pa=+p.a,rh=+r.h,ra=+r.a,pdiff=ph-pa,rdiff=rh-ra;if(ph===rh&&pa===ra)return{cat:'exact',pts:1,label:'Pontos'};if(pdiff===rdiff)return{cat:'diff',pts:0.5,label:'Gólkülönbség'};let pout=Math.sign(ph-pa),rout=Math.sign(rh-ra);if(pout===rout)return{cat:'outcome',pts:0.25,label:'Kimenetel'};return{cat:'miss',pts:0,label:'Téves'}}
 function pctBar(val,total,clr){let p=total?+((val/total)*100).toFixed(2):0;return '<div class="stat-bar-row"><div class="stat-bar-track"><div class="stat-bar-fill" style="width:'+p+'%;background:'+clr+'"></div></div><span class="stat-bar-val">'+p+'%</span></div>'}
 
@@ -403,7 +401,6 @@ async function loadMatchResultsOnceFromSdk(ids){
     return mergeLiveResults(incoming);
   }catch(e){superligaBackendError=e.message||String(e);return false}
 }
-async function loadMatchResultsOnceFromFirestore(){return loadMatchResultsOnceFromSdk()}
 async function syncLiveResults(opts={}){
   if(FROZEN_MODE)return false;
   if(superligaSyncInFlight)return superligaSyncInFlight;
@@ -435,17 +432,11 @@ async function syncLiveResults(opts={}){
 window.superligaRefreshResults=()=>syncLiveResults({force:true,forceLive:true});
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
 function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await Promise.allSettled([syncLiveResults(),maybeRefreshOddsFromWorker(false)]);scheduleLiveSync()},delay??nextLiveSyncDelay())}
-function listenMatchResults(){return syncLiveResults({force:true})}
 function superligaTickerMinuteToken(value){
   let s=String(value??'').trim();
   if(!s||/^\d{1,2}:\d{2}$/.test(s))return null;
   let m=s.match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:[’'′]|\s|$)/);
   return m?m[1]:null;
-}
-function superligaTickerMinuteOrder(value){
-  let m=String(value||'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
-  if(!m)return-1;
-  return Number(m[1])+(m[2]?Math.min(99,Number(m[2]))/100:0);
 }
 function superligaTickerTrustedClockSource(value){
   let s=String(value||'').toLowerCase();

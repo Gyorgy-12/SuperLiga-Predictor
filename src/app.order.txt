@@ -1,8 +1,10 @@
 src/data/firebase-config.js
 src/data/league-config.js
 src/ui/dom-utils.js
+src/ui/table-round-dropdown-scroll.js
 src/core/predictions-store.js
 src/services/community-firebase.js
+src/services/community-firestore-fast-sync.js
 src/core/standings-engine.js
 src/views/overview-table.view.js
 src/data/fixtures.js
@@ -12,4 +14,6 @@ src/core/stats-export.js
 src/core/postseason-engine.js
 src/views/match-modal.view.js
 src/views/matches-postseason-stats.view.js
+src/views/match-round-labels-inline.js
 src/app/bootstrap.js
+src/app/standalone-export-and-penalties.js

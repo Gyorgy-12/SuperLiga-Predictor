@@ -58,13 +58,6 @@ function superligaKoStoredSeedSignature(){
   let vals=Object.values(KO_PRED||{}).map(p=>p&&p.seedSignature).filter(Boolean);
   return vals.length?vals[0]:'';
 }
-function superligaStampKoSeedSignature(){
-  let sig=superligaPostseasonSeedSignature(),changed=false;
-  if(!sig)return false;
-  Object.values(KO_PRED||{}).forEach(p=>{if(p&&p.seedSignature!==sig){p.seedSignature=sig;changed=true}});
-  if(changed)savePred();
-  return changed;
-}
 function superligaResetAllPostseasonTips(reason){
   if(FROZEN_MODE||!KO_PRED||!Object.keys(KO_PRED).length)return false;
   KO_PRED={};

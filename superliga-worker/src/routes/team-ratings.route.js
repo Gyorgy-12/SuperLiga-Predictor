@@ -20,7 +20,7 @@ function noStoreInit(extra = {}) {
 async function maybeRefresh(request, env, url, label) {
   const refresh = boolParam(url, 'refresh');
   if (!refresh) return null;
-  if (!requireAdmin(request, env)) return unauthorized(env);
+  if (!(await requireAdmin(request, env))) return unauthorized(env);
 
   const options = {
     force: true,

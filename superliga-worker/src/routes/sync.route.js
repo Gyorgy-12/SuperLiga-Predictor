@@ -18,7 +18,7 @@ import { readStoredResults, refreshPublicResultsCache, writeFinalIfChanged } fro
 export async function syncRoute(request, env) {
   const url = new URL(request.url);
   const fromCron = request.headers.get('x-superliga-cron') === '1';
-  const manualOk = requireAdmin(request, env);
+  const manualOk = await requireAdmin(request, env);
   if (!fromCron && !manualOk) return unauthorized(env);
 
   const force = url.searchParams.get('force') === '1';

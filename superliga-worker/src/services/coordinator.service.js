@@ -1,7 +1,6 @@
 export function coordinatorStub(env) {
   if (!env.UPDATE_COORDINATOR) return null;
-  const id = env.UPDATE_COORDINATOR.idFromName(env.COORDINATOR_NAME || 'superliga-main');
-  return env.UPDATE_COORDINATOR.get(id);
+  return env.UPDATE_COORDINATOR.getByName(env.COORDINATOR_NAME || 'superliga-main');
 }
 
 async function coordinatorFetchJson(env, path, init = {}) {

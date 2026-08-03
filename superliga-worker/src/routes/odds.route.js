@@ -29,7 +29,7 @@ export async function oddsRoute(request, env, ctx) {
   // No fixture IDs are required: every relevant fixture is selected automatically.
   // Missing Flashscore MIDs are discovered and persisted before odds are fetched.
   if (refresh) {
-    if (!requireAdmin(request, env)) return unauthorized(env);
+    if (!(await requireAdmin(request, env))) return unauthorized(env);
     const result = await refreshOdds(env, {
       force: true,
       date: url.searchParams.get('date') || undefined,

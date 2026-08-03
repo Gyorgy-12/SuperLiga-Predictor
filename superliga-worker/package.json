@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "check": "node --check src/index.js && find src -name '*.js' -not -path 'src/index.js' -print0 | xargs -0 -n1 node --check"
+    "check": "node ../scripts/check-syntax.mjs src",
+    "build": "wrangler deploy --dry-run"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.118.0"
   }
 }

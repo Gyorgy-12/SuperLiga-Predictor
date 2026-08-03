@@ -19,21 +19,7 @@
 if(window.__SUPERLIGA_STANDALONE_EXPORT_PENALTY_SAFE_V5__)return;
 window.__SUPERLIGA_STANDALONE_EXPORT_PENALTY_SAFE_V5__=true;
 
-const EXPORT_MODE=!!window.__SUPERLIGA_STANDALONE_EXPORT__;
 const VERSION='v5-penalty-safe-existing-export-button';
-
-function textOf(el){
-  return String(el&&el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
-}
-
-function validScoreValue(value){
-  return value!==''&&value!=null&&Number.isFinite(Number(value));
-}
-
-function isTipAction(button){
-  const text=textOf(button);
-  return /^(mentés|tipp mentése|tipp törlése|save|save prediction|delete prediction|clear prediction)$/.test(text);
-}
 
 function clone(value,fallback){
   try{
@@ -79,101 +65,6 @@ function currentSnapshot(){
   };
 }
 
-function isBarajModal(modal){
-  if(!modal)return false;
-  const explicit=[
-    modal.dataset.tipStage,
-    modal.dataset.stage,
-    modal.dataset.round,
-    modal.dataset.competition,
-    modal.dataset.matchType,
-    textOf(modal.querySelector('.tip-meta')),
-    textOf(modal.querySelector('.tip-subtitle')),
-    textOf(modal.querySelector('.sheet-subtitle')),
-    textOf(modal.querySelector('.tip-date')),
-    textOf(modal.querySelector('.tip-title')),
-    textOf(modal.querySelector('.tip-head')),
-    textOf(modal.querySelector('.sheet-title'))
-  ].filter(Boolean).join(' ');
-  return /\bbaraj\b/i.test(explicit);
-}
-
-function syncBarajPenaltyBox(modal){
-  if(!EXPORT_MODE)return;
-  const box=modal&&modal.querySelector('.penalty-box');
-  if(!box)return;
-  // The normal modal code already knows whether a one-match tie or a tied
-  // two-leg aggregate requires penalties. Export mode must only freeze it.
-  box.querySelectorAll('input').forEach(input=>{
-    input.disabled=true;
-    input.readOnly=true;
-    input.setAttribute('aria-disabled','true');
-  });
-}
-
-function makeModalReadonly(modal){
-  if(!EXPORT_MODE||!modal)return;
-
-  modal.classList.add('standalone-readonly-modal');
-  modal.querySelectorAll('input,select,textarea').forEach(input=>{
-    input.disabled=true;
-    input.readOnly=true;
-    input.setAttribute('aria-disabled','true');
-    input.tabIndex=-1;
-  });
-
-  modal.querySelectorAll('button').forEach(button=>{
-    if(isTipAction(button)){
-      button.hidden=true;
-      button.disabled=true;
-    }
-  });
-
-  modal.querySelectorAll(
-    '[data-save-tip],[data-delete-tip],[data-clear-tip],.tip-save,.tip-delete,.tip-actions .primary'
-  ).forEach(element=>{
-    element.hidden=true;
-    if('disabled'in element)element.disabled=true;
-  });
-
-  if(!modal.querySelector('.standalone-readonly-note')){
-    const note=document.createElement('div');
-    note.className='standalone-readonly-note';
-    note.textContent='Exportált, csak olvasható tipp. A meccskártya és a modal működik, de az eredmény itt már nem módosítható.';
-    const sheet=modal.querySelector('.sheet,.tip-sheet')||modal;
-    sheet.appendChild(note);
-  }
-}
-
-function wireModal(modal){
-  if(!EXPORT_MODE)return;
-  if(!modal||modal.dataset.slStandaloneWired==='1')return;
-  modal.dataset.slStandaloneWired='1';
-
-  const update=()=>{
-    syncBarajPenaltyBox(modal);
-    makeModalReadonly(modal);
-  };
-
-  const home=modal.querySelector('#tipH');
-  const away=modal.querySelector('#tipA');
-  if(home&&away){
-    ['input','change'].forEach(eventName=>{
-      home.addEventListener(eventName,update);
-      away.addEventListener(eventName,update);
-    });
-  }
-
-  requestAnimationFrame(update);
-  setTimeout(update,0);
-  setTimeout(update,80);
-}
-
-function scanModals(root){
-  const scope=root&&root.querySelectorAll?root:document;
-  if(scope.matches&&scope.matches('.tip-overlay'))wireModal(scope);
-  scope.querySelectorAll('.tip-overlay').forEach(wireModal);
-}
 
 function absoluteUrl(value,base){
   try{return new URL(value,base).href}catch(_error){return value}
@@ -458,77 +349,10 @@ async function generateStandaloneHtml(){
   }
 }
 
-function bindExistingExportButton(){
-  const button=document.getElementById('exportBtn');
-  if(!button)return false;
-
-  button.dataset.standaloneExportBound='1';
-  button.title='Teljes, egyfájlos, csak olvasható HTML generálása';
-  button.setAttribute('aria-label',button.title);
-
-  // The original render may assign exportSnapshotNav repeatedly.
-  // Replacing onclick here keeps the already existing button but swaps its export logic.
-  button.onclick=function(event){
-    if(event){
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    generateStandaloneHtml();
-    return false;
-  };
-  return true;
-}
-
-function interceptExistingExportButton(event){
-  const target=event.target&&event.target.closest
-    ? event.target.closest('#exportBtn')
-    : null;
-  if(!target)return;
-
+document.addEventListener('click',event=>{
+  const button=event.target.closest&&event.target.closest('#exportBtn');
+  if(!button)return;
   event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
   generateStandaloneHtml();
-}
-
-function boot(){
-  const style=document.createElement('style');
-  style.textContent=[
-    '#exportBtn:disabled{opacity:.45!important;cursor:wait!important}',
-    '.standalone-readonly-note{margin:14px 18px 18px;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#111a20;color:#9eacb5;font-size:12px;font-weight:700;line-height:1.45;text-align:center}'
-  ].join('');
-  document.head.appendChild(style);
-
-  // Capture phase guarantees that the old exportSnapshotNav onclick cannot run.
-  document.addEventListener('click',interceptExistingExportButton,true);
-  bindExistingExportButton();
-  if(EXPORT_MODE)scanModals(document);
-
-  new MutationObserver(records=>{
-    records.forEach(record=>{
-      record.addedNodes.forEach(node=>{
-        if(node.nodeType===1){
-          if(EXPORT_MODE)scanModals(node);
-          if(
-            (node.matches&&node.matches('#exportBtn'))||
-            (node.querySelector&&node.querySelector('#exportBtn'))
-          ){
-            queueMicrotask(bindExistingExportButton);
-          }
-        }
-      });
-    });
-  }).observe(document.body,{childList:true,subtree:true});
-
-  if(EXPORT_MODE){
-    document.querySelectorAll('[data-tab="community"]').forEach(element=>element.remove());
-    document.querySelectorAll('#exportBtn').forEach(element=>element.remove());
-  }
-}
-
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',boot,{once:true});
-}else{
-  boot();
-}
+},{capture:true});
 })();
