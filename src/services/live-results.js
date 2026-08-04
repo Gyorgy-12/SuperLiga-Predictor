@@ -242,7 +242,7 @@ function applyFixtureList(list){
     let ov=byId[String(x.id)];if(!ov)return;
     let date=ov.date||ov.d||x.date,time=ov.t||ov.time||x.t;
     if(!date||!time)return;
-    let yr=+String(date).slice(0,4);if(yr!==2026)return;
+    let yr=+String(date).slice(0,4);if(yr<2026||yr>2027)return;
     let fields={date:String(date),t:String(time),label:ov.label||x.label,kickoffAt:ov.kickoffAt||null,livescoreId:ov.livescoreId||x.livescoreId||null,sofascoreId:ov.sofascoreId||x.sofascoreId||null,fixtureSource:ov.fixtureSource||ov.source||x.fixtureSource||null,fixtureUpdatedAt:ov.fixtureUpdatedAt||ov.fixtureCacheUpdatedAt||x.fixtureUpdatedAt||null};
     Object.entries(fields).forEach(([k,v])=>{if(v!==undefined&&v!==null&&x[k]!==v){x[k]=v;changed=true}});
     let day=+(String(x.date).replace(/-/g,'')+String(x.t).replace(':',''));

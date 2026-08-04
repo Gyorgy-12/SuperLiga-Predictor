@@ -21,7 +21,7 @@
       var url=window.SUPERLIGA_BOOTSTRAP_LIGHT_URL||(base?base+'/bootstrap-light':(read?read.replace(/\/results(?:\?.*)?$/,'')+'/bootstrap-light':''));
       if(!url)return Promise.resolve(null);
       try{var link=document.createElement('link');link.rel='preconnect';link.href=url.replace(/\/bootstrap-light(?:\?.*)?$/,'');link.crossOrigin='';document.head.appendChild(link);}catch(_e){}
-      return fetch(url+(url.indexOf('?')>-1?'&':'?')+'v=superliga-head',{headers:{'Accept':'application/json'},credentials:'omit'})
+      return fetch(url+(url.indexOf('?')>-1?'&':'?')+'v=superliga-head-20260804',{headers:{'Accept':'application/json'},credentials:'omit',cache:'no-store'})
         .then(function(r){if(!r.ok)throw new Error('bootstrap-light HTTP '+r.status);return r.json();})
         .then(function(d){try{window.__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH_META__={ok:true,tookMs:Date.now()-started,at:new Date().toISOString()};}catch(e){}return d;})
         .catch(function(e){try{window.__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH_META__={ok:false,error:e&&e.message?e.message:String(e),at:new Date().toISOString()};}catch(_e){}return null;});
@@ -43,16 +43,16 @@
   <script src="./src/services/community-firebase.js"></script>
   <script src="./src/services/community-firestore-fast-sync.js"></script>
   <script src="./src/core/standings-engine.js"></script>
-  <script src="./src/views/overview-table.view.js"></script>
-  <script src="./src/data/fixtures.js"></script>
-  <script src="./src/services/live-results.js"></script>
+  <script src="./src/views/overview-table.view.js?v=20260804-1"></script>
+  <script src="./src/data/fixtures.js?v=20260804-1"></script>
+  <script src="./src/services/live-results.js?v=20260804-1"></script>
   <script src="./src/views/stat-cards.view.js"></script>
   <script src="./src/core/stats-export.js"></script>
   <script src="./src/core/postseason-engine.js"></script>
   <script src="./src/views/match-modal.view.js"></script>
   <script src="./src/views/matches-postseason-stats.view.js"></script>
   <script src="./src/views/match-round-labels-inline.js"></script>
-  <script src="./src/app/bootstrap.js"></script>
-  <script src="./src/app/standalone-export-and-penalties.js?v=20260803-2"></script>
+  <script src="./src/app/bootstrap.js?v=20260804-1"></script>
+  <script src="./src/app/standalone-export-and-penalties.js?v=20260804-1"></script>
 </body>
 </html>

@@ -23,7 +23,7 @@ function renderTables(){
 }
 function renderOverview(){
   let m=document.getElementById('main');m.className='main overview-main';
-  const pct=(function(){var s=new Date('2026-07-18').getTime(),e=new Date('2027-05-29').getTime(),n=Date.now();return Math.min(100,Math.max(0,Math.round((n-s)/(e-s)*1000)/10));})();
+  const pct=(function(){var s=new Date('2026-07-17').getTime(),e=new Date('2027-05-29').getTime(),n=Date.now();return Math.min(100,Math.max(0,Math.round((n-s)/(e-s)*1000)/10));})();
   const played=Object.values(LIVE_RESULTS).filter(r=>r&&r.finished).length;
   const tipped=Object.keys(PRED).length;
   const lastR=Math.max(0,...FX.filter(x=>LIVE_RESULTS[x.id]?.finished).map(x=>x.r));
@@ -37,7 +37,7 @@ function renderOverview(){
       '</div>'+
     '</div>'+
     '<div class="ov-progress-bar"><div class="ov-progress-fill" style="width:'+pct+'%"></div></div>'+
-    '<div class="ov-progress-dates"><span>2026. júl. 18.</span><span>2027. máj. 29.</span></div>'+
+    '<div class="ov-progress-dates"><span>2026. júl. 17.</span><span>2027. máj. 29.</span></div>'+
   '</section>'+
   '<section class="card"><h2 class="card-title">Szezonállás</h2>'+
     '<div class="wc-info-grid">'+

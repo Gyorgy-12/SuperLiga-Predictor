@@ -32,7 +32,7 @@ function clone(value,fallback){
 
 function readLexical(name,fallback){
   const allowed=new Set([
-    'PRED','KO_PRED','LIVE_RESULTS','FIXTURES','ALL_MATCHES','KO_SCHEDULE',
+    'PRED','KO_PRED','LIVE_RESULTS','FX','ALL_MATCHES','KO_SCHEDULE',
     'TEAM_ELO','TEAM_ELO_POINTS','TEAM_RATINGS','TEAM_MARKET_VALUES',
     'MARKET_VALUES','S'
   ]);
@@ -53,7 +53,7 @@ function currentSnapshot(){
     pred:readLexical('PRED',{}),
     ko:readLexical('KO_PRED',{}),
     liveResults:readLexical('LIVE_RESULTS',{}),
-    fixtures:readLexical('FIXTURES',null),
+    fixtures:readLexical('FX',null),
     allMatches:readLexical('ALL_MATCHES',null),
     koSchedule:readLexical('KO_SCHEDULE',null),
     teamElo:readLexical('TEAM_ELO',null),
@@ -189,7 +189,7 @@ function restoreBinding(name,key){
 
 [
  ['LIVE_RESULTS','liveResults'],
- ['FIXTURES','fixtures'],
+ ['FX','fixtures'],
  ['ALL_MATCHES','allMatches'],
  ['KO_SCHEDULE','koSchedule'],
  ['TEAM_ELO','teamElo'],
@@ -199,6 +199,15 @@ function restoreBinding(name,key){
  ['MARKET_VALUES','marketValues'],
  ['S','state']
 ].forEach(function(pair){restoreBinding(pair[0],pair[1])});
+
+// FX_BY_ID keeps references to the original seed objects. Rebuild it after
+// restoring the exported FX array so every lookup sees the frozen kickoffs.
+try{
+ if(typeof FX_BY_ID==='object'&&Array.isArray(FX)){
+  Object.keys(FX_BY_ID).forEach(function(key){delete FX_BY_ID[key]});
+  FX.forEach(function(match){if(match&&match.id)FX_BY_ID[String(match.id)]=match});
+ }
+}catch(_error){}
 
 document.querySelectorAll('[data-tab="community"]').forEach(function(element){element.remove()});
 document.querySelectorAll('#exportBtn').forEach(function(element){element.remove()});

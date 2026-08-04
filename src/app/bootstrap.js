@@ -162,6 +162,23 @@ document.addEventListener('visibilitychange',()=>{
 if(window.ResizeObserver)new ResizeObserver(syncSpacer).observe(topBar);
 if(window.ResizeObserver){let cw=byId('ctrlWrap');if(cw)new ResizeObserver(syncSpacer).observe(cw)}
 topBar.addEventListener('transitionend',syncSpacer);
-applyFixtureOverrides();applyTeamElo({force:true});applyOddsFromWorker();pruneStaleKoPred(false);render();syncSoon();syncLiveResults({force:true}).then(()=>scheduleLiveSync());
+async function startSuperligaApp(){
+  if(!FROZEN_MODE){
+    // Avoid painting the placeholder fixture seed while the head prefetch is
+    // already resolving the authoritative schedule. Keep startup bounded so
+    // the application remains usable while offline.
+    await Promise.race([
+      loadBootstrapLight({fallback:false}),
+      new Promise(resolve=>setTimeout(resolve,2500))
+    ]);
+  }
+  applyTeamElo({force:true});
+  applyOddsFromWorker();
+  pruneStaleKoPred(false);
+  render();
+  syncSoon();
+  syncLiveResults({force:true}).then(()=>scheduleLiveSync());
+}
+startSuperligaApp();
 let __syncTicks=0,__syncTimer=setInterval(()=>{syncSpacer();__syncTicks++;if(__syncTicks>20)clearInterval(__syncTimer)},150);setInterval(syncSpacer,2000);
 (function(){let dragging=false,startX=0,startScroll=0,moved=false,el=null;document.addEventListener('mousedown',e=>{let br=e.target.closest('.ko-bracket');if(!br||e.target.closest('[data-koid]'))return;dragging=true;moved=false;el=br;startX=e.pageX;startScroll=br.scrollLeft;br.classList.add('ko-dragging')});document.addEventListener('mousemove',e=>{if(!dragging||!el)return;let dx=e.pageX-startX;if(Math.abs(dx)>4)moved=true;el.scrollLeft=startScroll-dx});document.addEventListener('mouseup',()=>{if(dragging&&el){dragging=false;el.classList.remove('ko-dragging');KO_SCROLL=el.scrollLeft;el=null}});document.addEventListener('click',e=>{if(moved&&e.target.closest('.ko-bracket')){e.preventDefault();e.stopPropagation();moved=false}},true)})();
