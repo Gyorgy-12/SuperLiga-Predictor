@@ -158,7 +158,7 @@ function barajResultSource(m){
   return 'Tippelhető';
 }
 function barajTeamHtml(name,side){
-  return '<div class="baraj-team '+side+'">'+crest(name,'30px')+'<span>'+esc(stn(name))+'</span></div>'
+  return '<div class="baraj-team '+side+'">'+crest(name,'30px')+'<span class="baraj-team-name">'+esc(stn(name))+'</span></div>'
 }
 function barajMiniMatch(m){
   return '<button class="baraj-match-card'+barajMatchTone(m)+'" type="button" data-ko-mid="'+esc(m.id)+'">'

@@ -167,13 +167,18 @@
   line-height:1.1!important;
 }
 
-.baraj-main .baraj-team span{
+.baraj-main .baraj-team>.baraj-team-name{
   display:block;
   max-width:100%!important;
   min-width:0;
   overflow:hidden!important;
   text-overflow:ellipsis!important;
   white-space:nowrap!important;
+}
+
+.baraj-main .baraj-team .crest:not(.show-ini)>.ini-fb,
+.baraj-main .baraj-team .crest:not(.show-svg)>.svg-fb{
+  display:none!important;
 }
 
 .baraj-main .baraj-score{

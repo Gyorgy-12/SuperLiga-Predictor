@@ -8379,7 +8379,7 @@ body.modal-open{
 .baraj-match-card:hover{
   background:#1b2a35!important;
 }
-.baraj-team span,
+.baraj-team>.baraj-team-name,
 .baraj-team,
 .baraj-path-note,
 .baraj-section-title{

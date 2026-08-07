@@ -862,8 +862,7 @@
   flex-basis:var(--cs)!important;
 }
 
-.baraj-main .baraj-team-name,
-.baraj-main .baraj-team span{
+.baraj-main .baraj-team>.baraj-team-name{
   max-width:100%!important;
   overflow:hidden!important;
   text-overflow:ellipsis!important;
@@ -947,8 +946,7 @@
     --cs:clamp(27px,8vw,35px)!important;
   }
 
-  .baraj-main .baraj-team-name,
-  .baraj-main .baraj-team span{
+  .baraj-main .baraj-team>.baraj-team-name{
     font-size:clamp(11.5px,3.3vw,14.5px)!important;
   }
 
