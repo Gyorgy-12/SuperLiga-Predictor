@@ -139,15 +139,86 @@ export function parseLiga2StandingsFeed(raw, metadata = {}) {
   };
 }
 
+export function parseLiga2TeamPageLogo(html, sourceUrl = DEFAULT_PAGE_URL) {
+  const logoTag = String(html || '').match(/<img[^>]*class=["'][^"']*\bheading__logo\b[^"']*["'][^>]*>/i)?.[0] || '';
+  const logoValue = logoTag.match(/\bsrc=["']([^"']+)["']/i)?.[1] || '';
+  if (!logoValue) return '';
+  try {
+    const logoUrl = new URL(decodeHtml(logoValue), sourceUrl);
+    if (logoUrl.protocol !== 'https:' || logoUrl.hostname !== 'static.flashscore.com') return '';
+    return logoUrl.href;
+  } catch {
+    return '';
+  }
+}
+
+export function liga2LogoCacheKey(teamId) {
+  const normalizedId = String(teamId || '').trim().replace(/[^a-z0-9_-]/gi, '');
+  return normalizedId ? `https://liga2-logo-cache.superliga.invalid/team/${normalizedId}?v=1` : '';
+}
+
 function fetchWithTimeout(url, init, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-export async function fetchLiga2Standings(env = {}) {
+async function cachedLiga2TeamLogo(row, timeoutMs, cacheSeconds, ctx) {
+  const cacheKey = liga2LogoCacheKey(row.teamId);
+  const cache = typeof caches !== 'undefined' && caches.default ? caches.default : null;
+  if (cache&&cacheKey) {
+    try {
+      const cached = await cache.match(cacheKey);
+      const cachedLogo = cached ? String(await cached.text()).trim() : '';
+      if (cachedLogo) return cachedLogo;
+    } catch {}
+  }
+
+  const response = await fetchWithTimeout(row.teamUrl, {
+    headers: {
+      accept: 'text/html,application/xhtml+xml',
+      'user-agent': 'Mozilla/5.0 (compatible; SuperLigaPredictor/1.0)'
+    }
+  }, timeoutMs);
+  if (!response.ok) return '';
+  const logo = parseLiga2TeamPageLogo(await response.text(), row.teamUrl);
+  if (logo&&cache&&cacheKey) {
+    try {
+      const cacheWrite = cache.put(cacheKey, new Response(logo, {
+        headers: {
+          'content-type': 'text/plain; charset=utf-8',
+          'cache-control': `public, max-age=${cacheSeconds}`
+        }
+      }));
+      if (ctx?.waitUntil) ctx.waitUntil(cacheWrite);
+      else await cacheWrite;
+    } catch {}
+  }
+  return logo;
+}
+
+async function enrichLiga2TeamLogos(pack, timeoutMs, cacheSeconds, ctx) {
+  const standings = await Promise.all(pack.standings.map(async row => {
+    if (!row.teamUrl) return row;
+    try {
+      const logo = await cachedLiga2TeamLogo(row, timeoutMs, cacheSeconds, ctx);
+      return logo ? { ...row, logo } : row;
+    } catch {
+      return row;
+    }
+  }));
+  return {
+    ...pack,
+    standings,
+    directPromotion: standings.slice(0, 2),
+    baraj: standings.slice(2, 4)
+  };
+}
+
+export async function fetchLiga2Standings(env = {}, ctx = null) {
   const pageUrl = env.LIGA2_STANDINGS_PAGE_URL || DEFAULT_PAGE_URL;
   const timeoutMs = Math.max(2000, Number(env.LIGA2_STANDINGS_TIMEOUT_MS || 12000));
+  const logoCacheSeconds = Math.max(3600, Number(env.LIGA2_LOGO_CACHE_SECONDS || 2592000));
   const pageResponse = await fetchWithTimeout(pageUrl, {
     headers: {
       accept: 'text/html,application/xhtml+xml',
@@ -176,7 +247,8 @@ export async function fetchLiga2Standings(env = {}) {
       }, timeoutMs);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const parsed = parseLiga2StandingsFeed(await response.text(), metadata);
-      return { ...parsed, updatedAt: new Date().toISOString() };
+      const enriched = await enrichLiga2TeamLogos(parsed, timeoutMs, logoCacheSeconds, ctx);
+      return { ...enriched, updatedAt: new Date().toISOString() };
     } catch (error) {
       lastError = error;
     }

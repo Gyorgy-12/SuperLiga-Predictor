@@ -23,7 +23,7 @@ export async function liga2StandingsRoute(request, env, ctx) {
   }
 
   try {
-    const pack = await fetchLiga2Standings(env);
+    const pack = await fetchLiga2Standings(env, ctx);
     const response = json(pack, {
       headers: {
         'cache-control': fresh ? 'no-store, max-age=0' : `public, max-age=${ttl}`
@@ -43,4 +43,3 @@ export async function liga2StandingsRoute(request, env, ctx) {
     }, env);
   }
 }
-

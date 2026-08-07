@@ -309,7 +309,7 @@ function superligaNormalizeLiga2Standings(data){
 function superligaLiga2Fingerprint(data){return JSON.stringify(data&&{season:data.season,phase:data.phase,standings:data.standings.map(row=>[row.position,row.name,row.logo,row.played,row.goalDifference,row.points])})}
 function superligaPublishLiga2Logos(){let logos={};(LIGA2_STANDINGS&&LIGA2_STANDINGS.standings||[]).forEach(row=>{if(row&&row.name&&row.logo)logos[row.name]=row.logo});window.__SUPERLIGA_LIGA2_LOGOS__=logos}
 function saveLiga2Standings(){try{if(LIGA2_STANDINGS)sessionStorage.setItem(SUPERLIGA_CACHE_KEYS.liga2Standings,JSON.stringify(LIGA2_STANDINGS))}catch(e){}}
-const SUPERLIGA_LIGA2_POLL_MS=5*60*1000;
+const SUPERLIGA_LIGA2_POLL_MS=2*60*60*1000;
 let superligaLiga2PullAt=0,superligaLiga2InFlight=null;
 async function applyLiga2Standings(opts={}){
   if(FROZEN_MODE)return false;
@@ -320,7 +320,7 @@ async function applyLiga2Standings(opts={}){
   if(!endpoint)return false;
   superligaLiga2InFlight=(async()=>{
     try{
-      let params=opts.force?{fresh:1,t:Date.now()}:{v:'liga2-top4-v2'};
+      let params=opts.force?{fresh:1,t:Date.now()}:{v:'liga2-top4-v4'};
       let data=await fetchWorkerJson(addParams(endpoint,params),15000),normalized=superligaNormalizeLiga2Standings(data);
       if(!normalized)throw new Error('Invalid Liga 2 standings payload');
       superligaLiga2PullAt=Date.now();
@@ -338,6 +338,7 @@ async function applyLiga2Standings(opts={}){
   return superligaLiga2InFlight;
 }
 window.superligaRefreshLiga2Standings=()=>applyLiga2Standings({force:true});
+setInterval(()=>{if(!document.hidden)applyLiga2Standings()},SUPERLIGA_LIGA2_POLL_MS);
 let superligaFinalResultsReadAt=0,superligaFinalResultsReadInFlight=null;
 async function loadMatchResultsFromBackendDb(opts={}){
   if(FROZEN_MODE||!SUPERLIGA_RESULTS_READ_URL)return false;
@@ -496,7 +497,29 @@ async function syncLiveResults(opts={}){
   })();
   try{return await superligaSyncInFlight}finally{superligaSyncInFlight=null}
 }
-window.superligaRefreshResults=()=>syncLiveResults({force:true,forceLive:true});
+let superligaTabLiveRefreshQueued=false;
+async function superligaRefreshLiveForView(tab){
+  if(FROZEN_MODE)return false;
+  let requestedAt=new Date().toISOString(),changed=false,error=null;
+  if(superligaSyncInFlight){
+    superligaTabLiveRefreshQueued=true;
+    try{await superligaSyncInFlight}catch(e){}
+    if(!superligaTabLiveRefreshQueued)return false;
+    superligaTabLiveRefreshQueued=false;
+  }
+  try{
+    changed=await syncLiveResults({force:true,forceLive:true});
+    return changed;
+  }catch(e){
+    error=e&&e.message?e.message:String(e);
+    return false;
+  }finally{
+    try{window.SUPERLIGA_TAB_LIVE_SYNC_DEBUG={tab:String(tab||''),requestedAt,completedAt:new Date().toISOString(),changed,error}}catch(e){}
+    scheduleLiveSync();
+  }
+}
+window.superligaRefreshResults=()=>superligaRefreshLiveForView(S.tab);
+window.superligaRefreshLiveForView=superligaRefreshLiveForView;
 function nextLiveSyncDelay(){return document.hidden?Math.max(SUPERLIGA_SYNC_IDLE_MS,90*1000):superligaNextInterestingDelay()}
 function scheduleLiveSync(delay){if(FROZEN_MODE)return;clearTimeout(superligaSyncTimer);superligaSyncTimer=setTimeout(async()=>{await Promise.allSettled([syncLiveResults(),maybeRefreshOddsFromWorker(false)]);scheduleLiveSync()},delay??nextLiveSyncDelay())}
 function superligaTickerMinuteToken(value){

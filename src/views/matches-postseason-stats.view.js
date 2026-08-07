@@ -164,14 +164,14 @@ function barajMiniMatch(m){
   return '<button class="baraj-match-card'+barajMatchTone(m)+'" type="button" data-ko-mid="'+esc(m.id)+'">'
     +'<div class="baraj-match-top"><span>'+esc(matchDateTitle(m.date))+'</span><b>'+esc(m.t||'21:00')+'</b></div>'
     +'<div class="baraj-match-body">'+barajTeamHtml(m.h,'home')+'<div class="baraj-score">'+barajScore(m)+'</div>'+barajTeamHtml(m.a,'away')+'</div>'
-    +'<div class="baraj-match-bottom"><span>'+esc(m.index===2?'Visszavágó':m.id.startsWith('CB-2')?'Döntő':m.id.startsWith('CB-1')?'Elődöntő':'1. mérkőzés')+'</span><strong>'+esc(barajResultSource(m))+'</strong></div>'
+    +'<div class="baraj-match-bottom"><span>'+esc(m.index===2?'Visszavágó':m.id.startsWith('CB-2')?'Döntő':m.id.startsWith('CB-1')?'Elődöntő':'1. meccs')+'</span><strong>'+esc(barajResultSource(m))+'</strong></div>'
   +'</button>'
 }
 function aggregateForRows(rows){
   let aggregate=superligaBarajAggregateForRows(rows);
   if(!aggregate)return'';
   let penalty=aggregate.penalty?'<small class="baraj-aggregate-pen"><span>PEN</span><b>'+esc(aggregate.penalty.h)+'-'+esc(aggregate.penalty.a)+'</b></small>':'';
-  let state=aggregate.ready?(aggregate.tied&&!aggregate.penalty?' · tizenegyesek szükségesek':aggregate.winner?' · '+esc(stn(aggregate.winner)):''):' · 1. mérkőzés';
+  let state=aggregate.ready?(aggregate.tied&&!aggregate.penalty?' · tizenegyesek szükségesek':aggregate.winner?' · '+esc(stn(aggregate.winner)):''):' · 1. meccs';
   return '<div class="baraj-aggregate'+(aggregate.tied?' is-tied':'')+'"><span>Összesítés'+state+'</span><div class="baraj-aggregate-right"><b>'+esc(stn(aggregate.homeTeam))+' '+aggregate.h+' - '+aggregate.a+' '+esc(stn(aggregate.awayTeam))+'</b>'+penalty+'</div></div>';
 }
 function barajPathCard(opts){
@@ -187,31 +187,18 @@ function relegatedTile(t,pos){
   if(!t)return '';
   return '<div class="baraj-relegated-tile"><span>'+pos+'. hely</span><div>'+crest(t.name,'32px')+'<b>'+esc(stn(t.name))+'</b></div><strong>Kiesés</strong></div>'
 }
-function liga2StandingRow(row){
-  let direct=Number(row.position)<=2,label=direct?'Közvetlen feljutás':'Baraj';
-  let gd=Number(row.goalDifference)||0,goalDiff=(gd>0?'+':'')+gd;
-  return '<div class="baraj-liga2-row '+(direct?'direct':'playoff')+'">'
-    +'<span class="baraj-liga2-rank">'+esc(row.position)+'.</span>'
-    +'<div class="baraj-liga2-team">'+crest(row.name,'30px')+'<div><b>'+esc(stn(row.name))+'</b><small>'+esc(row.played)+' meccs · '+esc(goalDiff)+' gólkülönbség</small></div></div>'
-    +'<strong class="baraj-liga2-points">'+esc(row.points)+'<small>pont</small></strong>'
-    +'<span class="baraj-liga2-status">'+label+'</span>'
-  +'</div>';
+function liga2PromotedTile(row){
+  if(!row)return '';
+  return '<div class="baraj-relegated-tile baraj-promoted-tile"><span>'+esc(row.position)+'. hely</span><div>'+crest(row.name,'32px')+'<b>'+esc(stn(row.name))+'</b></div><strong>Feljutás</strong></div>';
 }
 function liga2PromotionSection(){
   let data=typeof LIGA2_STANDINGS!=='undefined'?LIGA2_STANDINGS:null;
-  if(!data||!Array.isArray(data.standings)||data.standings.length<4){
-    return '<section class="baraj-promotion card"><div class="baraj-section-title"><h2>Feljutás Liga 2-ből</h2><p>Az első két Liga 2-es közvetlenül feljut, a 3–4. helyezett bentmaradás-barajt játszik.</p></div><div class="baraj-liga2-empty"><b>Liga 2 állás betöltése…</b><span>A négy érintett helyezést automatikusan frissítjük.</span></div></section>';
+  if(!data||!Array.isArray(data.standings)||data.standings.length<2){
+    return '<section class="baraj-promotion card"><div class="baraj-section-title"><h2>Feljutás Liga 2-ből</h2><p>A Liga 2 első két helyezettje közvetlenül feljut.</p></div><div class="baraj-liga2-empty">Liga 2 állás betöltése…</div></section>';
   }
-  let phase=data.phase==='promotion'?'Feljutási rájátszás':'Alapszakasz';
-  let note=data.phase==='promotion'
-    ?'A 3–4. helyezett automatikusan bekerül a fenti barajpárosításokba.'
-    :'A jelenlegi 3–4. helyezett már szerepel a fenti párosításokban; a csapatnevek a Liga 2 állásával együtt változhatnak.';
-  let updated='';
-  try{if(data.updatedAt)updated=new Date(data.updatedAt).toLocaleString('hu-HU',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){}
   return '<section class="baraj-promotion card">'
-    +'<div class="baraj-liga2-head"><div class="baraj-section-title"><h2>Feljutás Liga 2-ből</h2><p>Csak a feljutást és a barajt érintő első négy hely látható.</p></div><div class="baraj-liga2-phase"><b>'+esc(phase)+'</b><span>'+esc(data.season||'Liga 2')+(updated?' · '+esc(updated):'')+'</span></div></div>'
-    +'<div class="baraj-liga2-grid">'+data.standings.slice(0,4).map(liga2StandingRow).join('')+'</div>'
-    +'<div class="baraj-liga2-note">'+esc(note)+'</div>'
+    +'<div class="baraj-section-title"><h2>Feljutás Liga 2-ből</h2><p>A Liga 2 első két helyezettje közvetlenül feljut.</p></div>'
+    +'<div class="baraj-relegated-grid">'+data.standings.slice(0,2).map(liga2PromotedTile).join('')+'</div>'
   +'</section>';
 }
 function renderBaraj(){
@@ -221,8 +208,8 @@ function renderBaraj(){
   let out='<section class="baraj-hero card"><div><span class="baraj-eyebrow">Szezonvégi döntések</span><h1>Baraj</h1><p>Konferencialiga-hely és bentmaradás, külön ágakban. Csak akkor tippelhető, ha a rájátszás mezőnye már eldőlt.</p></div><div class="baraj-hero-chips"><span>ECL</span><span>Bentmaradás</span><span>Liga 2</span></div></section>';
   if(!brReady)out+='<section class="baraj-lock-card"><b>ⓘ Zárolva</b><span>A baraj akkor nyílik, ha az összes playoff/playout meccsre tippeltél, vagy azok lezárultak.</span></section>';
   out+=barajPathCard({tone:'conference',badge:'ECL',title:'Konferencialiga-baraj',sub:'A play-out első két csapata elődöntőt játszik, a győztes a playoff 3. helyezettjével döntőzik.',note:'Győztes: Konferencialiga-selejtezős hely.',rows:conf});
-  out+=barajPathCard({tone:'survival',badge:'BR1',title:'Bentmaradás-baraj · 1. párharc',sub:'Playout 13. helyezett vs Liga 2 rájátszás 3. helyezett.',note:'Oda-visszavágós párharc.',rows:rel1});
-  out+=barajPathCard({tone:'survival',badge:'BR2',title:'Bentmaradás-baraj · 2. párharc',sub:'Playout 14. helyezett vs Liga 2 rájátszás 4. helyezett.',note:'Oda-visszavágós párharc.',rows:rel2});
+  out+=barajPathCard({tone:'survival',badge:'BR1',title:'Baraj · 1. párharc',sub:'Playout 13. hely vs Liga 2 3. hely.',note:'Oda-visszavágós párharc.',rows:rel1});
+  out+=barajPathCard({tone:'survival',badge:'BR2',title:'Baraj · 2. párharc',sub:'Playout 14. hely vs Liga 2 4. hely.',note:'Oda-visszavágós párharc.',rows:rel2});
   out+='<section class="baraj-relegated card"><div class="baraj-section-title"><h2>Közvetlen kiesés</h2><p>A playout utolsó két helyezettje Liga 2-be esik.</p></div><div class="baraj-relegated-grid">'+relegatedTile(pl15,15)+relegatedTile(pl16,16)+'</div></section>';
   out+=liga2PromotionSection();
   m.innerHTML=out;activateCrests();bindMatchCardOpeners(m);

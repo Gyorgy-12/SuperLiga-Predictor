@@ -109,6 +109,7 @@ function superligaRequestRender(){if(superligaRenderQueued)return;superligaRende
 function renderTableLike(){if(S.tab==='knockout')renderKO();else renderTables()}
 function closeDropdowns(){vDrop.classList.remove('open');roundSelDrop.classList.remove('open');teamSelDrop.classList.remove('open');tblRoundDrop.classList.remove('open')}
 function syncCommunityLifecycle(){if(typeof setCommunityActive==='function')setCommunityActive(S.tab==='community')}
+const SUPERLIGA_LIVE_DATA_TABS=new Set(['overview','matches','table','knockout','baraj','stats','community']);
 function render(){
   document.documentElement.dataset.superligaTab=S.tab||'overview';
   const mainEl=byId('main');
@@ -133,7 +134,21 @@ function render(){
   syncSpacer();
 }
 
-tabs.onclick=e=>{let b=e.target.closest('.tab');if(!b)return;closeAllModals();S.tab=b.dataset.tab;if(S.tab==='matches'){if(!/^\d+$/.test(String(MS.round)))MS.round=1;matchAutoScrolledKey='';matchAutoScrollToken++;suppressShrinkUntil=0}else window.scrollTo({top:0,behavior:'instant'});try{sessionStorage.setItem('superliga_active_tab',S.tab)}catch(err){}render();if(S.tab==='baraj')applyLiga2Standings();syncSoon()};
+tabs.onclick=e=>{
+  let b=e.target.closest('.tab');
+  if(!b)return;
+  closeAllModals();
+  S.tab=b.dataset.tab;
+  if(S.tab==='matches'){
+    if(!/^\d+$/.test(String(MS.round)))MS.round=1;
+    matchAutoScrolledKey='';matchAutoScrollToken++;suppressShrinkUntil=0;
+  }else window.scrollTo({top:0,behavior:'instant'});
+  try{sessionStorage.setItem('superliga_active_tab',S.tab)}catch(err){}
+  render();
+  if(S.tab==='baraj')applyLiga2Standings();
+  if(SUPERLIGA_LIVE_DATA_TABS.has(S.tab))superligaRefreshLiveForView(S.tab);
+  syncSoon();
+};
 tblCtrl.onclick=e=>{let b=e.target.closest('[data-f]');if(!b)return;S.filt=b.dataset.f;document.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('active',x===b));renderTableLike()};
 tblRoundBtn.onclick=e=>{e.stopPropagation();tblRoundDrop.classList.toggle('open')};
 tblRoundDrop.onclick=e=>{let b=e.target.closest('[data-tr]');if(!b)return;if(S.tab==='knockout'){S.postRound=b.dataset.tr||'current';}else{S.tblRound=+b.dataset.tr||0;}tblRoundTxt.innerHTML=b.innerHTML;tblRoundDrop.querySelectorAll('[data-tr]').forEach(x=>x.classList.toggle('active',x===b));tblRoundDrop.classList.remove('open');renderTableLike()};
@@ -156,7 +171,7 @@ document.addEventListener('visibilitychange',()=>{
       syncLiveResults({force:true}),
       applyTeamElo({force:true}),
       applyOddsFromWorker(),
-      S.tab==='baraj'?applyLiga2Standings():Promise.resolve(false)
+      applyLiga2Standings()
     ]).finally(()=>scheduleLiveSync());
   }
 });
@@ -177,7 +192,7 @@ async function startSuperligaApp(){
   applyOddsFromWorker();
   pruneStaleKoPred(false);
   render();
-  if(S.tab==='baraj')applyLiga2Standings();
+  applyLiga2Standings();
   syncSoon();
   syncLiveResults({force:true}).then(()=>scheduleLiveSync());
 }

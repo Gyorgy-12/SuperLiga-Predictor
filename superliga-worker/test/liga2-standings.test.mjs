@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 
 import {
   buildLiga2StandingsFeedName,
+  liga2LogoCacheKey,
   parseLiga2PageMetadata,
-  parseLiga2StandingsFeed
+  parseLiga2StandingsFeed,
+  parseLiga2TeamPageLogo
 } from '../src/sources/liga2-standings-source.js';
 
 const metadata = {
@@ -42,6 +44,17 @@ test('Liga 2 page parser discovers the current season and feed identifiers', () 
   assert.equal(parsed.tournamentId, 'vFKjUS0N');
   assert.equal(parsed.stageId, '65tLGT4l');
   assert.equal(buildLiga2StandingsFeedName(parsed), 'to_vFKjUS0N_65tLGT4l_1');
+});
+
+test('Liga 2 team page parser selects the larger Flashscore crest', () => {
+  const html = '<img class="heading__logo heading__logo--1" src="https://static.flashscore.com/res/image/data/high-resolution.png" alt="Team">';
+  assert.equal(
+    parseLiga2TeamPageLogo(html, 'https://www.flashscore.com/team/example/id/'),
+    'https://static.flashscore.com/res/image/data/high-resolution.png'
+  );
+  assert.equal(parseLiga2TeamPageLogo('<img class="heading__logo" src="https://example.test/logo.png">'), '');
+  assert.equal(liga2LogoCacheKey('UcVDn3xt'), 'https://liga2-logo-cache.superliga.invalid/team/UcVDn3xt?v=1');
+  assert.equal(liga2LogoCacheKey('../'), '');
 });
 
 test('Liga 2 compact feed parser returns only normalized table information', () => {
