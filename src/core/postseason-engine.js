@@ -100,7 +100,27 @@ function koWinner(m){
   if(+p.h===+p.a)return null;
   return +p.h>+p.a?m.h:m.a;
 }
-function buildBarajMatches(){let sp=splitPostseason(),po=postseasonStandings('PO',sp.po,'all'),pl=postseasonStandings('PL',sp.pl,'all'),pl7=pl[0]?.name||'Playout 7.',pl8=pl[1]?.name||'Playout 8.',po3=po[2]?.name||'Playoff 3.',pl13=pl[6]?.name||'Playout 13.',pl14=pl[7]?.name||'Playout 14.',ready=postseasonComplete(),cb1={id:'CB-1-1',g:'CB',r:'CB1',date:'2027-05-24',t:'21:00',d:'Konferencialiga-baraj elődöntő',title:'Konferencialiga-baraj elődöntő',index:1,h:pl7,a:pl8,locked:!ready},cbWinner=koWinner(cb1)||'ECL-elődöntő győztese',cb2={id:'CB-2-1',g:'CB',r:'CB2',date:'2027-05-28',t:'21:00',d:'Konferencialiga-baraj döntő',title:'Konferencialiga-baraj döntő',index:1,h:po3,a:cbWinner,locked:!ready||!koWinner(cb1)},rel=[{id:'BR-1-1',g:'BR',r:'BR1',date:'2027-05-29',t:'21:00',d:'Bentmaradás-baraj 1. párharc - 1. mérkőzés',title:'Bentmaradás-baraj 1. párharc - 1. mérkőzés',index:1,h:pl13,a:'Liga 2 rájátszás 3. hely',locked:!ready},{id:'BR-1-2',g:'BR',r:'BR1',date:'2027-06-02',t:'21:00',d:'Bentmaradás-baraj 1. párharc - visszavágó',title:'Bentmaradás-baraj 1. párharc - visszavágó',index:2,h:'Liga 2 rájátszás 3. hely',a:pl13,locked:!ready},{id:'BR-2-1',g:'BR',r:'BR2',date:'2027-05-30',t:'21:00',d:'Bentmaradás-baraj 2. párharc - 1. mérkőzés',title:'Bentmaradás-baraj 2. párharc - 1. mérkőzés',index:1,h:pl14,a:'Liga 2 rájátszás 4. hely',locked:!ready},{id:'BR-2-2',g:'BR',r:'BR2',date:'2027-06-03',t:'21:00',d:'Bentmaradás-baraj 2. párharc - visszavágó',title:'Bentmaradás-baraj 2. párharc - visszavágó',index:2,h:'Liga 2 rájátszás 4. hely',a:pl14,locked:!ready}];return[cb1,cb2].concat(rel)}
+function liga2BarajTeam(position){
+  if(typeof LIGA2_STANDINGS==='undefined'||!LIGA2_STANDINGS)return'';
+  let row=(LIGA2_STANDINGS.standings||[]).find(team=>Number(team.position)===position);
+  return row&&row.name?row.name:'';
+}
+function buildBarajMatches(){
+  let sp=splitPostseason(),po=postseasonStandings('PO',sp.po,'all'),pl=postseasonStandings('PL',sp.pl,'all');
+  let pl7=pl[0]?.name||'Playout 7.',pl8=pl[1]?.name||'Playout 8.',po3=po[2]?.name||'Playoff 3.';
+  let pl13=pl[6]?.name||'Playout 13.',pl14=pl[7]?.name||'Playout 14.',liga2Third=liga2BarajTeam(3)||'Liga 2 rájátszás 3. hely',liga2Fourth=liga2BarajTeam(4)||'Liga 2 rájátszás 4. hely';
+  let ready=postseasonComplete();
+  let cb1={id:'CB-1-1',g:'CB',r:'CB1',date:'2027-05-24',t:'21:00',d:'Konferencialiga-baraj elődöntő',title:'Konferencialiga-baraj elődöntő',index:1,h:pl7,a:pl8,locked:!ready};
+  let cbWinner=koWinner(cb1)||'ECL-elődöntő győztese';
+  let cb2={id:'CB-2-1',g:'CB',r:'CB2',date:'2027-05-28',t:'21:00',d:'Konferencialiga-baraj döntő',title:'Konferencialiga-baraj döntő',index:1,h:po3,a:cbWinner,locked:!ready||!koWinner(cb1)};
+  let rel=[
+    {id:'BR-1-1',g:'BR',r:'BR1',date:'2027-05-29',t:'21:00',d:'Bentmaradás-baraj 1. párharc - 1. mérkőzés',title:'Bentmaradás-baraj 1. párharc - 1. mérkőzés',index:1,h:pl13,a:liga2Third,locked:!ready},
+    {id:'BR-1-2',g:'BR',r:'BR1',date:'2027-06-02',t:'21:00',d:'Bentmaradás-baraj 1. párharc - visszavágó',title:'Bentmaradás-baraj 1. párharc - visszavágó',index:2,h:liga2Third,a:pl13,locked:!ready},
+    {id:'BR-2-1',g:'BR',r:'BR2',date:'2027-05-30',t:'21:00',d:'Bentmaradás-baraj 2. párharc - 1. mérkőzés',title:'Bentmaradás-baraj 2. párharc - 1. mérkőzés',index:1,h:pl14,a:liga2Fourth,locked:!ready},
+    {id:'BR-2-2',g:'BR',r:'BR2',date:'2027-06-03',t:'21:00',d:'Bentmaradás-baraj 2. párharc - visszavágó',title:'Bentmaradás-baraj 2. párharc - visszavágó',index:2,h:liga2Fourth,a:pl14,locked:!ready}
+  ];
+  return[cb1,cb2].concat(rel);
+}
 function buildAllPostseasonMatches(){return buildPostseasonMatches().concat(buildBarajMatches())}
 function findKoMatch(id){return buildAllPostseasonMatches().find(m=>m.id===id)||null}
 function postseasonComplete(){let ms=buildPostseasonMatches();return ms.length&&ms.every(m=>KO_PRED[m.id]||((LIVE_RESULTS[m.id]||{}).finished&&validScore(LIVE_RESULTS[m.id].h)&&validScore(LIVE_RESULTS[m.id].a)))}
@@ -132,9 +152,10 @@ function superligaHasPenScore(obj){return obj&&validScore(obj.pH)&&validScore(ob
 function superligaMinuteToken(value){
   let s=String(value??'').trim();
   if(!s||/^\d{1,2}:\d{2}$/.test(s))return null;
-  let m=s.match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:[’'′]|\s|$)/);
+  let m=s.match(/(?:^|\s)(\d{1,3}(?:\+(?:\d{1,2})?)?)(?:[’'′]|\s|$)/);
   return m?m[1]:null;
 }
+function superligaFormattedMinuteToken(token){return token&&token.endsWith('+')?token:token?token+"'":''}
 function superligaTrustedClockSource(value){
   let s=String(value||'').toLowerCase();
   return s.includes('provider')||s.includes('flashscore-list')||s.includes('flashscore-mobile')||s.includes('mobile-page')||s.includes('flashscore-clock');
@@ -156,7 +177,7 @@ function liveClockLabel(r){
     token=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute]
       .map(superligaMinuteToken).find(Boolean)||null;
   }
-  return token?token+"'":'Élő';
+  return token?superligaFormattedMinuteToken(token):'Élő';
 }
 
 function superligaStatusBlob(r){

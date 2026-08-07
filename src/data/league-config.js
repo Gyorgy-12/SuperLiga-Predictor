@@ -27,6 +27,7 @@ const SUPERLIGA_TEAM_RATINGS_URL=window.SUPERLIGA_TEAM_RATINGS_URL||(SUPERLIGA_W
 const SUPERLIGA_ELO_URL=window.SUPERLIGA_ELO_URL||(SUPERLIGA_WORKER_URL?SUPERLIGA_WORKER_URL+'/elo':'');
 const SUPERLIGA_MARKET_VALUES_URL=window.SUPERLIGA_MARKET_VALUES_URL||(SUPERLIGA_WORKER_URL?SUPERLIGA_WORKER_URL+'/market-values':'');
 const SUPERLIGA_FIXTURES_URL=window.SUPERLIGA_FIXTURES_URL||(SUPERLIGA_WORKER_URL?SUPERLIGA_WORKER_URL+'/fixtures':'');
+const SUPERLIGA_LIGA2_STANDINGS_URL=window.SUPERLIGA_LIGA2_STANDINGS_URL||(SUPERLIGA_WORKER_URL?SUPERLIGA_WORKER_URL+'/liga2-standings':'');
 const SUPERLIGA_SYNC_BEFORE_MS=5*60*1000;
 const SUPERLIGA_SYNC_AFTER_MS=120*60*1000;
 const SUPERLIGA_SYNC_LIVE_MS=30*1000;
@@ -39,6 +40,7 @@ const SUPERLIGA_CACHE_KEYS={
   legacyPredictions:'superliga_predictions_v1',
   legacyPostseason:'superliga_postseason_predictions_v1',
   liveSnapshot:'superliga_live_results_v1',
+  liga2Standings:'superliga_liga2_standings_v1',
   lastWorkerSync:'superliga_worker_sync_last_at',
   postseasonSeed:'superliga_postseason_seed_v1'
 };

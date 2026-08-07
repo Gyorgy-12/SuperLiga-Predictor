@@ -228,13 +228,14 @@ export function parseFlashscoreListFeed(raw, timezone = DEFAULT_TIMEZONE) {
 
 function parseFlashscoreListClock(value) {
   const text = cleanText(value).replace(/[’'′]/g, '').trim();
-  const match = text.match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  const match = text.match(/^(\d{1,3})(?:\+(\d{0,2}))?$/);
   if (!match) return null;
   const base = Number(match[1]);
-  const extra = match[2] == null ? null : Number(match[2]);
+  const hasAddedTime = text.includes('+');
+  const extra = match[2] == null || match[2] === '' ? null : Number(match[2]);
   if (!Number.isFinite(base) || base < 1 || base > 130) return null;
   if (extra != null && (!Number.isFinite(extra) || extra < 0 || extra > 30)) return null;
-  return extra == null ? String(base) : `${base}+${extra}`;
+  return hasAddedTime ? (extra == null ? `${base}+` : `${base}+${extra}`) : String(base);
 }
 
 function parseFlashscoreListStatus(clockRaw, stateRaw, phaseRaw) {

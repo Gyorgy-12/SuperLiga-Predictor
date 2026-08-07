@@ -32,7 +32,7 @@ function clone(value,fallback){
 
 function readLexical(name,fallback){
   const allowed=new Set([
-    'PRED','KO_PRED','LIVE_RESULTS','FX','ALL_MATCHES','KO_SCHEDULE',
+    'PRED','KO_PRED','LIVE_RESULTS','LIGA2_STANDINGS','FX','ALL_MATCHES','KO_SCHEDULE',
     'TEAM_ELO','TEAM_ELO_POINTS','TEAM_RATINGS','TEAM_MARKET_VALUES',
     'MARKET_VALUES','S'
   ]);
@@ -53,6 +53,7 @@ function currentSnapshot(){
     pred:readLexical('PRED',{}),
     ko:readLexical('KO_PRED',{}),
     liveResults:readLexical('LIVE_RESULTS',{}),
+    liga2Standings:readLexical('LIGA2_STANDINGS',null),
     fixtures:readLexical('FX',null),
     allMatches:readLexical('ALL_MATCHES',null),
     koSchedule:readLexical('KO_SCHEDULE',null),
@@ -156,6 +157,7 @@ function exportPrelude(snapshot){
     'window.__SUPERLIGA_READONLY__=true;',
     'window.__SUPERLIGA_DISABLE_COMMUNITY__=true;',
     'window.__SUPERLIGA_EXPORT_SNAPSHOT__='+safeJsonForScript(snapshot)+';',
+    'window.__SUPERLIGA_LIGA2_STANDINGS__=window.__SUPERLIGA_EXPORT_SNAPSHOT__.liga2Standings||null;',
     'window.__SUPERLIGA_FROZEN_DATA__={pred:window.__SUPERLIGA_EXPORT_SNAPSHOT__.pred||{},ko:window.__SUPERLIGA_EXPORT_SNAPSHOT__.ko||{}};'
   ].join('');
 }
@@ -189,6 +191,7 @@ function restoreBinding(name,key){
 
 [
  ['LIVE_RESULTS','liveResults'],
+ ['LIGA2_STANDINGS','liga2Standings'],
  ['FX','fixtures'],
  ['ALL_MATCHES','allMatches'],
  ['KO_SCHEDULE','koSchedule'],

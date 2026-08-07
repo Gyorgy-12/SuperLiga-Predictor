@@ -187,6 +187,33 @@ function relegatedTile(t,pos){
   if(!t)return '';
   return '<div class="baraj-relegated-tile"><span>'+pos+'. hely</span><div>'+crest(t.name,'32px')+'<b>'+esc(stn(t.name))+'</b></div><strong>Kiesés</strong></div>'
 }
+function liga2StandingRow(row){
+  let direct=Number(row.position)<=2,label=direct?'Közvetlen feljutás':'Baraj';
+  let gd=Number(row.goalDifference)||0,goalDiff=(gd>0?'+':'')+gd;
+  return '<div class="baraj-liga2-row '+(direct?'direct':'playoff')+'">'
+    +'<span class="baraj-liga2-rank">'+esc(row.position)+'.</span>'
+    +'<div class="baraj-liga2-team">'+crest(row.name,'30px')+'<div><b>'+esc(stn(row.name))+'</b><small>'+esc(row.played)+' meccs · '+esc(goalDiff)+' gólkülönbség</small></div></div>'
+    +'<strong class="baraj-liga2-points">'+esc(row.points)+'<small>pont</small></strong>'
+    +'<span class="baraj-liga2-status">'+label+'</span>'
+  +'</div>';
+}
+function liga2PromotionSection(){
+  let data=typeof LIGA2_STANDINGS!=='undefined'?LIGA2_STANDINGS:null;
+  if(!data||!Array.isArray(data.standings)||data.standings.length<4){
+    return '<section class="baraj-promotion card"><div class="baraj-section-title"><h2>Feljutás Liga 2-ből</h2><p>Az első két Liga 2-es közvetlenül feljut, a 3–4. helyezett bentmaradás-barajt játszik.</p></div><div class="baraj-liga2-empty"><b>Liga 2 állás betöltése…</b><span>A négy érintett helyezést automatikusan frissítjük.</span></div></section>';
+  }
+  let phase=data.phase==='promotion'?'Feljutási rájátszás':'Alapszakasz';
+  let note=data.phase==='promotion'
+    ?'A 3–4. helyezett automatikusan bekerül a fenti barajpárosításokba.'
+    :'A jelenlegi 3–4. helyezett már szerepel a fenti párosításokban; a csapatnevek a Liga 2 állásával együtt változhatnak.';
+  let updated='';
+  try{if(data.updatedAt)updated=new Date(data.updatedAt).toLocaleString('hu-HU',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){}
+  return '<section class="baraj-promotion card">'
+    +'<div class="baraj-liga2-head"><div class="baraj-section-title"><h2>Feljutás Liga 2-ből</h2><p>Csak a feljutást és a barajt érintő első négy hely látható.</p></div><div class="baraj-liga2-phase"><b>'+esc(phase)+'</b><span>'+esc(data.season||'Liga 2')+(updated?' · '+esc(updated):'')+'</span></div></div>'
+    +'<div class="baraj-liga2-grid">'+data.standings.slice(0,4).map(liga2StandingRow).join('')+'</div>'
+    +'<div class="baraj-liga2-note">'+esc(note)+'</div>'
+  +'</section>';
+}
 function renderBaraj(){
   let m=document.getElementById('main');m.className='main baraj-main';
   const st=calcFullStandings(),po=postseasonStandings('PO',st.slice(0,6),'all'),pl=postseasonStandings('PL',st.slice(6,16),'all');
@@ -197,7 +224,7 @@ function renderBaraj(){
   out+=barajPathCard({tone:'survival',badge:'BR1',title:'Bentmaradás-baraj · 1. párharc',sub:'Playout 13. helyezett vs Liga 2 rájátszás 3. helyezett.',note:'Oda-visszavágós párharc.',rows:rel1});
   out+=barajPathCard({tone:'survival',badge:'BR2',title:'Bentmaradás-baraj · 2. párharc',sub:'Playout 14. helyezett vs Liga 2 rájátszás 4. helyezett.',note:'Oda-visszavágós párharc.',rows:rel2});
   out+='<section class="baraj-relegated card"><div class="baraj-section-title"><h2>Közvetlen kiesés</h2><p>A playout utolsó két helyezettje Liga 2-be esik.</p></div><div class="baraj-relegated-grid">'+relegatedTile(pl15,15)+relegatedTile(pl16,16)+'</div></section>';
-  out+='<section class="baraj-promotion card"><div class="baraj-section-title"><h2>Feljutás Liga 2-ből</h2><p>Az első két Liga 2-es közvetlenül feljut, a 3-4. helyezett bentmaradás-barajt játszik.</p></div></section>';
+  out+=liga2PromotionSection();
   m.innerHTML=out;activateCrests();bindMatchCardOpeners(m);
 }
 function renderStats(){let m=document.getElementById('main');m.className='main stats-main';let eff=tipEfficiency(),totalPct=eff.totalPlayed?+(eff.totalPts/eff.totalMax*100).toFixed(2):0,effHtml='<section class="card"><h2 class="card-title">Tippel&eacute;si hat&eacute;konys&aacute;g</h2><div class="eff-total"><div class="eff-total-left"><div class="eff-total-label">&Ouml;sszhat&eacute;konys&aacute;g</div><div class="eff-total-pts">'+totalPct+'%<span>'+fmtPts(eff.totalPts)+' / '+eff.totalMax+' pt</span></div><div class="eff-total-bar"><div class="eff-total-bar-fill" style="width:'+Math.min(100,totalPct)+'%"></div></div></div><div class="eff-total-right"><div class="eff-total-pct">'+fmtPts(eff.totalPts)+' pt</div></div></div><div class="eff-split">'+effSplitCard('Szezon',eff.grpExact,eff.grpDiff,eff.grpOutcome,eff.grpMiss,eff.grpPts,eff.grpMax,eff.grpPlayed,'#28d16c')+effSplitCard('Playoff / playout',eff.koExact,eff.koDiff,eff.koOutcome,eff.koMiss,eff.koPts,eff.koMax,eff.koPlayed2,'#6ec6ff')+'</div><div class="eff-legend"><span class="eff-legend-item exact">Pontos tipp: 1 pt</span><span class="eff-legend-item diff">G&oacute;lk&uuml;l&ouml;nbs&eacute;g: 0.5 pt</span><span class="eff-legend-item outcome">Kimenetel: 0.25 pt</span><span class="eff-legend-item miss">T&eacute;ves: 0 pt</span></div></section>';let groupTips=played(),postMs=buildPostseasonMatches(),barajMs=buildBarajMatches(),tipPlayedN=groupTips.length,phases=[statPhaseInfo('Alapszakasz',240,FX,false),statPhaseInfo('Playoff / playout',postMs.length,postMs,true),statPhaseInfo('Baraj',barajMs.length,barajMs,true)],res=phases.flatMap(p=>p.res),statN=res.length,goals=res.reduce((s,x)=>s+x.p.h+x.p.a,0),hw=res.filter(x=>x.p.h>x.p.a).length,dr=res.filter(x=>x.p.h===x.p.a).length,aw=res.filter(x=>x.p.a>x.p.h).length;m.innerHTML=effHtml+statsRoundEfficiencyHtml()+'<section class="card"><h2 class="card-title">&Ouml;sszes&iacute;tett statisztik&aacute;k</h2><div class="stat-kpi-row"><div class="stat-kpi"><div class="stat-kpi-val">'+tipPlayedN+'</div><div class="stat-kpi-lbl">Tippelt meccs</div></div><div class="stat-kpi"><div class="stat-kpi-val">'+goals+'</div><div class="stat-kpi-lbl">G&oacute;l</div></div><div class="stat-kpi"><div class="stat-kpi-val">'+(statN?goals/statN:0).toFixed(2)+'</div><div class="stat-kpi-lbl">G&oacute;l/meccs</div></div></div><div class="stat-section-title">Eredm&eacute;ny-megoszl&aacute;s</div><div class="stat-result-labels"><span>Els&#337; csapat gy&#337;zelme</span><span style="margin-left:auto">'+hw+' meccs</span></div>'+pctBar(hw,statN,'var(--green)')+'<div class="stat-result-labels"><span>D&ouml;ntetlen</span><span style="margin-left:auto">'+dr+' meccs</span></div>'+pctBar(dr,statN,'var(--muted)')+'<div class="stat-result-labels"><span>M&aacute;sodik csapat gy&#337;zelme</span><span style="margin-left:auto">'+aw+' meccs</span></div>'+pctBar(aw,statN,'var(--blue)')+'</section><section class="card"><h2 class="card-title">F&aacute;zis-bont&aacute;s</h2><div class="stat-phase-grid">'+phases.map(p=>'<div class="stat-phase-card"><div class="stat-phase-name">'+p.name+'</div><div class="stat-phase-row"><span>'+p.total+' tervezett meccs</span><span class="stat-phase-avg">'+p.avg.toFixed(2)+' g&oacute;l/meccs</span></div><div class="stat-mini-bars"><div class="stat-mini-bar" style="flex:'+(p.finished||0.01)+';background:var(--green)"></div><div class="stat-mini-bar" style="flex:'+(p.left||0.01)+';background:var(--muted)"></div></div><div class="stat-mini-legend"><span>Tippelve: '+p.tipped+' &middot; Lez&aacute;rva: '+p.finished+'</span><span>H&aacute;tra: '+p.left+'</span></div></div>').join('')+'</div></section>'+statsExportHtml();activateCrests()}

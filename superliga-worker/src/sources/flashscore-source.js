@@ -1335,7 +1335,7 @@ function flashscoreFixtureStartMs(dateValue, timeValue, timezone = 'Europe/Bucha
   }
 }
 
-function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
+export function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   const dc = pack.dc || {};
   const meta = pack.meta || {};
   const listClock = pack.listClock || {};
@@ -1378,7 +1378,7 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   let providerMinuteSource = null;
   let providerClockObservedAt = null;
   for (const signal of minuteSignals) {
-    const m = String(signal.value ?? '').match(/(?:^|\s)(\d{1,3}(?:\+\d{1,2})?)(?:['’]|\s|$)/);
+    const m = String(signal.value ?? '').match(/(?:^|\s)(\d{1,3}(?:\+(?:\d{1,2})?)?)(?:['’]|\s|$)/);
     if (!m) continue;
     providerMinute = m[1];
     providerMinuteSource = signal.source;
@@ -1413,7 +1413,7 @@ function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
 
   const feedState = fallbackState || pack.state || null;
   const started = finished || status === 'HT' || !!providerMinute || feedState === 'event_feed' || feedState === 'metadata_live' || !!pack.score || (pack.events || []).length > 0;
-  if (!status) status = finished ? 'FT' : (providerMinute ? `${providerMinute}'` : (started ? 'LIVE' : 'NS'));
+  if (!status) status = finished ? 'FT' : (providerMinute ? (providerMinute.endsWith('+') ? providerMinute : `${providerMinute}'`) : (started ? 'LIVE' : 'NS'));
 
   let score = pack.score || null;
   if (!score && started) score = { h: 0, a: 0, raw: '0-0' };

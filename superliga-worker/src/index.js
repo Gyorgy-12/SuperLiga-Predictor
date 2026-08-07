@@ -11,6 +11,7 @@ import { bootstrapLightRoute } from './routes/bootstrap-light.route.js';
 import { communityRoute } from './routes/community.route.js';
 import { oddsRoute } from './routes/odds.route.js';
 import { teamRatingsRoute, eloRoute, marketValuesRoute } from './routes/team-ratings.route.js';
+import { liga2StandingsRoute } from './routes/liga2-standings.route.js';
 import { sourceTestRoute } from './routes/source-test.route.js';
 import { adminFirestoreTestRoute } from './routes/admin-firestore-test.route.js';
 import { runCoordinator, coordinatorState, ensureCoordinatorAlarm } from './services/coordinator.service.js';
@@ -46,6 +47,7 @@ export default {
       if (path === '/team-ratings' || path === '/ratings') return teamRatingsRoute(request, env, ctx);
       if (path === '/elo') return eloRoute(request, env, ctx);
       if (path === '/market-values') return marketValuesRoute(request, env, ctx);
+      if (path === '/liga2-standings' || path === '/liga-2-standings') return liga2StandingsRoute(request, env, ctx);
       if (path === '/source-test' || path === '/admin/source-test') return sourceTestRoute(request, env, ctx);
       if (path === '/admin/live') return adminLiveRoute(request, env, ctx);
       if (path === '/admin/refresh') return adminRefreshRoute(request, env, ctx);

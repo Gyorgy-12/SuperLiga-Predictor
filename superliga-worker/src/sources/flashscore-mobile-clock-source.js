@@ -121,7 +121,7 @@ function parseMobileLine(line) {
 
   // Mobile Flashscore exposes live rows as: 33'Home - Away 0-2
   // and the interval as: Pauză Home - Away 1-0.
-  const prefix = text.match(/^((?:\d{1,3}(?:\+\d{1,2})?)[’'′]|PAUZĂ|PAUZA|HALF\s*TIME|HT|FINAL|FT)\s*/i);
+  const prefix = text.match(/^((?:\d{1,3}(?:\+(?:\d{1,2})?)?)[’'′]|PAUZĂ|PAUZA|HALF\s*TIME|HT|FINAL|FT)\s*/i);
   if (!prefix) return null;
 
   const clockRaw = prefix[1];
@@ -189,13 +189,14 @@ function safeCodePoint(n) {
 
 function parseMinute(value) {
   const text = String(value || '').replace(/[’'′]/g, '').trim();
-  const m = text.match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);
+  const m = text.match(/^(\d{1,3})(?:\+(\d{0,2}))?$/);
   if (!m) return null;
   const base = Number(m[1]);
-  const extra = m[2] == null ? null : Number(m[2]);
+  const hasAddedTime = text.includes('+');
+  const extra = m[2] == null || m[2] === '' ? null : Number(m[2]);
   if (!Number.isFinite(base) || base < 1 || base > 130) return null;
   if (extra != null && (!Number.isFinite(extra) || extra < 0 || extra > 30)) return null;
-  return extra == null ? String(base) : `${base}+${extra}`;
+  return hasAddedTime ? (extra == null ? `${base}+` : `${base}+${extra}`) : String(base);
 }
 
 function scoreFixtureRow(fixture, row) {

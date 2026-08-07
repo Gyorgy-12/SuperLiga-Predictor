@@ -1232,3 +1232,174 @@
     font-size:17px!important;
   }
 }
+
+/* Liga 2 top four, used only by the Baraj tab. */
+.baraj-main .baraj-liga2-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:clamp(10px,1vw,16px);
+}
+
+.baraj-main .baraj-liga2-phase{
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:3px;
+  padding:8px 10px;
+  background:rgba(110,198,255,.07);
+  border:1px solid rgba(110,198,255,.16);
+  border-radius:10px;
+}
+
+.baraj-main .baraj-liga2-phase b{
+  color:#a8d9f6;
+  font-size:clamp(10.5px,.72vw,13px);
+  line-height:1.15;
+}
+
+.baraj-main .baraj-liga2-phase span{
+  color:var(--muted);
+  font-size:clamp(9.5px,.62vw,11.5px);
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.baraj-main .baraj-liga2-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(8px,.8vw,13px);
+  margin-top:clamp(10px,.9vw,15px);
+}
+
+.baraj-main .baraj-liga2-row{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  column-gap:clamp(8px,.7vw,12px);
+  row-gap:5px;
+  min-width:0;
+  min-height:82px;
+  padding:clamp(10px,.9vw,14px);
+  background:#111a20;
+  border:1px solid rgba(255,255,255,.065);
+  border-radius:11px;
+  box-shadow:inset 3px 0 0 rgba(46,213,115,.72);
+}
+
+.baraj-main .baraj-liga2-row.playoff{
+  box-shadow:inset 3px 0 0 rgba(255,159,28,.76);
+}
+
+.baraj-main .baraj-liga2-rank{
+  color:#e8edf0;
+  font-size:clamp(15px,1.05vw,19px);
+  font-weight:900;
+}
+
+.baraj-main .baraj-liga2-team{
+  display:flex;
+  align-items:center;
+  gap:clamp(7px,.65vw,11px);
+  min-width:0;
+}
+
+.baraj-main .baraj-liga2-team .crest,
+.baraj-main .baraj-liga2-team .crest[style]{
+  --cs:clamp(28px,2.15vw,38px)!important;
+  flex:0 0 var(--cs)!important;
+}
+
+.baraj-main .baraj-liga2-team div{
+  min-width:0;
+}
+
+.baraj-main .baraj-liga2-team b{
+  display:block;
+  overflow:hidden;
+  color:#e8edf0;
+  font-size:clamp(12.5px,.9vw,16px);
+  line-height:1.2;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.baraj-main .baraj-liga2-team small{
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+  font-size:clamp(9.5px,.62vw,11.5px);
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.baraj-main .baraj-liga2-points{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  color:#f2f6f8;
+  font-size:clamp(17px,1.2vw,22px);
+  line-height:1;
+}
+
+.baraj-main .baraj-liga2-points small{
+  margin-top:3px;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:750;
+  text-transform:uppercase;
+}
+
+.baraj-main .baraj-liga2-status{
+  grid-column:2/4;
+  justify-self:start;
+  color:#55df8e;
+  font-size:clamp(9.5px,.62vw,11.5px);
+  font-weight:850;
+}
+
+.baraj-main .baraj-liga2-row.playoff .baraj-liga2-status{
+  color:#ffb64b;
+}
+
+.baraj-main .baraj-liga2-note,
+.baraj-main .baraj-liga2-empty{
+  margin-top:clamp(9px,.8vw,13px);
+  padding:9px 11px;
+  color:var(--muted);
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:9px;
+  font-size:clamp(10.5px,.7vw,12.5px);
+  font-weight:650;
+  line-height:1.4;
+}
+
+.baraj-main .baraj-liga2-empty{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.baraj-main .baraj-liga2-empty b{
+  color:#dce5ea;
+}
+
+@media(max-width:760px){
+  .baraj-main .baraj-liga2-head{
+    flex-direction:column;
+  }
+
+  .baraj-main .baraj-liga2-phase{
+    align-items:flex-start;
+  }
+
+  .baraj-main .baraj-liga2-grid{
+    grid-template-columns:1fr;
+  }
+
+  .baraj-main .baraj-liga2-row{
+    min-height:76px;
+  }
+}
