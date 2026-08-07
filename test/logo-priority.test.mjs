@@ -6,6 +6,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../src/ui/dom-utils.js', import.meta.url), 'utf8');
 const defaultLogo = 'https://images.fotmob.com/image_resources/logo/teamlogo/123.png';
 const liga2Logo = 'https://static.flashscore.com/res/image/data/liga2-high-resolution.png';
+const botosaniLogo = 'https://fkjablonec.esports.cz/files/logos/FC_Botosani_2022_logo.png';
 
 function browserSandbox(cachedLogo = '') {
   const writes = [];
@@ -43,4 +44,12 @@ test('a stale cached default crest cannot overwrite the current Liga 2 crest', (
   vm.runInNewContext(`${source}\nactivateCrests();`, sandbox);
   assert.equal(sandbox.__image.src, liga2Logo);
   assert.equal(JSON.parse(sandbox.__writes.at(-1)[1]).FCSB, undefined);
+});
+
+test('Botoșani uses the high-resolution crest before the generic fallback', () => {
+  const sandbox = browserSandbox();
+  sandbox.TEAM_IDS['FC Botoșani'] = '188191';
+  vm.runInNewContext(`${source}\nglobalThis.__candidates = logo('FC Botoșani');`, sandbox);
+  assert.equal(sandbox.__candidates[0], botosaniLogo);
+  assert.equal(sandbox.__candidates.at(-3), 'https://images.fotmob.com/image_resources/logo/teamlogo/188191.png');
 });

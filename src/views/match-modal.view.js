@@ -328,7 +328,7 @@ function openMatchTipModal(cfg){
     : '<div class="tip-score"><input id="tipH" type="number" min="0" max="99" inputmode="numeric" autocomplete="off" value="'+esc(p.h??'')+'" aria-label="Hazai gól"'+dis+'><span class="tip-dash">-</span><input id="tipA" type="number" min="0" max="99" inputmode="numeric" autocomplete="off" value="'+esc(p.a??'')+'" aria-label="Idegen gól"'+dis+'></div>';
   let yourTipHtml=(hasReal&&validScore(p.h)&&validScore(p.a))?'<div class="tip-your-tip-banner'+(grade.trim()?(' grade-'+grade.trim().replace('result-','').replace('live-locked','')):'')+'"><span class="tip-your-tip-label">A te tipped</span><span class="tip-your-tip-score">'+esc(p.h)+' - '+esc(p.a)+'</span></div>':'';
   let title=locked?'Mérkőzés állapota':'Mérkőzés tippelése';
-  let phase=isKo?(m.title||postseasonCategory(m)||'Rájátszás'):(compLabel(m.g)+' · '+m.r+'. forduló');
+  let phase=isKo?matchStageText(m,true):(compLabel(m.g)+' · '+m.r+'. forduló');
   let date=isKo?matchDateTitle(m.date||'Rájátszás'):localMatchDate(m);
   let time=isKo?(m.t||'21:00'):localMatchTime(m);
   let lockNote=locked
