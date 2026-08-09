@@ -59,7 +59,7 @@ export default {
           ok: true,
           now: new Date().toISOString(),
           coordinator: await coordinatorState(env).catch(() => null),
-          note: 'B42 uses a daily schedule/odds scan, daily Elo + Transfermarkt refresh, per-match -30m odds refresh, and Durable Object live alarms only inside match windows.'
+          note: 'B48 uses daily Opta Power Rankings + Transfermarkt refresh, per-match -30m odds refresh, and Durable Object live alarms only inside match windows.'
         }, {}, env);
       }
 

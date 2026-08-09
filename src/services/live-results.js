@@ -268,6 +268,8 @@ function applyOddsMap(odds){
 function applyTeamRatingsData(data){
   if(!data||typeof data!=='object')return false;
   let changed=false,ratings=data.ratings||data.elo||{},mv=data.marketValues||data.values||{};
+  let ratingMeta=data.ratingsMeta||(data.sources&&data.sources.elo)||null;
+  if(Object.keys(ratings).length&&ratingMeta){let oldMeta=window.SUPERLIGA_RATING_META||null;if(JSON.stringify(oldMeta)!==JSON.stringify(ratingMeta)){window.SUPERLIGA_RATING_META=ratingMeta;changed=true}}
   Object.entries(ratings).forEach(([name,val])=>{let n=Number(val);if(Number.isFinite(n)&&TEAM_ELO[name]!==n){TEAM_ELO[name]=n;changed=true}});
   Object.entries(mv).forEach(([name,val])=>{let n=Number(val);if(Number.isFinite(n)&&TEAM_MARKET[name]!==n){TEAM_MARKET[name]=n;changed=true}});
   if(changed&&typeof refreshOpenMatchModalModel==='function')refreshOpenMatchModalModel();

@@ -82,17 +82,17 @@ export async function refreshEloRatings(env, opts = {}) {
   const eloPack = await fetchConfiguredEloRatings(env, fixtures, previous, opts)
     .catch(error => ({
       ok: false,
-      source: 'current-external-club-elo-b47-unavailable',
+      source: 'current-external-team-rating-b48-unavailable',
       ratings: {},
       count: 0,
       error: error?.message || String(error),
       warnings: []
     }));
 
-  const ratings = {
-    ...(previous.ratings || {}),
-    ...(eloPack.ratings || {})
-  };
+  const eloSucceeded = sourceSucceeded(eloPack, 'ratings');
+  const ratings = eloSucceeded
+    ? { ...(eloPack.ratings || {}) }
+    : { ...(previous.ratings || {}) };
 
   const marketValues = { ...(previous.marketValues || {}) };
   const result = await persistRatingsState(env, previous, {
@@ -103,13 +103,13 @@ export async function refreshEloRatings(env, opts = {}) {
     writeElo: true,
     writeMarketValues: false,
     task: 'elo',
-    source: opts.source || 'current-external-elo-refresh-b47'
+    source: opts.source || 'current-external-rating-refresh-b48'
   });
 
   return {
     ...result,
     ok: !!eloPack.ok && result.persistenceOk,
-    source: eloPack.source || 'current-external-club-elo-b47-unavailable',
+    source: eloPack.source || 'current-external-team-rating-b48-unavailable',
     sourceCount: Object.keys(eloPack.ratings || {}).length,
     preservedCount:
       Object.keys(previous.ratings || {}).length
@@ -182,7 +182,7 @@ export async function refreshTeamRatings(env, opts = {}) {
     fetchConfiguredEloRatings(env, fixtures, previous, opts)
       .catch(error => ({
         ok: false,
-        source: 'current-external-club-elo-b47-unavailable',
+        source: 'current-external-team-rating-b48-unavailable',
         ratings: {},
         count: 0,
         error: error?.message || String(error),
@@ -199,10 +199,10 @@ export async function refreshTeamRatings(env, opts = {}) {
       }))
   ]);
 
-  const ratings = {
-    ...(previous.ratings || {}),
-    ...(eloPack.ratings || {})
-  };
+  const eloSucceeded = sourceSucceeded(eloPack, 'ratings');
+  const ratings = eloSucceeded
+    ? { ...(eloPack.ratings || {}) }
+    : { ...(previous.ratings || {}) };
 
   const marketValues = {
     ...(previous.marketValues || {}),
@@ -217,7 +217,7 @@ export async function refreshTeamRatings(env, opts = {}) {
     writeElo: true,
     writeMarketValues: true,
     task: 'ratings',
-    source: opts.source || 'daily-current-elo-tm-refresh-b47'
+    source: opts.source || 'daily-current-rating-tm-refresh-b48'
   });
 
   const eloOk = !!eloPack.ok && Object.keys(eloPack.ratings || {}).length > 0;
@@ -244,8 +244,9 @@ export async function refreshTeamRatings(env, opts = {}) {
 }
 
 async function fetchConfiguredEloRatings(env, fixtures, previous, opts = {}) {
-  // Use the first current external club-Elo provider that reaches the configured
-  // coverage threshold. Different Elo models are never merged in one run.
+  // Use the first current provider that reaches full configured coverage.
+  // Whole packs replace each other so a 0-100 Opta scale can never be mixed
+  // with a legacy 900-2300 Elo scale.
   return fetchEloFootballRatings(env, fixtures, opts);
 }
 
@@ -328,7 +329,11 @@ async function persistRatingsState(env, previous, config) {
             ratings,
             updatedAt: config.eloPack?.updatedAt || checkedAt,
             checkedAt,
-            source: config.eloPack?.source || 'current-external-club-elo-b47-unavailable',
+            source: config.eloPack?.source || 'current-external-team-rating-b48-unavailable',
+            sourceKind: config.eloPack?.sourceKind || null,
+            model: config.eloPack?.model || null,
+            ratingScale: config.eloPack?.ratingScale || null,
+            ratingLabel: config.eloPack?.ratingLabel || null,
             hash: await sha256Hex(stableStringify(ratings)),
             warnings: config.eloPack?.warnings || []
           }
@@ -369,7 +374,11 @@ async function persistRatingsState(env, previous, config) {
           patchDocument(env, COLLECTIONS.elo, team, {
             elo,
             updatedAt: config.eloPack?.updatedAt || checkedAt,
-            source: config.eloPack?.source || 'current-external-club-elo-b47-unavailable'
+            source: config.eloPack?.source || 'current-external-team-rating-b48-unavailable',
+            sourceKind: config.eloPack?.sourceKind || null,
+            model: config.eloPack?.model || null,
+            ratingScale: config.eloPack?.ratingScale || null,
+            ratingLabel: config.eloPack?.ratingLabel || null
           })
         )
       );
@@ -561,6 +570,8 @@ function summarize(pack = {}) {
     seeded: !!pack.seeded,
     appliedCount: pack.appliedCount ?? null,
     model: pack.model || null,
+    ratingScale: pack.ratingScale || null,
+    ratingLabel: pack.ratingLabel || null,
     count:
       pack.count
       ?? Object.keys(pack.ratings || pack.marketValues || {}).length,

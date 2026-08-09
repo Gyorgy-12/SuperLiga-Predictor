@@ -32,13 +32,17 @@ FLASHSCORE_ODDS_MAX_BOOKMAKERS = "5"
 FLASHSCORE_ODDS_MAX_FIXTURES = "24"
 FLASHSCORE_ODDS_CONCURRENCY = "4"
 FLASHSCORE_ODDS_TIMEOUT_MS = "8000"
-# Current club Elo. The Reader fallback is only used when direct datacenter
-# requests are rejected; different Elo models are never merged in one run.
+# Current team strength. Opta is primary; the old club-Elo pages are whole-pack
+# fallbacks only. Full coverage prevents different rating scales being merged.
+OPTA_POWER_RANKINGS_URL = "https://dataviz.theanalyst.com/opta-power-rankings/index.js"
+OPTA_POWER_RANKINGS_LEAGUE_ID = "89ovpy1rarewwzqvi30bfdr8b"
+OPTA_POWER_RANKINGS_MAX_BYTES = "4000000"
 CURRENT_ELO_PRIMARY_URL = "https://www.prediction-game.com/en/elo-rating-football-teams/"
 CURRENT_ELO_FALLBACK_URL = "https://clubelo.com/ROM"
-CURRENT_ELO_MIN_COUNT = "12"
+CURRENT_ELO_MIN_COUNT = "16"
 CURRENT_ELO_TIMEOUT_MS = "15000"
 CURRENT_ELO_READER_ENABLED = "true"
+CURRENT_ELO_TEXT_MAX_BYTES = "2000000"
 
 TRANSFERMARKT_MARKET_VALUES_URL = "https://www.transfermarkt.com/superliga/marktwerteverein/wettbewerb/RO1"
 TRANSFERMARKT_MIN_COUNT = "12"

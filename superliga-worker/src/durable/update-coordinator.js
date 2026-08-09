@@ -23,7 +23,7 @@ const DEFAULT_LIVE_START_BEFORE_MINUTES = 5;
 const DEFAULT_LIVE_END_AFTER_MINUTES = 120;
 const DEFAULT_LIVE_INTERVAL_SECONDS = 30;
 const DEFAULT_RATINGS_RETRY_MINUTES = 30;
-const RATINGS_REFRESH_REVISION = 'b51-localized-market-values';
+const RATINGS_REFRESH_REVISION = 'b52-opta-primary-ratings';
 const ALARM_EARLY_GRACE_MS = 1_500;
 
 export class UpdateCoordinator extends DurableObject {
@@ -149,7 +149,7 @@ export class UpdateCoordinator extends DurableObject {
         force: true,
         scheduler: true,
         daily: true,
-        source: 'daily-elo-tm-refresh-b42'
+        source: 'daily-opta-tm-refresh-b52'
       });
       ran.push('ratings');
       const ratingsAttemptAt = new Date().toISOString();
@@ -578,7 +578,8 @@ export class UpdateCoordinator extends DurableObject {
     const targetAt = zonedDateTimeToEpoch(localDate, hour, minute, timezone);
     const key = `${localDate}@${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
     const completed = scheduler.lastDailyRatingsKey === key
-      && scheduler.lastDailyRatingsOk === true;
+      && scheduler.lastDailyRatingsOk === true
+      && scheduler.lastDailyRatingsAttemptRevision === RATINGS_REFRESH_REVISION;
     const targetReached = now + ALARM_EARLY_GRACE_MS >= targetAt;
 
     if (targetReached && !completed) {

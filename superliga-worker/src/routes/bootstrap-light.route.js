@@ -100,6 +100,7 @@ export async function bootstrapLightPayload(env, opts = {}) {
     marketValues,
     marketValuesCount: Object.keys(marketValues).length,
     ratingsSource: ratingsPack?.source || '',
+    ratingsMeta: ratingsPack?.sources?.elo || null,
     ratingsError: ratingsPack?.error || ''
   };
 }

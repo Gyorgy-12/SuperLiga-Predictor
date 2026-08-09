@@ -7,15 +7,22 @@ import {
 const DEFAULT_PRIMARY_URL =
   'https://www.prediction-game.com/en/elo-rating-football-teams/';
 const DEFAULT_FALLBACK_URL = 'https://clubelo.com/ROM';
+const DEFAULT_OPTA_URL = 'https://dataviz.theanalyst.com/opta-power-rankings/index.js';
+const DEFAULT_OPTA_LEAGUE_ID = '89ovpy1rarewwzqvi30bfdr8b';
 const DEFAULT_TIMEOUT_MS = 12000;
 const DEFAULT_MIN_COUNT = 12;
+const DEFAULT_OPTA_MAX_BYTES = 4_000_000;
+const DEFAULT_TEXT_MAX_BYTES = 2_000_000;
+const MAX_OPTA_OBJECT_CHARS = 128_000;
 const MIN_ELO = 900;
 const MAX_ELO = 2300;
+const MIN_OPTA_RATING = 0;
+const MAX_OPTA_RATING = 100;
 
 /**
  * Historical export name kept so the rest of the Worker does not need a broad
- * refactor. B47 no longer insists on EloFootball. It reads one current external
- * club-Elo provider at a time and never mixes two different Elo models.
+ * refactor. B48 uses Opta Power Rankings first, then one current club-Elo
+ * provider as a whole-pack fallback. Different rating scales are never merged.
  */
 export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
   const startedAt = Date.now();
@@ -40,6 +47,17 @@ export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
       || DEFAULT_FALLBACK_URL
   );
 
+  const optaUrl = clean(
+    opts.optaUrl
+      || env.OPTA_POWER_RANKINGS_URL
+      || DEFAULT_OPTA_URL
+  );
+  const optaLeagueId = clean(
+    opts.optaLeagueId
+      || env.OPTA_POWER_RANKINGS_LEAGUE_ID
+      || DEFAULT_OPTA_LEAGUE_ID
+  );
+
   const directPlans = unique([
     primaryUrl && {
       id: 'prediction-game-current-club-elo',
@@ -54,7 +72,16 @@ export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
   ].filter(Boolean), plan => plan.url);
 
   const results = [];
+  if (optaUrl) {
+    results.push(await runOptaPlan(env, {
+      id: 'opta-power-rankings',
+      url: optaUrl,
+      leagueId: optaLeagueId
+    }, knownTeams, opts));
+  }
+
   for (const plan of directPlans) {
+    if (selectResult(results, minCount)) break;
     const result = await runPlan(env, plan, knownTeams, opts);
     results.push(result);
     if (result.count >= minCount) break;
@@ -102,7 +129,7 @@ export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
   const bestCount = selected?.count || 0;
   return {
     ok: false,
-    source: 'current-external-club-elo-b47-unavailable',
+    source: 'current-external-team-rating-b48-unavailable',
     sourceKind: null,
     ratings: {},
     count: 0,
@@ -115,9 +142,9 @@ export async function fetchEloFootballRatings(env, fixtures = [], opts = {}) {
     missing: knownTeams,
     unmatched: selected?.unmatched || [],
     warnings: [
-      `No current external Elo provider reached the minimum coverage (${minCount}/${knownTeams.length || 0}). Existing stored Elo values were preserved.`
+      `No current external team-rating provider reached the minimum coverage (${minCount}/${knownTeams.length || 0}). Existing stored values were preserved.`
     ],
-    error: attempts.at(-1)?.error || 'current_elo_sources_unavailable',
+    error: attempts.at(-1)?.error || 'current_rating_sources_unavailable',
     elapsedMs: Date.now() - startedAt,
     updatedAt: new Date().toISOString()
   };
@@ -132,8 +159,11 @@ async function runPlan(env, plan, knownTeams, opts) {
 
   return {
     id: plan.id,
-    source: `${plan.id}-b47`,
+    source: `${plan.id}-b48`,
     sourceKind: plan.sourceKind || plan.id,
+    model: 'club-elo',
+    ratingScale: '900-2300',
+    ratingLabel: 'Elo',
     url: response.finalUrl || plan.url,
     ratings: parsed.ratings,
     matched: parsed.matched,
@@ -160,6 +190,226 @@ async function runPlan(env, plan, knownTeams, opts) {
         : response.error
     }
   };
+}
+
+async function runOptaPlan(env, plan, knownTeams, opts = {}) {
+  const timeoutMs = clampInt(
+    opts.timeoutMs || env.CURRENT_ELO_TIMEOUT_MS,
+    DEFAULT_TIMEOUT_MS,
+    3000,
+    30000
+  );
+  const maxBytes = clampInt(
+    opts.optaMaxBytes || env.OPTA_POWER_RANKINGS_MAX_BYTES,
+    DEFAULT_OPTA_MAX_BYTES,
+    250_000,
+    12_000_000
+  );
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
+  const parsed = emptyParsed(knownTeams);
+  parsed.fetched = 0;
+  let status = 0;
+  let finalUrl = plan.url;
+  let contentType = '';
+  let bytes = 0;
+  let error = null;
+
+  try {
+    const response = await fetch(plan.url, {
+      method: 'GET',
+      redirect: 'follow',
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: ratingRequestHeaders(env, 'application/javascript,text/javascript;q=0.9,*/*;q=0.8')
+    });
+    status = response.status;
+    finalUrl = response.url || plan.url;
+    contentType = response.headers.get('content-type') || '';
+    if (!response.ok) {
+      error = `HTTP ${response.status}`;
+    } else if (!response.body) {
+      error = 'opta_response_body_missing';
+    } else {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let complete = false;
+
+      while (!complete) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        bytes += chunk.value.byteLength;
+        if (bytes > maxBytes) {
+          error = `opta_body_exceeds_${maxBytes}_bytes`;
+          await reader.cancel(error).catch(() => {});
+          break;
+        }
+        buffer += decoder.decode(chunk.value, { stream: true });
+        buffer = consumeOptaObjects(buffer, row => {
+          mapOptaRankingRow(row, knownTeams, plan.leagueId, parsed);
+          if (knownTeams.length && Object.keys(parsed.ratings).length >= knownTeams.length) {
+            complete = true;
+          }
+        });
+        if (complete) await reader.cancel('required_team_coverage_reached').catch(() => {});
+      }
+
+      if (!complete && !error) {
+        buffer += decoder.decode();
+        consumeOptaObjects(buffer, row => {
+          mapOptaRankingRow(row, knownTeams, plan.leagueId, parsed);
+        }, true);
+      }
+    }
+  } catch (caught) {
+    error = caught?.name === 'AbortError'
+      ? `timeout_after_${timeoutMs}ms`
+      : (caught?.message || String(caught));
+  } finally {
+    clearTimeout(timer);
+  }
+
+  parsed.missing = knownTeams.filter(team => parsed.ratings[team] == null);
+  parsed.warnings = parsed.missing.length
+    ? [`No current Opta value was matched for: ${parsed.missing.join(', ')}.`]
+    : [];
+  const count = Object.keys(parsed.ratings).length;
+  const responseOk = status >= 200 && status < 300 && !error;
+
+  return {
+    id: plan.id,
+    source: 'opta-power-rankings-b48',
+    sourceKind: 'opta-power-rating',
+    model: 'opta-hierarchical-elo-xg',
+    ratingScale: '0-100',
+    ratingLabel: 'Opta',
+    url: finalUrl,
+    ratings: parsed.ratings,
+    matched: parsed.matched,
+    unmatched: parsed.unmatched,
+    missing: parsed.missing,
+    warnings: parsed.warnings,
+    count,
+    fetched: parsed.fetched,
+    attempt: {
+      source: plan.id,
+      url: plan.url,
+      ok: responseOk && count > 0,
+      status,
+      bytes,
+      elapsedMs: Date.now() - startedAt,
+      contentType,
+      finalUrl,
+      mappedCount: count,
+      fetched: parsed.fetched,
+      missing: parsed.missing,
+      error: responseOk
+        ? (count ? null : 'no_parseable_opta_rows')
+        : error
+    }
+  };
+}
+
+export function parseOptaPowerRankingScript(script = '', knownTeams = [], opts = {}) {
+  const parsed = emptyParsed(knownTeams);
+  parsed.fetched = 0;
+  consumeOptaObjects(String(script || ''), row => {
+    mapOptaRankingRow(
+      row,
+      knownTeams,
+      clean(opts.leagueId || DEFAULT_OPTA_LEAGUE_ID),
+      parsed
+    );
+  }, true);
+  parsed.missing = knownTeams.filter(team => parsed.ratings[team] == null);
+  parsed.warnings = parsed.missing.length
+    ? [`No current Opta value was matched for: ${parsed.missing.join(', ')}.`]
+    : [];
+  return parsed;
+}
+
+function consumeOptaObjects(input, onObject, final = false) {
+  const marker = '{"rank":';
+  let buffer = String(input || '');
+  let cursor = 0;
+
+  while (cursor < buffer.length) {
+    const start = buffer.indexOf(marker, cursor);
+    if (start < 0) {
+      return final ? '' : buffer.slice(Math.max(0, buffer.length - marker.length + 1));
+    }
+    const end = findJsonObjectEnd(buffer, start);
+    if (end < 0) {
+      if (buffer.length - start > MAX_OPTA_OBJECT_CHARS) cursor = start + marker.length;
+      else return buffer.slice(start);
+      continue;
+    }
+    try {
+      onObject(JSON.parse(buffer.slice(start, end + 1)));
+    } catch (_) {
+      // The bundle contains other JavaScript around the JSON rows. A malformed
+      // candidate is skipped without weakening the league or coverage checks.
+    }
+    cursor = end + 1;
+  }
+  return '';
+}
+
+function findJsonObjectEnd(text, start) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === '{') depth += 1;
+    else if (char === '}' && --depth === 0) return index;
+  }
+  return -1;
+}
+
+function mapOptaRankingRow(row, knownTeams, leagueId, parsed) {
+  if (!row || typeof row !== 'object') return;
+  const isLeagueTeam = row.domesticLeagueId === leagueId
+    || String(row.comps || '').includes(leagueId);
+  if (!isLeagueTeam) return;
+
+  parsed.fetched += 1;
+  const sourceTeam = clean(
+    row.contestantName
+      || row.contestantShortName
+      || row.contestantClubName
+  );
+  const canonical = findCanonicalTeam(sourceTeam, knownTeams);
+  const rating = Number(row.currentRating);
+  if (
+    !canonical
+    || parsed.ratings[canonical] != null
+    || !Number.isFinite(rating)
+    || rating < MIN_OPTA_RATING
+    || rating > MAX_OPTA_RATING
+  ) {
+    if (!canonical && sourceTeam) parsed.unmatched.push(sourceTeam);
+    return;
+  }
+
+  const rounded = Number(rating.toFixed(2));
+  parsed.ratings[canonical] = rounded;
+  parsed.matched.push({
+    team: canonical,
+    sourceTeam,
+    rating: rounded,
+    rank: Number.isFinite(Number(row.rank)) ? Number(row.rank) : null,
+    optaId: row.optaId ?? null
+  });
 }
 
 function selectResult(results, minCount) {
@@ -382,6 +632,9 @@ function buildSuccess(config) {
     ok: true,
     source: config.source,
     sourceKind: config.sourceKind,
+    model: config.model || null,
+    ratingScale: config.ratingScale || null,
+    ratingLabel: config.ratingLabel || null,
     ratings: config.ratings,
     count,
     fetched: config.fetched,
@@ -412,17 +665,12 @@ async function fetchText(env, url, opts = {}, mode = {}) {
   const startedAt = Date.now();
 
   try {
-    const headers = {
-      accept: mode.reader
+    const headers = ratingRequestHeaders(
+      env,
+      mode.reader
         ? 'text/plain,text/markdown;q=0.9,*/*;q=0.8'
-        : 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
-      'accept-language': 'en-US,en;q=0.9,ro;q=0.8',
-      'cache-control': 'no-cache',
-      'user-agent':
-        env.CURRENT_ELO_USER_AGENT
-        || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-           '(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
-    };
+        : 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'
+    );
     if (mode.reader) {
       headers['x-no-cache'] = 'true';
       headers['x-engine'] = 'browser';
@@ -439,18 +687,25 @@ async function fetchText(env, url, opts = {}, mode = {}) {
       signal: controller.signal,
       headers
     });
-    const text = await response.text();
+    const maxBytes = clampInt(
+      opts.textMaxBytes || env.CURRENT_ELO_TEXT_MAX_BYTES,
+      DEFAULT_TEXT_MAX_BYTES,
+      100_000,
+      8_000_000
+    );
+    const body = await readTextWithLimit(response, maxBytes);
+    const text = body.text;
     const blocked = /captcha|access denied|service unavailable|site overloaded/i.test(text);
     return {
-      ok: response.ok && !!text.trim() && !blocked,
+      ok: response.ok && body.ok && !!text.trim() && !blocked,
       status: response.status,
       text,
-      bytes: text.length,
+      bytes: body.bytes,
       contentType: response.headers.get('content-type') || '',
       finalUrl: response.url || url,
       elapsedMs: Date.now() - startedAt,
       error: response.ok
-        ? (blocked ? 'provider_page_blocked_or_overloaded' : null)
+        ? (!body.ok ? body.error : (blocked ? 'provider_page_blocked_or_overloaded' : null))
         : `HTTP ${response.status}`
     };
   } catch (error) {
@@ -566,6 +821,44 @@ function stripDiacritics(value) {
 
 function readerEnabled(env) {
   return String(env.CURRENT_ELO_READER_ENABLED || 'true').toLowerCase() !== 'false';
+}
+
+async function readTextWithLimit(response, maxBytes) {
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    response.body?.cancel?.().catch(() => {});
+    return { ok: false, text: '', bytes: 0, error: `body_exceeds_${maxBytes}_bytes` };
+  }
+  if (!response.body) return { ok: true, text: '', bytes: 0, error: null };
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let bytes = 0;
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    bytes += chunk.value.byteLength;
+    if (bytes > maxBytes) {
+      await reader.cancel('body_limit_reached').catch(() => {});
+      return { ok: false, text: '', bytes, error: `body_exceeds_${maxBytes}_bytes` };
+    }
+    text += decoder.decode(chunk.value, { stream: true });
+  }
+  text += decoder.decode();
+  return { ok: true, text, bytes, error: null };
+}
+
+function ratingRequestHeaders(env, accept) {
+  return {
+    accept,
+    'accept-language': 'en-US,en;q=0.9,ro;q=0.8',
+    'cache-control': 'no-cache',
+    'user-agent':
+      env.CURRENT_ELO_USER_AGENT
+      || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+         '(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+  };
 }
 
 function buildReaderUrl(env, targetUrl) {

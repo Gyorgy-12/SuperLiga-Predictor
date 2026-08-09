@@ -179,16 +179,17 @@ function superligaFrozenMetric(team,m,r,homeKey,awayKey){
   return{frozen:true,value:value===null||value===undefined||value===''?null:(Number.isFinite(+value)?+value:null)};
 }
 function superligaMarketValue(team,m,r){let frozen=superligaFrozenMetric(team,m,r,'homeMarketValueM','awayMarketValueM');if(frozen)return frozen.value??10;let v=TEAM_MARKET&&TEAM_MARKET[team];return Number.isFinite(+v)?+v:10}
-function superligaElo(team,m,r){let frozen=superligaFrozenMetric(team,m,r,'homeElo','awayElo');if(frozen)return frozen.value??1450;let v=TEAM_ELO&&TEAM_ELO[team];return Number.isFinite(+v)?+v:1450}
+function superligaRatingInfo(team,m,r){let frozen=superligaFrozenMetric(team,m,r,'homeElo','awayElo'),value=frozen?(frozen.value??1450):((TEAM_ELO&&Number.isFinite(+TEAM_ELO[team]))?+TEAM_ELO[team]:1450),source=frozen?(r?.ratingsSnapshot?.ratingsSource||''):(window.SUPERLIGA_RATING_META?.source||window.SUPERLIGA_RATING_META?.sourceKind||''),opta=/opta/i.test(source)||value<200;return{value,source,opta,label:opta?'Opta':'Elo'}}
+function superligaElo(team,m,r){return superligaRatingInfo(team,m,r).value}
 function superligaMarketLabel(v){v=Number(v);return '€'+(Number.isFinite(v)?v:0).toFixed(2)+'M'}
-function teamModelScore(team,m,r){let elo=superligaElo(team,m,r),mv=superligaMarketValue(team,m,r),market=Math.log(mv+10)*72;return elo+market}
+function teamModelScore(team,m,r){let rating=superligaRatingInfo(team,m,r),strength=rating.opta?rating.value*20:rating.value,mv=superligaMarketValue(team,m,r),market=Math.log(mv+10)*72;return strength+market}
 function matchProb(m,r){let diff=teamModelScore(m.h,m,r)-teamModelScore(m.a,m,r),draw=Math.max(.18,Math.min(.30,.27-Math.abs(diff)/2800)),homeShare=1/(1+Math.exp(-diff/285)),rem=1-draw,home=rem*homeShare,away=rem*(1-homeShare),sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff}}
 function impliedProbFromOdds(odds){if(!odds||!validOdds(odds.h)||!validOdds(odds.d)||!validOdds(odds.a))return null;let h=1/+odds.h,d=1/+odds.d,a=1/+odds.a,sum=h+d+a;if(!sum)return null;return{home:h/sum,draw:d/sum,away:a/sum}}
 function liveOrCachedOdds(m,r){return (r&&r.odds)||((typeof SUPERLIGA_ODDS!=='undefined'&&m&&m.id)?SUPERLIGA_ODDS[m.id]:null)||null}
 function matchProbWithMarket(m,r){let model=matchProb(m,r),market=impliedProbFromOdds(liveOrCachedOdds(m,r));if(!market)return{...model,fromMarket:false};let mw=.7,sw=.3,home=market.home*mw+model.home*sw,draw=market.draw*mw+model.draw*sw,away=market.away*mw+model.away*sw,sum=home+draw+away;return{home:home/sum,draw:draw/sum,away:away/sum,diff:model.diff,fromMarket:true}}
 function pct(v){return Math.round((+v||0)*100)}
 function odd(v){return v?Math.max(1.01,1/v).toFixed(2):'-'}
-function modelMeta(team,m,r){return '<span class="model-pill">Elo '+Math.round(superligaElo(team,m,r))+'</span><span class="model-pill">'+superligaMarketLabel(superligaMarketValue(team,m,r))+'</span>'}
+function modelMeta(team,m,r){let rating=superligaRatingInfo(team,m,r),shown=rating.opta?rating.value.toFixed(1).replace('.',','):Math.round(rating.value);return '<span class="model-pill">'+rating.label+' '+shown+'</span><span class="model-pill">'+superligaMarketLabel(superligaMarketValue(team,m,r))+'</span>'}
 function modalTeamName(team){return typeof teamNameFor==='function'?teamNameFor(team,'match-modal'):(typeof stn==='function'?stn(team):team)}
 function probRow(name,v,clr,act,rawOdd){return '<div class="tip-prob-row'+(act?' tip-prob-row-actual':'')+'"><div class="tip-prob-name">'+esc(name)+'</div><div class="tip-prob-track"><div class="tip-prob-fill" style="width:'+pct(v)+'%;background:'+clr+'"></div></div><div class="tip-prob-pct">'+pct(v)+'%</div><div class="tip-prob-odd">'+(rawOdd!=null?(+rawOdd).toFixed(2):odd(v))+'</div></div>'}
 function modalProbCard(m,r){
@@ -197,7 +198,8 @@ function modalProbCard(m,r){
   let odds=liveOrCachedOdds(m,r),p=matchProbWithMarket(m,r),outcome=null;
   if(r&&r.finished&&validScore(r.h)&&validScore(r.a))outcome=r.h>r.a?'home':r.h<r.a?'away':'draw';
   let market=odds&&validOdds(odds.h)&&validOdds(odds.d)&&validOdds(odds.a)?odds:null;
-  let subtitle=market?'Piaci odds (70%) + Elo (30%)':'Elo + keretérték';
+  let ratingLabel=superligaRatingInfo(m.h,m,r).opta&&superligaRatingInfo(m.a,m,r).opta?'Opta':'Elo';
+  let subtitle=market?'Piaci odds (70%) + '+ratingLabel+' (30%)':ratingLabel+' + keretérték';
   return '<div class="tip-prob-card"><div class="tip-prob-title"><span>Modellezett esélyek</span><span>'+esc(subtitle)+'</span></div>'
     +probRow(modalTeamName(m.h),p.home,'linear-gradient(90deg,#27c96a,#8df0b0)',outcome==='home',market?market.h:null)
     +probRow('Döntetlen',p.draw,'linear-gradient(90deg,#7e8c96,#c8d2d8)',outcome==='draw',market?market.d:null)

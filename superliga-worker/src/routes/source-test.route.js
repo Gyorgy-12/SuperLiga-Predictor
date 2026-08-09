@@ -23,7 +23,7 @@ import { syncLive } from '../services/sync.service.js';
 import { getLiveSnapshot } from '../services/memory-cache.service.js';
 import { backfillFlashscoreMids } from '../services/flashscore-mid-backfill.service.js';
 
-const SOURCE_TEST_ROUTE_VERSION = 'b47-current-multi-elo-source-test';
+const SOURCE_TEST_ROUTE_VERSION = 'b48-opta-primary-rating-source-test';
 
 export async function sourceTestRoute(request, env) {
   if (!(await requireAdmin(request, env))) return unauthorized(env);
@@ -32,7 +32,7 @@ export async function sourceTestRoute(request, env) {
   const source = (url.searchParams.get('source') || 'livescore').toLowerCase();
   const ratingsSources = new Set([
     'ratings', 'team-ratings',
-    'elo', 'elofootball', 'clubelo',
+    'elo', 'elofootball', 'clubelo', 'opta', 'opta-ratings',
     'market-values', 'market', 'tm', 'transfermarkt',
     'read-ratings'
   ]);
@@ -335,7 +335,7 @@ export async function sourceTestRoute(request, env) {
     if (write) {
       pack = await refreshTeamRatings(env, {
         force: true,
-        source: 'source-test-ratings-write-b47'
+        source: 'source-test-ratings-write-b48'
       });
     } else {
       const [elo, marketValues] = await Promise.all([
@@ -353,7 +353,7 @@ export async function sourceTestRoute(request, env) {
       pack = {
         ok: !!(elo.ok && marketValues.ok),
         partial: !!elo.ok !== !!marketValues.ok,
-        source: 'ratings-source-test-b47-current-external-elo',
+        source: 'ratings-source-test-b48-opta-primary',
         elo,
         marketValues
       };
@@ -367,11 +367,13 @@ export async function sourceTestRoute(request, env) {
     || source === 'prediction-game'
     || source === 'clubelo'
     || source === 'multi-elo'
+    || source === 'opta'
+    || source === 'opta-ratings'
   ) {
     pack = write
       ? await refreshEloRatings(env, {
           force: true,
-          source: 'source-test-current-elo-write-b47'
+          source: 'source-test-current-rating-write-b48'
         })
       : await fetchEloFootballRatings(env, fixtures, {
           force,
@@ -381,9 +383,9 @@ export async function sourceTestRoute(request, env) {
   } else if (source === 'internal-elo' || source === 'superliga-elo') {
     pack = {
       ok: false,
-      source: 'external-current-elo-only-b47',
+      source: 'external-current-rating-only-b48',
       error: 'disabled_internal_elo_model',
-      warning: 'The daily pipeline uses current external club-Elo providers and does not calculate an internal rating.'
+      warning: 'The daily pipeline uses Opta Power Rankings with a whole-pack club-Elo fallback and does not calculate an internal rating.'
     };
   } else if (source === 'market-values' || source === 'market' || source === 'tm' || source === 'transfermarkt') {
     pack = write

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  parseOptaPowerRankingScript,
   parsePredictionGameMarkdownRatings,
   parsePredictionGameRatings
 } from '../src/sources/elofootball-source.js';
@@ -16,6 +17,43 @@ import {
 import { selectImmutableRatingsSnapshot } from '../src/services/results.service.js';
 
 const TEAMS = ['FCSB', 'CFR Cluj', 'Universitatea Craiova'];
+const OPTA_LIGA_I = '89ovpy1rarewwzqvi30bfdr8b';
+
+test('Opta bundle parser maps Liga I rows and ignores other leagues', () => {
+  const rows = [
+    {
+      rank: 595,
+      contestantName: 'FCSB',
+      currentRating: 76.989124531,
+      comps: `[{\'competitionId\': \'${OPTA_LIGA_I}\'}]`,
+      domesticLeagueId: OPTA_LIGA_I,
+      optaId: 6211
+    },
+    {
+      rank: 396,
+      contestantName: 'Universitatea Craiova',
+      currentRating: 81.401,
+      comps: `[{\'competitionId\': \'${OPTA_LIGA_I}\'}]`,
+      domesticLeagueId: OPTA_LIGA_I,
+      optaId: 9991
+    },
+    {
+      rank: 1,
+      contestantName: 'CFR Cluj',
+      currentRating: 99,
+      domesticLeagueId: 'different-league',
+      optaId: 1
+    }
+  ];
+  const script = `const teams=[${rows.map(row => JSON.stringify(row)).join(',')}];`;
+
+  const parsed = parseOptaPowerRankingScript(script, TEAMS, { leagueId: OPTA_LIGA_I });
+  assert.deepEqual(parsed.ratings, {
+    FCSB: 76.99,
+    'Universitatea Craiova': 81.4
+  });
+  assert.deepEqual(parsed.missing, ['CFR Cluj']);
+});
 
 test('prediction-game HTML parser reads short team names such as FCSB', () => {
   const html = `
