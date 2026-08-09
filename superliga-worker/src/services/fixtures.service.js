@@ -3,6 +3,17 @@ import { COLLECTIONS, PUBLIC_CACHE_DOCS } from '../config/collections.js';
 import { getDocument, listDocuments, patchDocument } from './firestore.service.js';
 import { coordinatorFixtureCache } from './coordinator.service.js';
 
+const AUTHORITATIVE_FIXTURE_CORRECTIONS = Object.freeze({
+  m25: Object.freeze({
+    date: '2026-08-10',
+    t: '21:30',
+    label: '10 aug.',
+    kickoffAt: '2026-08-10T21:30:00+03:00',
+    fixtureSource: 'lpf-official-correction-20260809',
+    fixtureUpdatedAt: '2026-08-09T19:00:00.000Z'
+  })
+});
+
 function sortFixtures(rows = []) {
   return rows.slice().sort((a, b) => {
     const ad = `${a.date || '9999-99-99'}T${a.t || a.time || '99:99'}|${String(a.id || '')}`;
@@ -13,7 +24,11 @@ function sortFixtures(rows = []) {
 
 function mergeOntoSeed(overrides = []) {
   const byId = Object.fromEntries((overrides || []).filter(f => f?.id).map(f => [String(f.id), f]));
-  return sortFixtures(STATIC_FIXTURES.map(f => ({ ...f, ...(byId[String(f.id)] || {}) })));
+  return sortFixtures(STATIC_FIXTURES.map(f => ({
+    ...f,
+    ...(byId[String(f.id)] || {}),
+    ...(AUTHORITATIVE_FIXTURE_CORRECTIONS[String(f.id)] || {})
+  })));
 }
 
 export async function getFixtures(env, opts = {}) {
@@ -55,7 +70,7 @@ export async function getFixturesPack(env, opts = {}) {
     };
   }
 
-  return { ok: true, source: 'static-seed-fallback', updatedAt: null, fixtures: sortFixtures(STATIC_FIXTURES), meta: {} };
+  return { ok: true, source: 'static-seed-fallback', updatedAt: null, fixtures: mergeOntoSeed(), meta: {} };
 }
 
 export async function readFixtureOverrides(env) {

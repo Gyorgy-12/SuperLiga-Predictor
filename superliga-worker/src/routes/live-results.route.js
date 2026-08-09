@@ -6,6 +6,7 @@ import { getLiveSnapshot } from '../services/memory-cache.service.js';
 import { nextSuggestedDelayMs } from '../core/match-window.js';
 import { getFixtures } from '../services/fixtures.service.js';
 import { readStoredResults } from '../services/results.service.js';
+import { filterPrematureLiveResults } from '../services/public-live-filter.service.js';
 import {
   coordinatorLiveResultsCache,
   ensureCoordinatorAlarm,
@@ -22,6 +23,7 @@ async function liveResultsRoute(request, env, ctx) {
   const fast = url.searchParams.get('fast') === '1' || url.searchParams.get('quick') === '1';
   const fresh = url.searchParams.get('fresh') === '1' || url.searchParams.get('nocache') === '1' || url.searchParams.get('live') === '1';
   const debug = url.searchParams.get('debug') === '1';
+  const requestRefresh = url.searchParams.get('refresh') === '1';
   const clientPoll = url.searchParams.get('live') === '1' && !force && !debug;
   const hasFilter = !!(url.searchParams.get('date') || url.searchParams.get('ids') || url.searchParams.get('round') || url.searchParams.get('all'));
 
@@ -39,7 +41,8 @@ async function liveResultsRoute(request, env, ctx) {
 
     ctx?.waitUntil?.(ensureCoordinatorAlarm(env).catch(() => null));
 
-    if (clientPoll && !noSync && (stale || cacheCount === 0)) {
+    const shouldRefresh = clientPoll && !noSync && (requestRefresh || stale || cacheCount === 0);
+    if (shouldRefresh) {
       const refreshPromise = runCoordinator(env, 'live', { force: false }).catch(error => ({
         ok: false,
         error: error?.message || String(error),
@@ -48,7 +51,7 @@ async function liveResultsRoute(request, env, ctx) {
 
       // On a cold cache, wait briefly for the central sync. If it takes longer,
       // return the last known snapshot and let waitUntil finish it safely.
-      if (cacheCount === 0) {
+      if (cacheCount === 0 || requestRefresh) {
         const refresh = await Promise.race([
           refreshPromise,
           delay(EMPTY_CACHE_WAIT_MS).then(() => null)
@@ -67,7 +70,7 @@ async function liveResultsRoute(request, env, ctx) {
       env,
       sync: clientPoll ? {
         ok: true,
-        queued: clientPoll && !noSync && (stale || cacheCount === 0),
+        queued: shouldRefresh,
         source: 'coordinator-shared-live-cache',
         cacheAgeMs: Number.isFinite(cacheAgeMs) ? cacheAgeMs : null
       } : null,
@@ -137,19 +140,20 @@ async function livePayload(meta = {}) {
     nextDelayMs = nextSuggestedDelayMs(fixtures, stored.results || {});
   } catch (_) {}
 
-  const visibleResults = {
+  const mergedResults = {
     ...(stored.results || {}),
     ...(snapshot.results || {}),
     ...coordinatorResults,
     ...syncResults
   };
+  const visibleResults = filterPrematureLiveResults(mergedResults, fixtures);
 
   return {
     ok: true,
     sync: meta.sync || null,
     count: Object.keys(visibleResults).length,
     results: visibleResults,
-    pipelineVersion: 'b42-numbered-added-time-clock',
+    pipelineVersion: 'b43-delayed-kickoff-clock',
     nextDelayMs,
     source: meta.source || meta.coordinatorCache?.source || snapshot.source || stored.source || 'memory',
     fast: !!meta.fast,

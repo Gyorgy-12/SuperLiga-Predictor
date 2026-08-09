@@ -246,9 +246,10 @@ export const STATIC_FIXTURES = [
     "id": "m25",
     "g": "SL",
     "r": 4,
-    "date": "2026-08-08",
-    "t": "21:00",
-    "label": "8-9 aug.",
+    "date": "2026-08-10",
+    "t": "21:30",
+    "label": "10 aug.",
+    "kickoffAt": "2026-08-10T21:30:00+03:00",
     "h": "Sepsi OSK",
     "a": "FCSB"
   },

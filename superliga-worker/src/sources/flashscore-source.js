@@ -1364,7 +1364,9 @@ export function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   // Keep strict source priority and use the first valid clock. Never choose the
   // numerically largest signal: Flashscore metadata can expose a 45'/90' period
   // boundary while the real provider clock is still, for example, 41'.
+  const periodClock = deriveFlashscorePeriodClock(dc, meta, pack.now ?? Date.now());
   const minuteSignals = [
+    periodClock,
     { value: listClock.liveMinute, source: listClock.minuteSource || 'flashscore-list-clock', observedAt: listClock.clockObservedAt },
     { value: pack.providerMinute, source: pack.minuteSource || 'provider-detail', observedAt: pack.clockObservedAt },
     { value: pack.minute, source: pack.minuteSource || 'provider-detail', observedAt: pack.clockObservedAt },
@@ -1434,6 +1436,38 @@ export function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   };
 }
 
+/**
+ * Flashscore's mobile list clock is based on the advertised kickoff and can be
+ * one or two minutes ahead when a match starts late. The DC detail feed keeps
+ * the actual start of the current period in DD, so prefer that anchor during
+ * normal playing time. Added time remains provider-driven because an elapsed
+ * timestamp cannot tell how the referee labels 45+ and 90+.
+ */
+export function deriveFlashscorePeriodClock(dc = {}, meta = {}, now = Date.now()) {
+  if (String(dc.liveCode ?? meta.liveCode ?? '') !== '1') return { value: null };
+  const startedAt = Date.parse(String(dc.periodStartedAt || meta.periodStartedAt || ''));
+  const nowMs = Number(now);
+  if (!Number.isFinite(startedAt) || !Number.isFinite(nowMs)) return { value: null };
+
+  const elapsedMs = nowMs - startedAt;
+  if (elapsedMs < -15_000) return { value: null };
+  const elapsedMinute = Math.max(1, Math.ceil(Math.max(0, elapsedMs) / 60_000));
+  const period = String(meta.currentPeriod || '').trim().toUpperCase();
+  let base = null;
+  let limit = null;
+  if (/\b(1ST|FIRST) HALF\b/.test(period)) { base = 0; limit = 45; }
+  else if (/\b(2ND|SECOND) HALF\b/.test(period)) { base = 45; limit = 45; }
+  else if (/\b(1ST|FIRST).*(EXTRA|ET)\b/.test(period)) { base = 90; limit = 15; }
+  else if (/\b(2ND|SECOND).*(EXTRA|ET)\b/.test(period)) { base = 105; limit = 15; }
+  if (base == null || elapsedMinute >= limit) return { value: null };
+
+  return {
+    value: String(base + elapsedMinute),
+    source: 'provider-flashscore-period-anchor',
+    observedAt: new Date(nowMs).toISOString()
+  };
+}
+
 function flashscoreMinuteNumber(value) {
   const text = String(value || '').replace(/[’']/g, '').trim();
   const parts = text.split('+').map(x => Number(x));
@@ -1443,12 +1477,20 @@ function flashscoreMinuteNumber(value) {
 
 function parseFlashscoreDcFeed(raw) {
   const pairs = parseLivesportPairs(raw);
-  const scheduledRaw = lastValueFor(pairs, 'DD') || lastValueFor(pairs, 'DC');
+  const scheduledRaw = lastValueFor(pairs, 'DC');
+  const periodStartedRaw = lastValueFor(pairs, 'DD');
+  const stateUpdatedRaw = lastValueFor(pairs, 'DK');
   const scheduledAtUnix = toIntOrNull(scheduledRaw);
+  const periodStartedAtUnix = toIntOrNull(periodStartedRaw);
+  const stateUpdatedAtUnix = toIntOrNull(stateUpdatedRaw);
   const availableSectionsRaw = lastValueFor(pairs, 'DX');
   return {
     scheduledAtUnix: Number.isFinite(scheduledAtUnix) ? scheduledAtUnix : null,
     scheduledAt: Number.isFinite(scheduledAtUnix) ? new Date(scheduledAtUnix * 1000).toISOString() : null,
+    periodStartedAtUnix: Number.isFinite(periodStartedAtUnix) ? periodStartedAtUnix : null,
+    periodStartedAt: Number.isFinite(periodStartedAtUnix) ? new Date(periodStartedAtUnix * 1000).toISOString() : null,
+    stateUpdatedAtUnix: Number.isFinite(stateUpdatedAtUnix) ? stateUpdatedAtUnix : null,
+    stateUpdatedAt: Number.isFinite(stateUpdatedAtUnix) ? new Date(stateUpdatedAtUnix * 1000).toISOString() : null,
     statusCode: lastValueFor(pairs, 'DS'),
     phaseCode: lastValueFor(pairs, 'DI'),
     liveCode: lastValueFor(pairs, 'DL'),
@@ -1461,6 +1503,10 @@ function mergeFlashscoreMeta(meta = {}, dc = null) {
   const out = { ...(meta || {}) };
   if (dc?.scheduledAt) out.scheduledAt = dc.scheduledAt;
   if (dc?.scheduledAtUnix != null) out.scheduledAtUnix = dc.scheduledAtUnix;
+  if (dc?.periodStartedAt) out.periodStartedAt = dc.periodStartedAt;
+  if (dc?.periodStartedAtUnix != null) out.periodStartedAtUnix = dc.periodStartedAtUnix;
+  if (dc?.stateUpdatedAt) out.stateUpdatedAt = dc.stateUpdatedAt;
+  if (dc?.stateUpdatedAtUnix != null) out.stateUpdatedAtUnix = dc.stateUpdatedAtUnix;
   if (dc?.availableSections?.length) out.availableSections = dc.availableSections;
   if (dc?.imageUrl) out.imageUrl = dc.imageUrl;
   if (dc?.statusCode != null) out.statusCode = dc.statusCode;
@@ -1478,7 +1524,7 @@ function hasMeaningfulPrematchMeta(meta = {}) {
 
 function hasMeaningfulDcData(dc = {}) {
   return !!(
-    dc.scheduledAt || dc.imageUrl || (dc.availableSections || []).length ||
+    dc.scheduledAt || dc.periodStartedAt || dc.stateUpdatedAt || dc.imageUrl || (dc.availableSections || []).length ||
     dc.statusCode != null || dc.phaseCode != null || dc.liveCode != null
   );
 }

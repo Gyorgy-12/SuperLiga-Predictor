@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { normalizeLiveMatch } from '../src/core/normalize-live.js';
 import { parseFlashscoreListFeed } from '../src/sources/flashscore-mid-discovery-source.js';
 import { parseFlashscoreMobileFootballPage } from '../src/sources/flashscore-mobile-clock-source.js';
-import { deriveFlashscoreLiveState } from '../src/sources/flashscore-source.js';
+import { deriveFlashscoreLiveState, deriveFlashscorePeriodClock } from '../src/sources/flashscore-source.js';
 
 test('Flashscore list feed keeps a bare first-half added-time clock', () => {
   const raw = '~AA÷clockA1¬AD÷1786132800¬AE÷Home FC¬AF÷Away FC¬AG÷1¬AH÷0¬BX÷45+';
@@ -53,6 +53,30 @@ test('Flashscore live state prefers a numbered added-time clock over a bare one'
   assert.equal(state.providerMinute, '90+4');
   assert.equal(state.minuteSource, 'provider-detail');
   assert.equal(state.clockObservedAt, '2026-08-08T19:48:00.000Z');
+});
+
+test('Flashscore live state corrects a nominal mobile clock from the actual period start', () => {
+  const now = Date.parse('2026-08-09T18:47:10.000Z');
+  const clock = deriveFlashscorePeriodClock({
+    liveCode: '1',
+    periodStartedAt: '2026-08-09T18:32:26.000Z'
+  }, { currentPeriod: '1st Half' }, now);
+  assert.equal(clock.value, '15');
+
+  const state = deriveFlashscoreLiveState({
+    now,
+    dc: { liveCode: '1', periodStartedAt: '2026-08-09T18:32:26.000Z' },
+    meta: { currentPeriod: '1st Half' },
+    listClock: {
+      liveMinute: '16',
+      minuteSource: 'flashscore-mobile-page',
+      clockObservedAt: '2026-08-09T18:47:10.000Z'
+    },
+    score: { h: 0, a: 1 }
+  }, 'event_feed');
+
+  assert.equal(state.providerMinute, '15');
+  assert.equal(state.minuteSource, 'provider-flashscore-period-anchor');
 });
 
 test('public live normalization does not strip a bare added-time clock', () => {
