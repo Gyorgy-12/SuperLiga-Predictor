@@ -123,6 +123,7 @@ function mapToExisting(rawFixtures, existingFixtures) {
 function mergeFixture(base, clean, source) {
   const date = clean.date || base.date;
   const t = clean.t || base.t;
+  const hasConfirmedTime = /^\d{1,2}:\d{2}$/.test(String(t || ''));
   return {
     ...base,
     ...Object.fromEntries(Object.entries(clean).filter(([, v]) => v !== null && v !== undefined && v !== '')),
@@ -132,7 +133,9 @@ function mergeFixture(base, clean, source) {
     date,
     t,
     label: clean.label || (date ? labelFromDate(date) : base.label),
-    kickoffAt: clean.kickoffAt || (date && t ? `${date}T${t}:00+03:00` : base.kickoffAt),
+    kickoffAt: hasConfirmedTime
+      ? (clean.kickoffAt || `${date}T${t}:00+03:00`)
+      : null,
     sourceIds: { ...(base.sourceIds || {}), ...(clean.sourceIds || {}) },
     fixtureSource: source,
     fixtureUpdatedAt: new Date().toISOString()
@@ -207,7 +210,7 @@ export async function fetchFixtureRefresh(env, existingFixtures = [], opts = {})
 
 export function parseLpfRoundHtml(html, roundFixtures = [], round = null) {
   const text = textFromHtml(html);
-  const dateRe = /\b(\d{1,2})\s+(ianuarie|ian|februarie|feb|martie|mar|aprilie|apr|mai|iunie|iun|iulie|iul|august|aug|septembrie|sept|sep|octombrie|oct|noiembrie|noi|decembrie|dec)\s+(20\d{2}),\s*(\d{1,2}:\d{2})\b/giu;
+  const dateRe = /\b(\d{1,2})\s+(ianuarie|ian|februarie|feb|martie|mar|aprilie|apr|mai|iunie|iun|iulie|iul|august|aug|septembrie|sept|sep|octombrie|oct|noiembrie|noi|decembrie|dec)\s+(20\d{2}),\s*(\d{1,2}:\d{2}|-)(?=\s|$)/giu;
   const hits = [...text.matchAll(dateRe)].map(m => ({
     index: m.index,
     end: m.index + m[0].length,
@@ -235,7 +238,7 @@ export function parseLpfRoundHtml(html, roundFixtures = [], round = null) {
       date: hit.date,
       t: hit.t,
       label: labelFromDate(hit.date),
-      kickoffAt: `${hit.date}T${hit.t}:00+03:00`
+      kickoffAt: /^\d{1,2}:\d{2}$/.test(hit.t) ? `${hit.date}T${hit.t}:00+03:00` : null
     }, 'lpf'));
   }
   if (!mapped.length && hits.length) warnings.push(`date blocks found (${hits.length}) but no fixture matched`);

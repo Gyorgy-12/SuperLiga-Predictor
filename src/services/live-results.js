@@ -9,7 +9,7 @@ let LIGA2_STANDINGS=superligaNormalizeLiga2Standings(FROZEN_MODE&&window.__SUPER
 superligaPublishLiga2Logos();
 
 function saveLiveResults(){try{sessionStorage.setItem(SUPERLIGA_CACHE_KEYS.liveSnapshot,JSON.stringify(LIVE_RESULTS))}catch(e){}}
-function fixtureKickoff(m){let exact=Date.parse(String(m&&m.kickoffAt||''));return Number.isFinite(exact)?exact:new Date(m.date+'T'+m.t+':00+03:00').getTime()}
+function fixtureKickoff(m){let exact=Date.parse(String(m&&m.kickoffAt||''));if(Number.isFinite(exact))return exact;let raw=String(m&&m.t||''),time=/^\d{1,2}:\d{2}$/.test(raw)?raw:'12:00';return new Date(m.date+'T'+time+':00+03:00').getTime()}
 function localMatchTime(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit',timeZone:tz||Intl.DateTimeFormat().resolvedOptions().timeZone})}catch(e){return m.t}}
 function localMatchDate(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleDateString('hu-HU',{month:'short',day:'numeric',timeZone:tz||Intl.DateTimeFormat().resolvedOptions().timeZone}).replace(/\u00a0/g,' ')}catch(e){return m.d}}
 function matchSortKey(m){return (m.date||'9999-99-99')+'T'+(m.t||'99:99')+'|'+String(m.r||'').padStart(2,'0')+'|'+(m.g||'')+'|'+(m.id||'')}
@@ -297,8 +297,9 @@ function applyFixtureList(list){
     if(!date||!time)return;
     let yr=+String(date).slice(0,4);if(yr<2026||yr>2027)return;
     let fields={date:String(date),t:String(time),label:ov.label||x.label,kickoffAt:ov.kickoffAt||null,livescoreId:ov.livescoreId||x.livescoreId||null,sofascoreId:ov.sofascoreId||x.sofascoreId||null,fixtureSource:ov.fixtureSource||ov.source||x.fixtureSource||null,fixtureUpdatedAt:ov.fixtureUpdatedAt||ov.fixtureCacheUpdatedAt||x.fixtureUpdatedAt||null};
-    Object.entries(fields).forEach(([k,v])=>{if(v!==undefined&&v!==null&&x[k]!==v){x[k]=v;changed=true}});
-    let day=+(String(x.date).replace(/-/g,'')+String(x.t).replace(':',''));
+    Object.entries(fields).forEach(([k,v])=>{if(k==='kickoffAt'){let next=v||null;if(x[k]!==next){x[k]=next;changed=true}}else if(v!==undefined&&v!==null&&x[k]!==v){x[k]=v;changed=true}});
+    let timeKey=/^\d{1,2}:\d{2}$/.test(String(x.t||''))?String(x.t).replace(':',''):'1200';
+    let day=+(String(x.date).replace(/-/g,'')+timeKey);
     if(x.day!==day){x.day=day;changed=true;}
   });
   Object.entries(LIVE_RESULTS||{}).forEach(([id,row])=>{

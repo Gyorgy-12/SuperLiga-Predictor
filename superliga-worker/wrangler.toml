@@ -18,6 +18,8 @@ COORDINATOR_NAME = "superliga-main"
 LIVE_SCORE_APP_BASE_URL = "https://prod-public-api.livescore.com/v1/api/app"
 LIVE_SCORE_BASE_URL = "https://prod-public-api.livescore.com/v1/api/app"
 SOFASCORE_BASE_URL = "https://www.sofascore.com/api/v1"
+# LPF is the authoritative primary source for both fixture dates and kickoffs.
+# A '-' kickoff is kept unknown instead of inheriting an obsolete time.
 FIXTURE_SOURCE_URL = "https://lpf.ro/etape-liga-1/{round}"
 ODDS_SOURCE_URL = ""
 

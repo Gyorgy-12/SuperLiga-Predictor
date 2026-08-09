@@ -3,7 +3,7 @@ import { COLLECTIONS, PUBLIC_CACHE_DOCS } from '../config/collections.js';
 import { getDocument, listDocuments, patchDocument } from './firestore.service.js';
 import { coordinatorFixtureCache } from './coordinator.service.js';
 
-const AUTHORITATIVE_FIXTURE_CORRECTIONS = Object.freeze({
+const LPF_AUTHORITATIVE_FIXTURE_CORRECTIONS = Object.freeze({
   m25: Object.freeze({
     date: '2026-08-10',
     t: '21:30',
@@ -11,6 +11,14 @@ const AUTHORITATIVE_FIXTURE_CORRECTIONS = Object.freeze({
     kickoffAt: '2026-08-10T21:30:00+03:00',
     fixtureSource: 'lpf-official-correction-20260809',
     fixtureUpdatedAt: '2026-08-09T19:00:00.000Z'
+  }),
+  m27: Object.freeze({
+    date: '2026-10-08',
+    t: '-',
+    label: '8 oct.',
+    kickoffAt: null,
+    fixtureSource: 'lpf-round-pages-date-only',
+    fixtureUpdatedAt: '2026-08-09T19:10:00.000Z'
   })
 });
 
@@ -27,7 +35,7 @@ function mergeOntoSeed(overrides = []) {
   return sortFixtures(STATIC_FIXTURES.map(f => ({
     ...f,
     ...(byId[String(f.id)] || {}),
-    ...(AUTHORITATIVE_FIXTURE_CORRECTIONS[String(f.id)] || {})
+    ...(LPF_AUTHORITATIVE_FIXTURE_CORRECTIONS[String(f.id)] || {})
   })));
 }
 

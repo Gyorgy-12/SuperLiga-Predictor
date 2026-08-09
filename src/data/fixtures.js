@@ -28,7 +28,7 @@ function fixtures(){
     {id:'m24',g:'SL',r:3,date:'2026-07-31',t:'18:30',label:'31 iul.',h:'FC Argeș',a:'Csikszereda'},
     {id:'m25',g:'SL',r:4,date:'2026-08-10',t:'21:30',label:'10 aug.',kickoffAt:'2026-08-10T21:30:00+03:00',h:'Sepsi OSK',a:'FCSB'},
     {id:'m26',g:'SL',r:4,date:'2026-08-10',t:'18:30',label:'10 aug.',h:'FC Botoșani',a:'Corvinul Hunedoara'},
-    {id:'m27',g:'SL',r:4,date:'2026-08-10',t:'21:30',label:'10 aug.',h:'CFR Cluj',a:'Universitatea Cluj'},
+    {id:'m27',g:'SL',r:4,date:'2026-10-08',t:'-',label:'8 oct.',h:'CFR Cluj',a:'Universitatea Cluj'},
     {id:'m28',g:'SL',r:4,date:'2026-08-07',t:'21:00',label:'7 aug.',h:'UTA Arad',a:'Rapid București'},
     {id:'m29',g:'SL',r:4,date:'2026-08-08',t:'21:30',label:'8 aug.',h:'Dinamo',a:'FC Voluntari'},
     {id:'m30',g:'SL',r:4,date:'2026-08-09',t:'18:30',label:'9 aug.',h:'Petrolul Ploiești',a:'Oțelul Galați'},

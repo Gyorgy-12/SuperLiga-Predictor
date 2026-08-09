@@ -32,3 +32,10 @@ test('a stale live row is rejected before a postponed fixture starts', () => {
     false
   );
 });
+
+test('an LPF fixture without a confirmed time still has a stable date anchor', () => {
+  assert.equal(
+    context.fixtureKickoff({ date: '2026-10-08', t: '-', kickoffAt: null }),
+    Date.parse('2026-10-08T12:00:00+03:00')
+  );
+});

@@ -267,9 +267,9 @@ export const STATIC_FIXTURES = [
     "id": "m27",
     "g": "SL",
     "r": 4,
-    "date": "2026-08-08",
-    "t": "21:00",
-    "label": "8-9 aug.",
+    "date": "2026-10-08",
+    "t": "-",
+    "label": "8 oct.",
     "h": "CFR Cluj",
     "a": "Universitatea Cluj"
   },
