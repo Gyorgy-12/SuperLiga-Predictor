@@ -155,7 +155,7 @@ function superligaMinuteToken(value){
   let m=s.match(/(?:^|\s)(\d{1,3}(?:\+(?:\d{1,2})?)?)(?:[’'′]|\s|$)/);
   return m?m[1]:null;
 }
-function superligaFormattedMinuteToken(token){return token&&token.endsWith('+')?token:token?token+"'":''}
+function superligaFormattedMinuteToken(token,r){return superligaAddedTimeLabel(token,r)}
 function superligaTrustedClockSource(value){
   let s=String(value||'').toLowerCase();
   return s.includes('provider')||s.includes('flashscore-list')||s.includes('flashscore-mobile')||s.includes('mobile-page')||s.includes('flashscore-clock');
@@ -168,8 +168,8 @@ function liveClockLabel(r){
   if(/\bAET\b/.test(statusBlob)||statusBlob.includes('EXTRA TIME'))return'AET';
   if(/\bPEN\b/.test(statusBlob)||statusBlob.includes('SHOOTOUT'))return'PEN';
 
-  // The UI mirrors the exact provider clock. Status/display fields, incident
-  // timestamps and time-based interpolation must never manufacture 45'/90'.
+  // Exact provider clocks win. If Flashscore only emits a bare 45+/90+, the
+  // stored first-observation time supplies the numbered added-time minute.
   let source=String(r.minuteSource||'').toLowerCase();
   let token=superligaMinuteToken(r.providerMinute);
   if(!token&&superligaTrustedClockSource(source))token=superligaMinuteToken(r.minute);
@@ -177,7 +177,7 @@ function liveClockLabel(r){
     token=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute]
       .map(superligaMinuteToken).find(Boolean)||null;
   }
-  return token?superligaFormattedMinuteToken(token):'Élő';
+  return token?superligaFormattedMinuteToken(token,r):'Élő';
 }
 
 function superligaStatusBlob(r){

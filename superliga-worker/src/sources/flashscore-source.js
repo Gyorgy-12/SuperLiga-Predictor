@@ -1380,10 +1380,13 @@ export function deriveFlashscoreLiveState(pack = {}, fallbackState = null) {
   for (const signal of minuteSignals) {
     const m = String(signal.value ?? '').match(/(?:^|\s)(\d{1,3}(?:\+(?:\d{1,2})?)?)(?:['’]|\s|$)/);
     if (!m) continue;
-    providerMinute = m[1];
-    providerMinuteSource = signal.source;
-    providerClockObservedAt = signal.observedAt || new Date().toISOString();
-    break;
+    const selectedBare = String(providerMinute || '').match(/^(\d{1,3})\+$/);
+    const candidateExact = m[1].match(/^(\d{1,3})\+(\d{1,2})$/);
+    if (!providerMinute || (selectedBare && candidateExact && selectedBare[1] === candidateExact[1])) {
+      providerMinute = m[1];
+      providerMinuteSource = signal.source;
+      providerClockObservedAt = signal.observedAt || new Date().toISOString();
+    }
   }
 
   const eventMinutes = [

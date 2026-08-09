@@ -6,6 +6,29 @@ function cleanMinute(value) {
   return s;
 }
 
+function addedTimeParts(value) {
+  const match = String(value ?? '').replace(/[’'′]/g, '').trim().match(/^(\d{1,3})\+(\d{0,2})$/);
+  if (!match) return null;
+  return { base: Number(match[1]), extra: match[2] === '' ? null : Number(match[2]) };
+}
+
+function timestampMs(value) {
+  if (Number.isFinite(Number(value)) && String(value ?? '').trim() !== '') return Number(value);
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function addedTimeStartedAt(value, minute, observedAt) {
+  const parts = addedTimeParts(minute);
+  if (!parts) return null;
+  const explicit = timestampMs(value);
+  if (Number.isFinite(explicit)) return new Date(explicit).toISOString();
+  const observed = timestampMs(observedAt);
+  if (!Number.isFinite(observed)) return null;
+  const extra = parts.extra === null ? 1 : Math.max(1, parts.extra);
+  return new Date(observed - (extra - 1) * 60_000).toISOString();
+}
+
 function validScore(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 }
@@ -219,6 +242,10 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
       ? raw.minute
       : null
   );
+  const normalizedProviderMinute = explicitPrematch ? null : cleanMinute(providerMinute);
+  const normalizedAddedTimeStartedAt = explicitPrematch
+    ? null
+    : addedTimeStartedAt(raw.addedTimeStartedAt, normalizedProviderMinute ?? minute, raw.clockObservedAt);
 
   const scorers = [
     ...(raw.scorers || []),
@@ -250,7 +277,8 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
     finished,
     status,
     minute,
-    providerMinute: explicitPrematch ? null : cleanMinute(providerMinute),
+    providerMinute: normalizedProviderMinute,
+    addedTimeStartedAt: normalizedAddedTimeStartedAt,
     latestIncidentMinute: cleanMinute(raw.latestIncidentMinute ?? null),
     minuteSource: raw.minuteSource || null,
     clockObservedAt: raw.clockObservedAt || null,

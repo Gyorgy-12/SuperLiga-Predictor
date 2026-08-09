@@ -30,6 +30,34 @@ function superligaResultObservedAt(r){
   let numeric=Number(r?._clockObservedAt||r?._receivedAt);
   return Number.isFinite(numeric)?numeric:null;
 }
+function superligaAddedTimeParts(value){
+  let token=String(value??'').replace(/[’'′]/g,'').trim(),match=token.match(/^(\d{1,3})\+(\d{0,2})$/);
+  if(!match)return null;
+  return{base:Number(match[1]),extra:match[2]===''?null:Number(match[2])};
+}
+function superligaTimestampMs(value){
+  if(Number.isFinite(Number(value))&&String(value??'').trim()!=='')return Number(value);
+  let parsed=Date.parse(String(value||''));
+  return Number.isFinite(parsed)?parsed:null;
+}
+function superligaAddedTimeStartMs(token,explicitStart,observedAt){
+  let parts=superligaAddedTimeParts(token);
+  if(!parts)return null;
+  let explicit=superligaTimestampMs(explicitStart);
+  if(Number.isFinite(explicit))return explicit;
+  let observed=superligaTimestampMs(observedAt);
+  if(!Number.isFinite(observed))observed=Date.now();
+  let extra=parts.extra===null?1:Math.max(1,parts.extra);
+  return observed-(extra-1)*60*1000;
+}
+function superligaAddedTimeLabel(token,r,now=Date.now()){
+  let parts=superligaAddedTimeParts(token);
+  if(!parts)return token?token+"'":'';
+  if(parts.extra!==null)return parts.base+'+'+parts.extra+"'";
+  let started=superligaAddedTimeStartMs(token,r?._addedTimeStartedAt??r?.addedTimeStartedAt,r?._clockObservedAt??r?.clockObservedAt);
+  let elapsed=Number.isFinite(started)?Math.max(0,Math.floor((now-started)/60000)):0;
+  return parts.base+'+'+Math.min(30,elapsed+1)+"'";
+}
 function superligaIsEffectivelyFinished(r,m){
   if(!r)return false;
   let status=superligaTerminalStatusText(r);
@@ -134,9 +162,12 @@ function normalizeLiveResult(id,d){
   let phaseCode=d.phaseCode??matchMeta?.phaseCode??null;
   let statusCode=d.statusCode??matchMeta?.statusCode??null;
   let liveCode=d.liveCode??matchMeta?.liveCode??null;
+  let minute=d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null;
   let providerMinute=d.providerMinute??(superligaTickerTrustedClockSource(d.minuteSource)?d.minute:null);
   let clockObservedMs=Date.parse(d.clockObservedAt||'');
-  return{_fixtureId:id,_receivedAt:Date.now(),_clockObservedAt:Number.isFinite(clockObservedMs)?clockObservedMs:Date.now(),_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute:d.minute??d.matchMinute??d.elapsed??d.currentMinute??d.liveMinute??d.matchTime??d.time??d.statusMinute??null,providerMinute,latestIncidentMinute:d.latestIncidentMinute??null,minuteSource:d.minuteSource??null,clockObservedAt:d.clockObservedAt??null,status:rawStatus,period,shortDetail,detail,displayClock,statusText,phaseCode,statusCode,liveCode,matchMeta,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,ratingsSnapshot:superligaNormalizeRatingsSnapshot(d.ratingsSnapshot),source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
+  let addedTimeStartedMs=superligaAddedTimeStartMs(providerMinute??minute,d.addedTimeStartedAt??d._addedTimeStartedAt,Number.isFinite(clockObservedMs)?clockObservedMs:d._clockObservedAt);
+  let addedTimeStartedAt=Number.isFinite(addedTimeStartedMs)?new Date(addedTimeStartedMs).toISOString():null;
+  return{_fixtureId:id,_receivedAt:Date.now(),_clockObservedAt:Number.isFinite(clockObservedMs)?clockObservedMs:Date.now(),_addedTimeStartedAt:addedTimeStartedMs,_kickoffMs:Number.isFinite(kickoffMs)?kickoffMs:null,started:!!started,finished:!!finished,h:+h,a:+a,pH:validScore(pH)?+pH:null,pA:validScore(pA)?+pA:null,minute,providerMinute,addedTimeStartedAt,latestIncidentMinute:d.latestIncidentMinute??null,minuteSource:d.minuteSource??null,clockObservedAt:d.clockObservedAt??null,status:rawStatus,period,shortDetail,detail,displayClock,statusText,phaseCode,statusCode,liveCode,matchMeta,scorers,events,redCards,yellowCards,doubleYellowCards,penalties,substitutions,odds,ratingsSnapshot:superligaNormalizeRatingsSnapshot(d.ratingsSnapshot),source:d.source||'SuperLiga backend',updatedAt:d.updatedAt||d.updated||new Date().toISOString()};
 }
 (function normalizeCachedSuperligaEvents(){let fixed={};Object.entries(LIVE_RESULTS||{}).forEach(([rawId,row])=>{let id=resolveIncomingFixtureId(rawId,row),r=normalizeLiveResult(id,row);if(r)fixed[id]=r});LIVE_RESULTS=fixed;saveLiveResults()})();
 function superligaLiveEventKey(e,kind='event'){
@@ -161,6 +192,14 @@ function superligaMergeEventRows(oldRows,newRows,kind='event'){
 function superligaReconcileLiveResult(old,r){
   if(!old)return r;
   if(old.ratingsSnapshot)r.ratingsSnapshot=old.ratingsSnapshot;
+  let oldAdded=superligaAddedTimeParts(old.providerMinute??old.minute),nextAdded=superligaAddedTimeParts(r.providerMinute??r.minute);
+  if(oldAdded&&nextAdded&&oldAdded.base===nextAdded.base){
+    let anchors=[old._addedTimeStartedAt,r._addedTimeStartedAt].map(Number).filter(Number.isFinite);
+    if(anchors.length){
+      r._addedTimeStartedAt=Math.min(...anchors);
+      r.addedTimeStartedAt=new Date(r._addedTimeStartedAt).toISOString();
+    }
+  }
   let sameScore=old.h===r.h&&old.a===r.a,expected=Math.max(0,(+r.h||0)+(+r.a||0));
   let incomingScorers=Array.isArray(r.scorers)?r.scorers:[],oldScorers=Array.isArray(old.scorers)?old.scorers:[];
   if(sameScore&&incomingScorers.length<expected&&oldScorers.length){
@@ -177,7 +216,7 @@ function superligaReconcileLiveResult(old,r){
   }
   return r;
 }
-function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,pm:r.providerMinute,mis:r.minuteSource,lim:r.latestIncidentMinute,st:r.status,pr:r.period,sd:r.shortDetail,dt:r.detail,dc:r.displayClock,tx:r.statusText,pc:r.phaseCode,scd:r.statusCode,lc:r.liveCode,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds,rs:r.ratingsSnapshot})}
+function liveResultFingerprint(r){return JSON.stringify({s:r.started,f:r.finished,h:r.h,a:r.a,pH:r.pH,pA:r.pA,m:r.minute,pm:r.providerMinute,ats:r.addedTimeStartedAt,mis:r.minuteSource,lim:r.latestIncidentMinute,st:r.status,pr:r.period,sd:r.shortDetail,dt:r.detail,dc:r.displayClock,tx:r.statusText,pc:r.phaseCode,scd:r.statusCode,lc:r.liveCode,sc:r.scorers,ev:r.events,rc:r.redCards,yc:r.yellowCards,dy:r.doubleYellowCards,pe:r.penalties,su:r.substitutions,od:r.odds,rs:r.ratingsSnapshot})}
 function mergeLiveResults(next){
   let changed=false,pruneNeeded=false;
   Object.entries(next||{}).forEach(([rawId,obj])=>{
@@ -528,7 +567,7 @@ function superligaTickerMinuteToken(value){
   let m=s.match(/(?:^|\s)(\d{1,3}(?:\+(?:\d{1,2})?)?)(?:[’'′]|\s|$)/);
   return m?m[1]:null;
 }
-function superligaTickerFormattedMinute(token){return token&&token.endsWith('+')?token:token?token+"'":''}
+function superligaTickerFormattedMinute(token,r){return superligaAddedTimeLabel(token,r)}
 function superligaTickerTrustedClockSource(value){
   let s=String(value||'').toLowerCase();
   return s.includes('provider')||s.includes('flashscore-list')||s.includes('flashscore-mobile')||s.includes('mobile-page')||s.includes('flashscore-clock');
@@ -552,7 +591,7 @@ function superligaClientClockLabel(id,r){
     providerToken=[r.minute,r.matchMinute,r.elapsed,r.currentMinute,r.liveMinute,r.matchTime,r.statusMinute]
       .map(superligaTickerMinuteToken).find(Boolean)||null;
   }
-  return providerToken?superligaTickerFormattedMinute(providerToken):'Élő';
+  return providerToken?superligaTickerFormattedMinute(providerToken,r):'Élő';
 }
 
 function superligaRefreshVisibleClockPills(){

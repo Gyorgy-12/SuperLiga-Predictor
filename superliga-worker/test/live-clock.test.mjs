@@ -37,6 +37,24 @@ test('Flashscore live state exposes a bare added-time clock to clients', () => {
   assert.equal(state.status, '45+');
 });
 
+test('Flashscore live state prefers a numbered added-time clock over a bare one', () => {
+  const state = deriveFlashscoreLiveState({
+    listClock: {
+      liveMinute: '90+',
+      minuteSource: 'flashscore-list-bx',
+      clockObservedAt: '2026-08-08T19:45:00.000Z'
+    },
+    providerMinute: '90+4',
+    minuteSource: 'provider-detail',
+    clockObservedAt: '2026-08-08T19:48:00.000Z',
+    score: { h: 2, a: 1 }
+  }, 'event_feed');
+
+  assert.equal(state.providerMinute, '90+4');
+  assert.equal(state.minuteSource, 'provider-detail');
+  assert.equal(state.clockObservedAt, '2026-08-08T19:48:00.000Z');
+});
+
 test('public live normalization does not strip a bare added-time clock', () => {
   const row = normalizeLiveMatch('SL-1', {
     started: true,
@@ -45,10 +63,26 @@ test('public live normalization does not strip a bare added-time clock', () => {
     a: 1,
     minute: '90+',
     providerMinute: '90+',
-    minuteSource: 'flashscore-list-bx'
+    minuteSource: 'flashscore-list-bx',
+    clockObservedAt: '2026-08-08T19:45:00.000Z'
   });
 
   assert.equal(row.providerMinute, '90+');
   assert.equal(row.minute, '90+');
+  assert.equal(row.addedTimeStartedAt, '2026-08-08T19:45:00.000Z');
 });
 
+test('public normalization infers the added-time start from an exact provider minute', () => {
+  const row = normalizeLiveMatch('SL-2', {
+    started: true,
+    status: "90+4'",
+    h: 2,
+    a: 1,
+    minute: '90+4',
+    providerMinute: '90+4',
+    minuteSource: 'provider-detail',
+    clockObservedAt: '2026-08-08T19:48:00.000Z'
+  });
+
+  assert.equal(row.addedTimeStartedAt, '2026-08-08T19:45:00.000Z');
+});

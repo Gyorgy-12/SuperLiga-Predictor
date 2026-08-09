@@ -981,7 +981,20 @@ function limitFixtures(list, opts = {}) {
 
 function mergeFlashscoreClockRows(xFeed = null, mobile = null) {
   if (!xFeed && !mobile) return null;
-  const liveMinute = mobile?.liveMinute || xFeed?.liveMinute || null;
+  const candidates = [
+    { row: mobile, source: 'flashscore-mobile-page' },
+    { row: xFeed, source: 'flashscore-list-bx' }
+  ].filter(item => item.row?.liveMinute);
+  let selected = candidates[0] || null;
+  const bare = String(selected?.row?.liveMinute || '').replace(/[’'′]/g, '').match(/^(\d{1,3})\+$/);
+  if (bare) {
+    const exact = candidates.find(item => {
+      const match = String(item.row.liveMinute || '').replace(/[’'′]/g, '').match(/^(\d{1,3})\+(\d{1,2})$/);
+      return match && match[1] === bare[1];
+    });
+    if (exact) selected = exact;
+  }
+  const liveMinute = selected?.row?.liveMinute || null;
   const liveStatus = mobile?.liveStatus || xFeed?.liveStatus || null;
   return {
     ...(xFeed || {}),
@@ -989,8 +1002,8 @@ function mergeFlashscoreClockRows(xFeed = null, mobile = null) {
     id: mobile?.id || xFeed?.id || null,
     liveMinute,
     liveStatus,
-    minuteSource: mobile?.liveMinute ? 'flashscore-mobile-page' : (xFeed?.liveMinute ? 'flashscore-list-bx' : null),
-    clockObservedAt: liveMinute ? (mobile?.clockObservedAt || new Date().toISOString()) : null,
+    minuteSource: selected?.source || null,
+    clockObservedAt: liveMinute ? (selected?.row?.clockObservedAt || new Date().toISOString()) : null,
     xFeedClockRaw: xFeed?.listClockRaw || null,
     mobileClockRaw: mobile?.mobileClockRaw || null
   };

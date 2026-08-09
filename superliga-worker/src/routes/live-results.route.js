@@ -149,7 +149,7 @@ async function livePayload(meta = {}) {
     sync: meta.sync || null,
     count: Object.keys(visibleResults).length,
     results: visibleResults,
-    pipelineVersion: 'b41-bare-added-time-clock',
+    pipelineVersion: 'b42-numbered-added-time-clock',
     nextDelayMs,
     source: meta.source || meta.coordinatorCache?.source || snapshot.source || stored.source || 'memory',
     fast: !!meta.fast,
