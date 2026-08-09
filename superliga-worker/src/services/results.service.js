@@ -72,6 +72,14 @@ export async function writeFinalIfChanged(env, match, opts = {}) {
   const base = old?.hash === hash ? stripMeta(old) : match;
   const data = {
     ...base,
+    // A later score/status correction may rebuild `base` from the live match.
+    // Keep migration audit data and the pre-migration backup in that case.
+    ...(old?.legacyRatingsSnapshot
+      ? { legacyRatingsSnapshot: old.legacyRatingsSnapshot }
+      : {}),
+    ...(old?.ratingsSnapshotMigration
+      ? { ratingsSnapshotMigration: old.ratingsSnapshotMigration }
+      : {}),
     ...(ratingsSnapshot ? { ratingsSnapshot } : {}),
     hash,
     finalWrittenAt: old?.finalWrittenAt || writtenAt,
@@ -111,7 +119,7 @@ export function selectImmutableRatingsSnapshot(existing, incoming) {
 export function normalizeMatchRatingsSnapshot(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const normalized = {
-    schemaVersion: 1,
+    schemaVersion: Number(value.schemaVersion) || 1,
     frozenAt: value.frozenAt || null,
     ratingsUpdatedAt: value.ratingsUpdatedAt || null,
     homeTeam: value.homeTeam || null,
@@ -121,7 +129,8 @@ export function normalizeMatchRatingsSnapshot(value) {
     homeMarketValueM: finiteOrNull(value.homeMarketValueM),
     awayMarketValueM: finiteOrNull(value.awayMarketValueM),
     ratingsSource: value.ratingsSource || null,
-    marketSource: value.marketSource || null
+    marketSource: value.marketSource || null,
+    ...optionalSnapshotMetadata(value)
   };
   return [
     normalized.homeElo,
@@ -131,10 +140,11 @@ export function normalizeMatchRatingsSnapshot(value) {
   ].every(Number.isFinite) ? normalized : null;
 }
 
-export async function refreshPublicResultsCache(env, results) {
+export async function refreshPublicResultsCache(env, results, opts = {}) {
   const cleanResults = results && typeof results === 'object' ? results : {};
   const payload = { results: cleanResults, updatedAt: new Date().toISOString(), count: Object.keys(cleanResults).length };
-  await patchDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results, payload).catch(() => null);
+  if (opts.strict) await patchDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results, payload);
+  else await patchDocument(env, COLLECTIONS.publicCache, PUBLIC_CACHE_DOCS.results, payload).catch(() => null);
   const mem = getMemory();
   mem.finalResults = { ...cleanResults };
   setFinalResultsHydrated(true);
@@ -151,4 +161,19 @@ function finiteOrNull(value) {
   if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function optionalSnapshotMetadata(value) {
+  const keys = [
+    'ratingProvider',
+    'ratingScale',
+    'historicalCheckpoint',
+    'historicalArchiveAt',
+    'historicalArchiveSnapshot',
+    'historicalArchiveField',
+    'migrationRevision'
+  ];
+  return Object.fromEntries(keys
+    .filter(key => value[key] !== undefined && value[key] !== null && value[key] !== '')
+    .map(key => [key, value[key]]));
 }

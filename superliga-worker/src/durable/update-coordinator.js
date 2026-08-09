@@ -5,6 +5,10 @@ import { refreshTeamRatings } from '../services/team-ratings.service.js';
 import { syncLive } from '../services/sync.service.js';
 import { getFixtures } from '../services/fixtures.service.js';
 import { backfillFlashscoreMids } from '../services/flashscore-mid-backfill.service.js';
+import {
+  HISTORICAL_OPTA_MIGRATION_REVISION,
+  runHistoricalOptaMigration
+} from '../services/historical-opta-migration.service.js';
 
 const STATE_KEY = 'coordinator-state';
 const LOCK_KEY = 'coordinator-lock';
@@ -24,6 +28,7 @@ const DEFAULT_LIVE_END_AFTER_MINUTES = 120;
 const DEFAULT_LIVE_INTERVAL_SECONDS = 30;
 const DEFAULT_RATINGS_RETRY_MINUTES = 30;
 const RATINGS_REFRESH_REVISION = 'b52-opta-primary-ratings';
+const HISTORICAL_OPTA_MIGRATION_RETRY_MS = 5 * 60_000;
 const ALARM_EARLY_GRACE_MS = 1_500;
 
 export class UpdateCoordinator extends DurableObject {
@@ -66,6 +71,14 @@ export class UpdateCoordinator extends DurableObject {
     }
 
     if (request.method === 'POST' && path === '/ensure-alarm') {
+      const scheduler = await this.readSchedulerState();
+      const migration = this.historicalOptaMigrationSchedule(Date.now(), scheduler);
+      if (migration.due) {
+        // A normal app/health wake-up must also start a pending one-time
+        // migration. Relying only on a previously armed alarm can postpone a
+        // newly deployed revision until that older alarm's original deadline.
+        await this.runTask('historical-opta-migration', { ensured: true });
+      }
       const next = await this.scheduleNextAlarm({ force: false, reason: 'ensure_alarm' });
       return this.json({ ok: true, ...next });
     }
@@ -108,6 +121,9 @@ export class UpdateCoordinator extends DurableObject {
         result = await this.runRatings(opts);
       } else if (normalizedTask === 'live') {
         result = await this.runManualLive(opts);
+      } else if (normalizedTask === 'historical-opta-migration') {
+        result = await runHistoricalOptaMigration(this.env);
+        await this.recordHistoricalOptaMigrationState(result);
       } else {
         result = { ok: false, error: 'unknown_task', task: normalizedTask };
       }
@@ -127,6 +143,14 @@ export class UpdateCoordinator extends DurableObject {
     let fixtures = await getFixtures(this.env, { skipCoordinatorCache: true }).catch(() => []);
     const results = {};
     const ran = [];
+
+    const historicalMigration = this.historicalOptaMigrationSchedule(now, scheduler);
+    if (historicalMigration.due) {
+      results.historicalOptaMigration = await runHistoricalOptaMigration(this.env);
+      ran.push('historical-opta-migration');
+      await this.recordHistoricalOptaMigrationState(results.historicalOptaMigration);
+      scheduler = await this.readSchedulerState();
+    }
 
     const dailyTarget = this.dailyTargetForNow(now, timezone);
     const localDate = dateKeyInZone(now, timezone);
@@ -488,6 +512,14 @@ export class UpdateCoordinator extends DurableObject {
       });
     }
 
+    const historicalMigration = this.historicalOptaMigrationSchedule(now, scheduler);
+    if (!historicalMigration.completed) {
+      candidates.push({
+        at: historicalMigration.nextAt,
+        type: historicalMigration.due ? 'historical_opta_migration_overdue' : 'historical_opta_migration_retry'
+      });
+    }
+
     const rollingIntervalMs = this.rollingOddsRefreshMinutes() * 60_000;
     const lastRollingMs = Date.parse(scheduler.lastRollingOddsAt || '');
     candidates.push({ at: Number.isFinite(lastRollingMs) ? Math.max(now + 1_000, lastRollingMs + rollingIntervalMs) : now + 1_000, type: 'rolling_odds' });
@@ -609,6 +641,48 @@ export class UpdateCoordinator extends DurableObject {
     return { enabled: true, due: false, nextAt, key: nextKey };
   }
 
+  historicalOptaMigrationSchedule(now, scheduler) {
+    const completed = scheduler.historicalOptaMigrationRevision === HISTORICAL_OPTA_MIGRATION_REVISION
+      && scheduler.historicalOptaMigrationOk === true;
+    if (completed) {
+      return { completed: true, due: false, nextAt: Number.POSITIVE_INFINITY };
+    }
+
+    const sameRevision = scheduler.historicalOptaMigrationAttemptRevision === HISTORICAL_OPTA_MIGRATION_REVISION;
+    const lastAttemptMs = sameRevision
+      ? Date.parse(scheduler.historicalOptaMigrationAttemptAt || '')
+      : NaN;
+    const retryAt = Number.isFinite(lastAttemptMs)
+      ? lastAttemptMs + HISTORICAL_OPTA_MIGRATION_RETRY_MS
+      : now;
+    const due = retryAt <= now + ALARM_EARLY_GRACE_MS;
+    return {
+      completed: false,
+      due,
+      nextAt: due ? now + 1_000 : retryAt
+    };
+  }
+
+  async recordHistoricalOptaMigrationState(result) {
+    const scheduler = await this.readSchedulerState();
+    const attemptedAt = new Date().toISOString();
+    const migrationOk = result?.ok === true && result?.totalMigratedCount === 27;
+    scheduler.historicalOptaMigrationAttemptRevision = HISTORICAL_OPTA_MIGRATION_REVISION;
+    scheduler.historicalOptaMigrationAttemptAt = attemptedAt;
+    scheduler.historicalOptaMigrationOk = migrationOk;
+    scheduler.historicalOptaMigrationError = migrationOk
+      ? null
+      : (result?.error || 'historical_opta_migration_failed');
+    scheduler.historicalOptaMigrationWrittenCount = Number(
+      result?.totalMigratedCount || result?.writtenCount || 0
+    );
+    if (migrationOk) {
+      scheduler.historicalOptaMigrationRevision = HISTORICAL_OPTA_MIGRATION_REVISION;
+      scheduler.historicalOptaMigrationAt = attemptedAt;
+    }
+    await this.writeSchedulerState(scheduler);
+  }
+
   timezone() {
     return this.env.SCHEDULER_TIMEZONE || DEFAULT_TIMEZONE;
   }
@@ -685,7 +759,7 @@ export class UpdateCoordinator extends DurableObject {
 
   async readSchedulerState() {
     return await this.ctx.storage.get(SCHEDULER_KEY) || {
-      version: 'b48-ratings-retry',
+      version: 'b53-historical-opta-migration',
       createdAt: new Date().toISOString(),
       lastDailyLocalDate: null,
       lastDailyRatingsKey: null
@@ -693,7 +767,7 @@ export class UpdateCoordinator extends DurableObject {
   }
 
   async writeSchedulerState(state) {
-    state.version = 'b48-ratings-retry';
+    state.version = 'b53-historical-opta-migration';
     state.updatedAt = new Date().toISOString();
     await this.ctx.storage.put(SCHEDULER_KEY, state);
   }
