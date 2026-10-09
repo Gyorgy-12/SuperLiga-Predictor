@@ -5,6 +5,7 @@ import { getFixtures } from '../src/services/fixtures.service.js';
 import { filterPrematureLiveResults } from '../src/services/public-live-filter.service.js';
 import { parseLpfRoundHtml } from '../src/sources/fixture-refresh-source.js';
 import { kickoffMs } from '../src/utils/time.js';
+import { liveFingerprint } from '../src/core/hash.js';
 
 test('official Sepsi OSK - FCSB correction overrides every fixture cache layer', async () => {
   const fixtures = await getFixtures({});
@@ -48,11 +49,22 @@ test('unknown LPF kickoff uses a neutral scheduling anchor instead of an invalid
   );
 });
 
-test('CFR Cluj - Universitatea Cluj is corrected to the LPF date everywhere', async () => {
+test('CFR Cluj - Universitatea Cluj is corrected to the official LPF kickoff everywhere', async () => {
   const fixtures = await getFixtures({});
   const fixture = fixtures.find(row => row.id === 'm27');
   assert.equal(fixture.date, '2026-10-08');
-  assert.equal(fixture.t, '-');
-  assert.equal(fixture.kickoffAt, null);
-  assert.equal(fixture.fixtureSource, 'lpf-round-pages-date-only');
+  assert.equal(fixture.t, '20:30');
+  assert.equal(fixture.kickoffAt, '2026-10-08T20:30:00+03:00');
+  assert.equal(fixture.fixtureSource, 'lpf-official-correction-20261009');
+});
+
+test('a corrected fixture time changes the final-result fingerprint', () => {
+  const base = {
+    id: 'm27', date: '2026-10-08', status: 'FT', minute: 90,
+    h: 1, a: 3, pH: null, pA: null
+  };
+  assert.notEqual(
+    liveFingerprint({ ...base, time: '-' }),
+    liveFingerprint({ ...base, time: '20:30' })
+  );
 });

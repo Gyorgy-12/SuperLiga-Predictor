@@ -268,8 +268,9 @@ export const STATIC_FIXTURES = [
     "g": "SL",
     "r": 4,
     "date": "2026-10-08",
-    "t": "-",
+    "t": "20:30",
     "label": "8 oct.",
+    "kickoffAt": "2026-10-08T20:30:00+03:00",
     "h": "CFR Cluj",
     "a": "Universitatea Cluj"
   },

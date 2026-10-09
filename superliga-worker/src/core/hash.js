@@ -23,6 +23,8 @@ function sortKeys(value) {
 export function liveFingerprint(match) {
   return stableStringify({
     id: match.id,
+    date: match.date || null,
+    time: match.time || match.t || null,
     status: match.status,
     minute: match.minute,
     h: match.h,

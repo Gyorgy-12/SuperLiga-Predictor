@@ -14,11 +14,11 @@ const LPF_AUTHORITATIVE_FIXTURE_CORRECTIONS = Object.freeze({
   }),
   m27: Object.freeze({
     date: '2026-10-08',
-    t: '-',
+    t: '20:30',
     label: '8 oct.',
-    kickoffAt: null,
-    fixtureSource: 'lpf-round-pages-date-only',
-    fixtureUpdatedAt: '2026-08-09T19:10:00.000Z'
+    kickoffAt: '2026-10-08T20:30:00+03:00',
+    fixtureSource: 'lpf-official-correction-20261009',
+    fixtureUpdatedAt: '2026-10-09T16:57:04.179Z'
   })
 });
 
