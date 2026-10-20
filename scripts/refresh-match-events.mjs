@@ -8,13 +8,13 @@ const reportPath=new URL('../.tmp/match-events-refresh-20261020.json',import.met
 const version='cards-v2-second-yellow';
 
 async function get(path){
-  for(let attempt=0;attempt<4;attempt++){
+  for(let attempt=0;attempt<8;attempt++){
     const response=await fetch(base+path,{signal:AbortSignal.timeout(60000),headers:{'cache-control':'no-cache'}});
     if(!response.ok){
-      if([429,500,502,503,504].includes(response.status)&&attempt<3){
-        await response.body?.cancel();
-        console.log(JSON.stringify({retry:attempt+1,status:response.status}));
-        await new Promise(resolve=>setTimeout(resolve,(attempt+1)*1500));
+      if([429,500,502,503,504].includes(response.status)&&attempt<7){
+        const detail=(await response.text()).slice(0,200);
+        console.log(JSON.stringify({retry:attempt+1,status:response.status,detail}));
+        await new Promise(resolve=>setTimeout(resolve,Math.min(15000,(attempt+1)*3000)));
         continue;
       }
       throw new Error(`${path}: HTTP ${response.status}`);
