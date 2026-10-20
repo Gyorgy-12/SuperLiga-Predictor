@@ -18,6 +18,7 @@ export async function runCoordinator(env, task = 'wake', opts = {}) {
   url.searchParams.set('task', task);
   if (opts.force) url.searchParams.set('force', '1');
   if (opts.round) url.searchParams.set('round', String(opts.round));
+  if (opts.ids) url.searchParams.set('ids', Array.isArray(opts.ids) ? opts.ids.join(',') : String(opts.ids));
   const res = await stub.fetch(url.toString(), { method: 'POST' });
   return res.json().catch(() => ({ ok: false, error: 'coordinator_bad_json' }));
 }

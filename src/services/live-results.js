@@ -439,7 +439,6 @@ async function loadLiveSnapshotFromWorker(){
         data=await window.__SUPERLIGA_LIVE_PREFETCH__;
       }
       if(!data)data=await fetchWorkerJson(addParams(SUPERLIGA_RESULTS_SYNC_URL,{fast:1,liveOnly:1,t:Date.now()}),5000);
-      if(data.fixtures?.length)applyFixtureList(data.fixtures);
       return data.results?mergeLiveResults(data.results):false;
     }catch(e){return false}
     finally{superligaLiveSnapshotInFlight=null}

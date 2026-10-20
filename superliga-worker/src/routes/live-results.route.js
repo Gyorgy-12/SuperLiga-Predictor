@@ -27,6 +27,7 @@ async function liveResultsRoute(request, env, ctx) {
   const requestRefresh = url.searchParams.get('refresh') === '1';
   const clientPoll = url.searchParams.get('live') === '1' && !force && !debug;
   const hasFilter = !!(url.searchParams.get('date') || url.searchParams.get('ids') || url.searchParams.get('round') || url.searchParams.get('all'));
+  const ids = (url.searchParams.get('ids') || '').split(',').map(id => id.trim()).filter(Boolean);
 
   // Public browser polling must never fan out to all providers inside every
   // request. The Durable Object owns the provider sync and persists a compact
@@ -100,7 +101,12 @@ async function liveResultsRoute(request, env, ctx) {
   }
 
   let sync = null;
-  if (!noSync) {
+  if (!noSync && force && ids.length && env.UPDATE_COORDINATOR) {
+    sync = await runCoordinator(env, 'repair-events', { ids }).catch(error => ({
+      ok: false, error: error?.message || String(error), source: 'coordinator-event-repair-error'
+    }));
+    if (sync?.ok === false) return json({ ok: false, error: sync.error || sync.reason || 'event_repair_busy' }, { status: 503 }, env);
+  } else if (!noSync) {
     sync = await syncLive(env, {
       force,
       debug,
@@ -116,8 +122,7 @@ async function liveResultsRoute(request, env, ctx) {
     }).catch(error => ({ ok: false, error: error?.message || String(error), source: 'sync-live-error' }));
   }
 
-  const ids = (url.searchParams.get('ids') || '').split(',').map(id => id.trim()).filter(Boolean);
-  const payload = await livePayload({ env, sync, ids, liveOnly: ids.length > 0, fixtures: sync?.active, source: fresh ? 'worker-live-direct-fresh' : 'worker-live-results', debug });
+  const payload = await livePayload({ env, sync, ids, liveOnly: ids.length > 0 && !!sync?.results, fixtures: sync?.active, source: fresh ? 'worker-live-direct-fresh' : 'worker-live-results', debug });
   const cacheable = !fresh && !force && !debug && !hasFilter && !noSync;
   const res = json(payload, {
     headers: {
@@ -176,7 +181,6 @@ async function livePayload(meta = {}) {
     sync: sync || null,
     count: Object.keys(visibleResults).length,
     results: visibleResults,
-    ...(meta.liveOnly ? { fixtures } : {}),
     pipelineVersion: 'b54-live-first-second-yellow',
     nextDelayMs,
     source: meta.source || meta.coordinatorCache?.source || snapshot.source || stored.source || 'memory',

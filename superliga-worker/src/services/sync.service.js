@@ -223,7 +223,11 @@ export async function syncLive(env, opts = {}) {
     scoreSource: summarizeSource(scorePack),
     eventSource: summarizeSource(eventPack),
     finalWrites,
-    publicResultsCache,
+    publicResultsCache: publicResultsCache ? {
+      count: publicResultsCache.count ?? null,
+      updatedAt: publicResultsCache.updatedAt || null,
+      ...(publicResultsCache.error ? { error: publicResultsCache.error } : {})
+    } : null,
     results: visibleResults,
     updatedAt: new Date().toISOString(),
     debug: opts.debug ? {

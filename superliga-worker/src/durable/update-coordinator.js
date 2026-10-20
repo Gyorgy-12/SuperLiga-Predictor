@@ -38,6 +38,7 @@ export class UpdateCoordinator extends DurableObject {
     const task = url.searchParams.get('task') || 'wake';
     const force = url.searchParams.get('force') === '1';
     const round = url.searchParams.get('round') || null;
+    const ids = (url.searchParams.get('ids') || '').split(',').map(id => id.trim()).filter(Boolean).slice(0, 12);
 
     if (request.method === 'GET' && (path === '/' || path === '/state')) {
       return this.json(await this.readPublicState());
@@ -62,7 +63,7 @@ export class UpdateCoordinator extends DurableObject {
     }
 
     if (request.method === 'POST' && (path === '/run' || path === '/refresh')) {
-      return this.json(await this.runTask(task, { force, manual: true, round }));
+      return this.json(await this.runTask(task, { force, manual: true, round, ids }));
     }
 
     if (request.method === 'POST' && path === '/alarm') {
@@ -121,6 +122,8 @@ export class UpdateCoordinator extends DurableObject {
         result = await this.runRatings(opts);
       } else if (normalizedTask === 'live') {
         result = await this.runManualLive(opts);
+      } else if (normalizedTask === 'repair-events') {
+        result = await this.runEventRepair(opts);
       } else if (normalizedTask === 'historical-opta-migration') {
         result = await runHistoricalOptaMigration(this.env);
         await this.recordHistoricalOptaMigrationState(result);
@@ -134,6 +137,16 @@ export class UpdateCoordinator extends DurableObject {
     } finally {
       await this.releaseLock(lock.token);
     }
+  }
+
+  async runEventRepair(opts = {}) {
+    const ids = Array.isArray(opts.ids) ? opts.ids.slice(0, 12) : [];
+    if (!ids.length) return { ok: false, error: 'missing_fixture_ids' };
+    const result = await syncLive(this.env, { ids, force: true, scheduled: true, source: 'coordinator-event-repair' });
+    return {
+      ...result,
+      results: Object.fromEntries(ids.filter(id => result.results?.[id]).map(id => [id, result.results[id]]))
+    };
   }
 
   async runSchedulerTick(opts = {}) {

@@ -27,6 +27,19 @@ test('a live score is applied while bootstrap and archive requests are still pen
   assert.equal(await pending,true);
 });
 
+test('a quick live snapshot cannot overwrite the authoritative fixture schedule',async()=>{
+  let scheduleWrites=0,liveWrites=0;
+  const context={FROZEN_MODE:false,SUPERLIGA_RESULTS_SYNC_URL:'live',window:{},
+    addParams:url=>url,fetchWorkerJson:async()=>({fixtures:[{id:'m1',t:'21:00'}],results:{m1:{h:1,a:0}}}),
+    applyFixtureList:()=>{scheduleWrites++},mergeLiveResults:()=>{liveWrites++;return true}
+  };
+  vm.createContext(context);
+  vm.runInContext(liveSource.slice(liveSource.indexOf('let superligaLiveSnapshotInFlight'),liveSource.indexOf('async function loadLiveResultsFromWorker')),context);
+  assert.equal(await context.loadLiveSnapshotFromWorker(),true);
+  assert.equal(liveWrites,1);
+  assert.equal(scheduleWrites,0);
+});
+
 test('the match timeline puts the second caution before the dismissal at the same minute',()=>{
   const context={esc:String};
   vm.createContext(context);
