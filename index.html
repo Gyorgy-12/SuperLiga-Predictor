@@ -27,6 +27,15 @@
         .catch(function(e){try{window.__SUPERLIGA_BOOTSTRAP_LIGHT_PREFETCH_META__={ok:false,error:e&&e.message?e.message:String(e),at:new Date().toISOString()};}catch(_e){}return null;});
     }catch(e){return Promise.resolve(null);}
   })();
+  window.__SUPERLIGA_LIVE_PREFETCH__=(function(){
+    try{
+      var base=String(window.SUPERLIGA_WORKER_URL||'').replace(/\/$/,'');
+      var url=window.SUPERLIGA_RESULTS_SYNC_URL||(base?base+'/live-results':'');
+      if(!url)return Promise.resolve(null);
+      return fetch(url+(url.indexOf('?')>-1?'&':'?')+'fast=1&liveOnly=1',{headers:{Accept:'application/json'},credentials:'omit',cache:'no-store'})
+        .then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+    }catch(e){return Promise.resolve(null);}
+  })();
   </script>
   <link rel="stylesheet" href="./src/styles/main.css?v=20260808-1" />
   <link rel="stylesheet" href="./src/styles/baraj-community-profile-wc26.css?v=20260808-3" />
@@ -42,17 +51,18 @@
   <script src="./src/core/predictions-store.js"></script>
   <script src="./src/services/community-firebase.js"></script>
   <script src="./src/services/community-firestore-fast-sync.js"></script>
-  <script src="./src/core/standings-engine.js"></script>
+  <script src="./src/core/standings-engine.js?v=20261020-1"></script>
   <script src="./src/views/overview-table.view.js?v=20260804-1"></script>
   <script src="./src/data/fixtures.js?v=20261009-1"></script>
-  <script src="./src/services/live-results.js?v=20260809-4"></script>
+  <script src="./src/core/card-events.js?v=20261020-1"></script>
+  <script src="./src/services/live-results.js?v=20261020-1"></script>
   <script src="./src/views/stat-cards.view.js"></script>
   <script src="./src/core/stats-export.js"></script>
   <script src="./src/core/postseason-engine.js?v=20260809-1"></script>
-  <script src="./src/views/match-modal.view.js?v=20260809-2"></script>
+  <script src="./src/views/match-modal.view.js?v=20261020-1"></script>
   <script src="./src/views/matches-postseason-stats.view.js?v=20260808-4"></script>
   <script src="./src/views/match-round-labels-inline.js"></script>
-  <script src="./src/app/bootstrap.js?v=20260808-4"></script>
+  <script src="./src/app/bootstrap.js?v=20261020-1"></script>
   <script src="./src/app/standalone-export-and-penalties.js?v=20260807-2"></script>
 </body>
 </html>

@@ -20,7 +20,7 @@ function calcFairPlay(){
     // Sárga lapok
     yellows.forEach(c=>{
       const team=c.team==='a'?m.a:m.h;
-      if(fp[team])fp[team].yellow++;
+      if(fp[team]){fp[team].yellow++;fp[team].score--;}
     });
     // Piros lapok - megkülönböztetjük a típusokat
     reds.forEach(c=>{
@@ -28,21 +28,24 @@ function calcFairPlay(){
       if(!fp[team])return;
       if(c.yellowRed){
         fp[team].yellowRed++;
+        const cautions=yellows.filter(yellow=>yellow.team===c.team&&
+          (yellow.playerId&&c.playerId?yellow.playerId===c.playerId:!!c.player&&yellow.player===c.player)).length;
+        // The two visible cautions belong to the -3 dismissal penalty.
+        // They must not also add two separate fair-play deductions.
+        fp[team].score-=3-Math.min(2,cautions);
       } else {
         // Direkt piros - volt-e ugyanebben a meccsben sárga lap is ennél a játékosnál?
         // Ha igen, sárga+direkt piros = -5 (a sárga -1 + piros -4 = -5)
         // Egyszerűsítve: a redCards-ban yellowPlusRed flag-et nézünk
         if(c.yellowPlusRed){
           fp[team].yellowPlusRed++;
+          fp[team].score-=yellows.some(yellow=>yellow.team===c.team&&yellow.player===c.player)?4:5;
         } else {
           fp[team].red++;
+          fp[team].score-=4;
         }
       }
     });
-  });
-  // Pontszám számítás fair play szabályok szerint
-  Object.values(fp).forEach(t=>{
-    t.score=-(t.yellow*1 + t.yellowRed*3 + t.red*4 + t.yellowPlusRed*5);
   });
   return fp;
 }

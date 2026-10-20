@@ -928,6 +928,7 @@ function mergeScoreAndEvents(fixtures, scoreResults, eventResults, previousResul
       eventSource: raw.eventSource
     });
     if (!normalized) continue;
+    if (authoritativeIncidentFeed) normalized.incidentsVersion = 'cards-v2-second-yellow';
 
     // normalizeLiveMatch intentionally keeps a compact public shape; re-attach B26 metadata fields.
     if (raw.matchMeta && Object.keys(raw.matchMeta).length) normalized.matchMeta = raw.matchMeta;

@@ -146,13 +146,15 @@ function isPenaltyGoal(s){
 function goalScorersHtml(r,m){
   let events=[];
   events=events.concat(modalGoalCandidates(r).map(s=>({...s,_kind:'goal'})));
-  if(r&&Array.isArray(r.redCards))events=events.concat(r.redCards.map(s=>({...s,_kind:s.yellowRed?'yellowRed':'red'})));
-  if(r&&Array.isArray(r.yellowCards))events=events.concat(r.yellowCards.map(s=>({...s,_kind:'yellow'})));
+  let cards=globalThis.SuperligaCardEvents.normalize(r||{});
+  events=events.concat(cards.yellowCards.map(s=>({...s,_kind:'yellow'})));
+  events=events.concat(cards.redCards.map(s=>({...s,_kind:s.yellowRed?'yellowRed':'red'})));
   if(r&&Array.isArray(r.penalties))events=events.concat(r.penalties.filter(isMissedPenaltyEvent).map(s=>({...s,_kind:'penaltyMissed'})));
   if(!events.length)return'';
   let seen=new Set();
   events=events.filter(s=>{let k=[s._kind,s.eventId||'',eventMinute(s),eventTeam(s),eventPlayerName(s)].join('|');if(seen.has(k))return false;seen.add(k);return true});
-  let sorted=events.sort((a,b)=>eventMinuteOrder(a)-eventMinuteOrder(b));
+  let priority={goal:0,penaltyMissed:0,yellow:1,yellowRed:2,red:2};
+  let sorted=events.sort((a,b)=>eventMinuteOrder(a)-eventMinuteOrder(b)||(priority[a._kind]||0)-(priority[b._kind]||0));
   let infoCell=s=>{
     if(s._kind==='red')return'<span class="red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'Piros lap')+'</span>';
     if(s._kind==='yellowRed')return'<span class="yellow-red-card-mark"></span><span class="goal-scorer-name">'+(eventPlayerName(s)?esc(eventPlayerDisplayName(s,r)):'2× Sárga')+'</span>';

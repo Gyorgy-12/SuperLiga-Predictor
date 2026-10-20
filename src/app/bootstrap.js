@@ -179,13 +179,15 @@ if(window.ResizeObserver)new ResizeObserver(syncSpacer).observe(topBar);
 if(window.ResizeObserver){let cw=byId('ctrlWrap');if(cw)new ResizeObserver(syncSpacer).observe(cw)}
 topBar.addEventListener('transitionend',syncSpacer);
 async function startSuperligaApp(){
+  const liveSnapshot=loadLiveSnapshotFromWorker();
   if(!FROZEN_MODE){
     // Avoid painting the placeholder fixture seed while the head prefetch is
     // already resolving the authoritative schedule. Keep startup bounded so
     // the application remains usable while offline.
     await Promise.race([
       loadBootstrapLight({fallback:false}),
-      new Promise(resolve=>setTimeout(resolve,2500))
+      liveSnapshot.then(loaded=>loaded?true:new Promise(resolve=>setTimeout(resolve,500))),
+      new Promise(resolve=>setTimeout(resolve,1000))
     ]);
   }
   applyTeamElo({force:true});

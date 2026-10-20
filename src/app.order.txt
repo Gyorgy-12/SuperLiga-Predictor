@@ -8,6 +8,7 @@ src/services/community-firestore-fast-sync.js
 src/core/standings-engine.js
 src/views/overview-table.view.js
 src/data/fixtures.js
+src/core/card-events.js
 src/services/live-results.js
 src/views/stat-cards.view.js
 src/core/stats-export.js

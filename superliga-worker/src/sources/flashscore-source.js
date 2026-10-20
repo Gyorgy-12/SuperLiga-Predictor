@@ -1,3 +1,5 @@
+import '../../../src/core/card-events.js';
+
 const DEFAULT_TIMEOUT_MS = 9000;
 
 const DEFAULT_FLASHSCORE_URLS = [
@@ -1063,7 +1065,7 @@ function flashscorePenaltyGoal(item = {}) {
     ((item.penalty === true || item.pen === true || item.pk === true || item.fromPenalty === true) && hasStampedScore));
 }
 
-function parseFlashscoreSuiFeed(raw) {
+export function parseFlashscoreSuiFeed(raw) {
   const text = String(raw || '');
   const events = [];
   const scorers = [];
@@ -1102,7 +1104,8 @@ function parseFlashscoreSuiFeed(raw) {
   parseFlashscorePrematchFields(text, meta);
   const lastGoal = [...scorers].reverse().find(g => Number.isFinite(g.homeScore) && Number.isFinite(g.awayScore));
   const score = lastGoal ? { h: lastGoal.homeScore, a: lastGoal.awayScore, raw: `${lastGoal.homeScore}-${lastGoal.awayScore}` } : null;
-  return { events, scorers, yellowCards, redCards, doubleYellowCards, substitutions, penalties, meta, score };
+  const cards = globalThis.SuperligaCardEvents.normalize({ yellowCards, redCards, doubleYellowCards });
+  return { events, scorers, ...cards, substitutions, penalties, meta, score };
 }
 
 function parseFlashscoreEventBlock(block, period) {
@@ -1179,12 +1182,12 @@ function parseFlashscoreEventBlock(block, period) {
           playerId: clean.playerId || null
         };
       }
+    } else if (/second yellow|2nd yellow|double yellow|yellow[ _-]red/i.test(`${clean.type || ''} ${clean.label || ''}`)) {
+      doubleYellowCards.push({ ...clean, yellowRed: true, red: true });
     } else if (clean.code === 1 || /yellow card/i.test(clean.label || '')) {
       yellowCards.push(clean);
     } else if (clean.code === 2 || /red card/i.test(clean.label || '')) {
       redCards.push(clean);
-    } else if (/second yellow|double yellow/i.test(clean.label || '')) {
-      doubleYellowCards.push(clean);
     } else if (clean.code === 5 || /penalty awarded/i.test(clean.label || '')) {
       penalties.push({ ...clean, type: 'penalty_awarded' });
     } else if (clean.code === 6 || /substitution - out/i.test(clean.label || '')) {

@@ -25,6 +25,7 @@ export function liveFingerprint(match) {
     id: match.id,
     date: match.date || null,
     time: match.time || match.t || null,
+    incidentsVersion: match.incidentsVersion || null,
     status: match.status,
     minute: match.minute,
     h: match.h,

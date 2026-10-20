@@ -1,3 +1,5 @@
+import '../../../src/core/card-events.js';
+
 function cleanMinute(value) {
   if (value == null || value === '') return null;
   const s = String(value).trim();
@@ -191,6 +193,10 @@ function normalizeTeamSide(value, fixture) {
 
 function normalizeEvent(event, fixture, sourceHint = '') {
   return {
+    eventId: event.eventId || event.id || null,
+    playerId: event.playerId || null,
+    code: event.code ?? null,
+    notOnPitch: !!event.notOnPitch,
     team: normalizeTeamSide(event.team || event.side || event.teamSide || event.homeAway, fixture),
     minute: cleanEventMinute(event.minute || event.time || event.matchMinute || event.elapsed),
     player: normalizedEventPlayer(event, sourceHint),
@@ -205,6 +211,11 @@ function normalizeEvent(event, fixture, sourceHint = '') {
 function normalizeCard(event, fixture, sourceHint = '') {
   const type = String(event.type || event.card || event.eventType || event.kind || '').toLowerCase();
   return {
+    eventId: event.eventId || event.id || null,
+    playerId: event.playerId || null,
+    label: event.label || null,
+    code: event.code ?? null,
+    notOnPitch: !!event.notOnPitch,
     team: normalizeTeamSide(event.team || event.side || event.teamSide || event.homeAway, fixture),
     minute: cleanEventMinute(event.minute || event.time || event.matchMinute || event.elapsed),
     player: normalizedEventPlayer(event, sourceHint),
@@ -261,9 +272,7 @@ export function normalizeLiveMatch(id, raw, fixture = null, sourceMeta = {}) {
     ...(raw.events || []).filter(e => /card|yellow|red/i.test(String(e.type || e.kind || e.eventType || '')))
   ].map(e => normalizeCard(e, fixture, eventSourceHint));
 
-  const redCards = allCards.filter(c => c.red || c.yellowRed);
-  const yellowCards = allCards.filter(c => c.yellow && !c.red && !c.yellowRed);
-  const doubleYellowCards = allCards.filter(c => c.yellowRed);
+  const { redCards, yellowCards, doubleYellowCards } = globalThis.SuperligaCardEvents.normalize({ cards: allCards });
 
   return {
     id,

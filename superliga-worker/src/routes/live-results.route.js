@@ -9,6 +9,7 @@ import { readStoredResults } from '../services/results.service.js';
 import { filterPrematureLiveResults } from '../services/public-live-filter.service.js';
 import {
   coordinatorLiveResultsCache,
+  coordinatorFixtureCache,
   ensureCoordinatorAlarm,
   runCoordinator
 } from '../services/coordinator.service.js';
@@ -32,7 +33,11 @@ async function liveResultsRoute(request, env, ctx) {
   // shared live cache. This avoids provider stampedes and Cloudflare-generated
   // 503 pages which cannot carry our CORS headers.
   if (fast || clientPoll) {
-    let coordinatorCache = await coordinatorLiveResultsCache(env).catch(() => null);
+    const [cachedLive, cachedFixtures] = await Promise.all([
+      coordinatorLiveResultsCache(env).catch(() => null),
+      coordinatorFixtureCache(env).catch(() => null)
+    ]);
+    let coordinatorCache = cachedLive;
     const cacheCount = Object.keys(coordinatorCache?.results || {}).length;
     const cacheAgeMs = coordinatorCache?.updatedAt
       ? Math.max(0, Date.now() - Date.parse(coordinatorCache.updatedAt))
@@ -68,6 +73,8 @@ async function liveResultsRoute(request, env, ctx) {
 
     const payload = await livePayload({
       env,
+      liveOnly: url.searchParams.get('liveOnly') === '1',
+      fixtures: cachedFixtures?.fixtures,
       sync: clientPoll ? {
         ok: true,
         queued: shouldRefresh,
@@ -109,7 +116,8 @@ async function liveResultsRoute(request, env, ctx) {
     }).catch(error => ({ ok: false, error: error?.message || String(error), source: 'sync-live-error' }));
   }
 
-  const payload = await livePayload({ env, sync, source: fresh ? 'worker-live-direct-fresh' : 'worker-live-results', debug });
+  const ids = (url.searchParams.get('ids') || '').split(',').map(id => id.trim()).filter(Boolean);
+  const payload = await livePayload({ env, sync, ids, liveOnly: ids.length > 0, fixtures: sync?.active, source: fresh ? 'worker-live-direct-fresh' : 'worker-live-results', debug });
   const cacheable = !fresh && !force && !debug && !hasFilter && !noSync;
   const res = json(payload, {
     headers: {
@@ -123,7 +131,11 @@ async function liveResultsRoute(request, env, ctx) {
 }
 
 async function livePayload(meta = {}) {
-  const snapshot = getLiveSnapshot();
+  const memorySnapshot = getLiveSnapshot();
+  const snapshot = meta.liveOnly ? {
+    ...memorySnapshot,
+    results: Object.fromEntries(Object.entries(memorySnapshot.results || {}).filter(([, row]) => !row?.finished))
+  } : memorySnapshot;
   const syncResults = meta.sync?.results && typeof meta.sync.results === 'object' ? meta.sync.results : {};
   const coordinatorResults = meta.coordinatorCache?.results && typeof meta.coordinatorCache.results === 'object'
     ? meta.coordinatorCache.results
@@ -133,10 +145,14 @@ async function livePayload(meta = {}) {
   let stored = { results: {}, source: 'empty' };
   let nextDelayMs = 30_000;
   try {
-    [fixtures, stored] = await Promise.all([
-      getFixtures(meta.env || {}).catch(() => []),
-      readStoredResults(meta.env || {}).catch(() => ({ results: {}, source: 'empty' }))
-    ]);
+    if (meta.liveOnly) {
+      fixtures = Array.isArray(meta.fixtures) ? meta.fixtures : [];
+    } else {
+      [fixtures, stored] = await Promise.all([
+        getFixtures(meta.env || {}).catch(() => []),
+        readStoredResults(meta.env || {}).catch(() => ({ results: {}, source: 'empty' }))
+      ]);
+    }
     nextDelayMs = nextSuggestedDelayMs(fixtures, stored.results || {});
   } catch (_) {}
 
@@ -146,14 +162,22 @@ async function livePayload(meta = {}) {
     ...coordinatorResults,
     ...syncResults
   };
-  const visibleResults = filterPrematureLiveResults(mergedResults, fixtures);
+  const filteredResults = meta.ids?.length
+    ? Object.fromEntries(meta.ids.filter(id => mergedResults[id]).map(id => [id, mergedResults[id]]))
+    : mergedResults;
+  const visibleResults = filterPrematureLiveResults(filteredResults, fixtures);
+  const sync = meta.ids?.length && meta.sync ? {
+    ...meta.sync,
+    results: Object.fromEntries(meta.ids.filter(id => syncResults[id]).map(id => [id, syncResults[id]]))
+  } : meta.sync;
 
   return {
     ok: true,
-    sync: meta.sync || null,
+    sync: sync || null,
     count: Object.keys(visibleResults).length,
     results: visibleResults,
-    pipelineVersion: 'b43-delayed-kickoff-clock',
+    ...(meta.liveOnly ? { fixtures } : {}),
+    pipelineVersion: 'b54-live-first-second-yellow',
     nextDelayMs,
     source: meta.source || meta.coordinatorCache?.source || snapshot.source || stored.source || 'memory',
     fast: !!meta.fast,
