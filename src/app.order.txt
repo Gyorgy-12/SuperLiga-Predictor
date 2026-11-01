@@ -9,6 +9,7 @@ src/core/standings-engine.js
 src/views/overview-table.view.js
 src/data/fixtures.js
 src/core/card-events.js
+src/core/fixture-time.js
 src/services/live-results.js
 src/views/stat-cards.view.js
 src/core/stats-export.js

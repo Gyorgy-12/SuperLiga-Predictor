@@ -814,7 +814,7 @@ function fixtureLikelyStarted(fixture, opts = {}) {
   if (!fixture) return !!opts.force;
   const date = String(fixture.date || '').slice(0, 10);
   const time = String(fixture.t || fixture.time || '00:00').slice(0, 5);
-  const start = Date.parse(`${date}T${time}:00+03:00`);
+  const start = kickoffMs({ date, t: time });
   if (!Number.isFinite(start)) return !!opts.force;
   const graceMs = Number(opts.flashscorePendingGraceMs || 2 * 60 * 1000);
   return Date.now() >= start + graceMs;
@@ -968,7 +968,7 @@ function selectActiveFixtures(fixtures = [], results = {}, opts = {}) {
   if (opts.force) {
     const now = Date.now();
     const upcoming = list
-      .map(f => ({ f, t: Date.parse(`${String(f.date || '').slice(0, 10)}T${String(f.t || '00:00').slice(0, 5)}:00+03:00`) }))
+      .map(f => ({ f, t: kickoffMs(f) }))
       .filter(x => Number.isFinite(x.t) && x.t >= now - 6 * 60 * 60 * 1000)
       .sort((a, b) => a.t - b.t)
       .map(x => x.f);

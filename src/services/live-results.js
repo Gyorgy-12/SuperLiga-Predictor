@@ -9,7 +9,7 @@ let LIGA2_STANDINGS=superligaNormalizeLiga2Standings(FROZEN_MODE&&window.__SUPER
 superligaPublishLiga2Logos();
 
 function saveLiveResults(){try{sessionStorage.setItem(SUPERLIGA_CACHE_KEYS.liveSnapshot,JSON.stringify(LIVE_RESULTS))}catch(e){}}
-function fixtureKickoff(m){let exact=Date.parse(String(m&&m.kickoffAt||''));if(Number.isFinite(exact))return exact;let raw=String(m&&m.t||''),time=/^\d{1,2}:\d{2}$/.test(raw)?raw:'12:00';return new Date(m.date+'T'+time+':00+03:00').getTime()}
+function fixtureKickoff(m){return globalThis.SuperligaFixtureTime.kickoff(m)}
 function localMatchTime(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit',timeZone:tz||Intl.DateTimeFormat().resolvedOptions().timeZone})}catch(e){return m.t}}
 function localMatchDate(m,tz){try{return new Date(fixtureKickoff(m)).toLocaleDateString('hu-HU',{month:'short',day:'numeric',timeZone:tz||Intl.DateTimeFormat().resolvedOptions().timeZone}).replace(/\u00a0/g,' ')}catch(e){return m.d}}
 function matchSortKey(m){return (m.date||'9999-99-99')+'T'+(m.t||'99:99')+'|'+String(m.r||'').padStart(2,'0')+'|'+(m.g||'')+'|'+(m.id||'')}

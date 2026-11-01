@@ -30,6 +30,8 @@ const DEFAULT_RATINGS_RETRY_MINUTES = 30;
 const RATINGS_REFRESH_REVISION = 'b52-opta-primary-ratings';
 const HISTORICAL_OPTA_MIGRATION_RETRY_MS = 5 * 60_000;
 const ALARM_EARLY_GRACE_MS = 1_500;
+const FIXTURE_REFRESH_REVISION = 'b55-lpf-november-dst';
+const FIXTURE_REFRESH_RETRY_MS = 5 * 60_000;
 
 export class UpdateCoordinator extends DurableObject {
   async fetch(request) {
@@ -73,6 +75,11 @@ export class UpdateCoordinator extends DurableObject {
 
     if (request.method === 'POST' && path === '/ensure-alarm') {
       const scheduler = await this.readSchedulerState();
+      const lastFixtureAttempt = Date.parse(scheduler.lastFixtureRefreshAttemptAt || '');
+      if (scheduler.fixtureRefreshRevision !== FIXTURE_REFRESH_REVISION &&
+          (!Number.isFinite(lastFixtureAttempt) || Date.now() - lastFixtureAttempt >= FIXTURE_REFRESH_RETRY_MS)) {
+        await this.runTask('fixtures', { scheduleRepair: true });
+      }
       const migration = this.historicalOptaMigrationSchedule(Date.now(), scheduler);
       if (migration.due) {
         // A normal app/health wake-up must also start a pending one-time
@@ -392,7 +399,14 @@ export class UpdateCoordinator extends DurableObject {
 
   async runFixtures(opts = {}) {
     const result = await refreshFixtures(this.env, { ...opts, skipCoordinatorCache: true });
-    await this.ctx.storage.put('fixtures-cache', result);
+    if (result.ok && Array.isArray(result.fixtures)) await this.ctx.storage.put('fixtures-cache', result);
+    const scheduler = await this.readSchedulerState();
+    scheduler.lastFixtureRefreshAttemptAt = new Date().toISOString();
+    if (result.ok && result.written && !opts.round && result.sourceCount === result.count && !result.warnings?.length) {
+      scheduler.fixtureRefreshRevision = FIXTURE_REFRESH_REVISION;
+      scheduler.lastFixtureRefreshSuccessAt = scheduler.lastFixtureRefreshAttemptAt;
+    }
+    await this.writeSchedulerState(scheduler);
     await this.updateState('fixtures', result, opts);
     return result;
   }

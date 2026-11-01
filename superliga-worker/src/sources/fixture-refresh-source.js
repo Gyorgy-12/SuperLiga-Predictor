@@ -1,3 +1,5 @@
+import { fixtureKickoffIso } from '../utils/time.js';
+
 const DEFAULT_LPF_ROUND_URL = 'https://lpf.ro/etape-liga-1/{round}';
 const ROUND_COUNT = 30;
 
@@ -12,7 +14,7 @@ const MONTHS = {
   aug: '08', august: '08',
   sep: '09', sept: '09', septembrie: '09',
   oct: '10', octombrie: '10',
-  noi: '11', noiembrie: '11',
+  noi: '11', nov: '11', noiembrie: '11',
   dec: '12', decembrie: '12'
 };
 
@@ -134,7 +136,7 @@ function mergeFixture(base, clean, source) {
     t,
     label: clean.label || (date ? labelFromDate(date) : base.label),
     kickoffAt: hasConfirmedTime
-      ? (clean.kickoffAt || `${date}T${t}:00+03:00`)
+      ? (clean.kickoffAt || fixtureKickoffIso(date, t))
       : null,
     sourceIds: { ...(base.sourceIds || {}), ...(clean.sourceIds || {}) },
     fixtureSource: source,
@@ -205,12 +207,12 @@ export async function fetchFixtureRefresh(env, existingFixtures = [], opts = {})
   const byId = new Map();
   for (const f of all) if (f?.id) byId.set(f.id, f);
   const fixtures = [...byId.values()].sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
-  return { ok: true, source, fixtures, count: fixtures.length, fetched, warnings, sourceUrl };
+  return { ok: fixtures.length > 0, source, fixtures, count: fixtures.length, fetched, warnings, sourceUrl };
 }
 
 export function parseLpfRoundHtml(html, roundFixtures = [], round = null) {
   const text = textFromHtml(html);
-  const dateRe = /\b(\d{1,2})\s+(ianuarie|ian|februarie|feb|martie|mar|aprilie|apr|mai|iunie|iun|iulie|iul|august|aug|septembrie|sept|sep|octombrie|oct|noiembrie|noi|decembrie|dec)\s+(20\d{2}),\s*(\d{1,2}:\d{2}|-)(?=\s|$)/giu;
+  const dateRe = /\b(\d{1,2})\s+(ianuarie|ian|februarie|feb|martie|mar|aprilie|apr|mai|iunie|iun|iulie|iul|august|aug|septembrie|sept|sep|octombrie|oct|noiembrie|nov|noi|decembrie|dec)\.?\s+(20\d{2}),\s*(\d{1,2}:\d{2}|-)(?=\s|$)/giu;
   const hits = [...text.matchAll(dateRe)].map(m => ({
     index: m.index,
     end: m.index + m[0].length,
@@ -238,10 +240,11 @@ export function parseLpfRoundHtml(html, roundFixtures = [], round = null) {
       date: hit.date,
       t: hit.t,
       label: labelFromDate(hit.date),
-      kickoffAt: /^\d{1,2}:\d{2}$/.test(hit.t) ? `${hit.date}T${hit.t}:00+03:00` : null
+      kickoffAt: fixtureKickoffIso(hit.date, hit.t)
     }, 'lpf'));
   }
   if (!mapped.length && hits.length) warnings.push(`date blocks found (${hits.length}) but no fixture matched`);
+  if (roundFixtures.length && mapped.length < roundFixtures.length) warnings.push(`incomplete fixture coverage: ${mapped.length}/${roundFixtures.length}`);
   return { fixtures: mapped, segments: hits.length, warnings };
 }
 

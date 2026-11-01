@@ -3,6 +3,7 @@ import { syncLive } from '../services/sync.service.js';
 import { getFixtures } from '../services/fixtures.service.js';
 import { backfillFlashscoreMids } from '../services/flashscore-mid-backfill.service.js';
 import { readStoredResults, refreshPublicResultsCache, writeFinalIfChanged } from '../services/results.service.js';
+import { kickoffMs } from '../utils/time.js';
 
 /**
  * Manual result sync / historical Flashscore backfill.
@@ -192,8 +193,7 @@ function fixtureKickoffMs(fixture) {
   const date = cleanDate(fixture?.date);
   const time = String(fixture?.t || fixture?.time || '').slice(0, 5);
   if (!date || !/^\d{2}:\d{2}$/.test(time)) return NaN;
-  // July dates in the current SuperLiga season use Bucharest summer time.
-  return Date.parse(`${date}T${time}:00+03:00`);
+  return kickoffMs(fixture);
 }
 
 function preserveFinalStatus(status) {

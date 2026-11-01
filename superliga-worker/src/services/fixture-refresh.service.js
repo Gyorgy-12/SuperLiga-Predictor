@@ -50,7 +50,7 @@ export async function refreshFixtures(env, opts = {}) {
   }
 
   return {
-    ok: true,
+    ok: !writeEnabled || !!publicCacheWrite && !publicCacheWrite.error && !publicCacheWrite.skipped,
     task: 'fixtures',
     source: pack.source,
     sourceUrl: pack.sourceUrl || null,

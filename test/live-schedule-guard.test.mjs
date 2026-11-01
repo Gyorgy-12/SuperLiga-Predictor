@@ -9,6 +9,7 @@ const end = source.indexOf('function superligaTerminalStatusText');
 assert.ok(start >= 0 && end > start, 'fixture schedule helpers must be present');
 
 const context = { Date, Number, String, Math, Intl };
+vm.runInNewContext(readFileSync(new URL('../src/core/fixture-time.js', import.meta.url), 'utf8'), context);
 vm.runInNewContext(source.slice(start, end), context);
 
 test('an explicit corrected kickoff takes precedence over the old date and time', () => {
@@ -38,4 +39,8 @@ test('an LPF fixture without a confirmed time still has a stable date anchor', (
     context.fixtureKickoff({ date: '2026-10-08', t: '-', kickoffAt: null }),
     Date.parse('2026-10-08T12:00:00+03:00')
   );
+});
+
+test('browser kickoff fallback follows Romanian winter time', () => {
+  assert.equal(context.fixtureKickoff({date:'2026-11-01',t:'20:30'}),Date.parse('2026-11-01T20:30:00+02:00'));
 });
