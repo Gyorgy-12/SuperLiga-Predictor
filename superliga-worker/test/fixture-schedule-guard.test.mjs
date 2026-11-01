@@ -6,6 +6,7 @@ import { filterPrematureLiveResults } from '../src/services/public-live-filter.s
 import { parseLpfRoundHtml } from '../src/sources/fixture-refresh-source.js';
 import { kickoffMs, fixtureKickoffIso } from '../src/utils/time.js';
 import { liveFingerprint } from '../src/core/hash.js';
+import { nextSuggestedDelayMs } from '../src/core/match-window.js';
 
 test('official Sepsi OSK - FCSB correction overrides every fixture cache layer', async () => {
   const fixtures = await getFixtures({});
@@ -112,4 +113,8 @@ test('an incomplete LPF parse reports missing fixtures instead of silently succe
   const fixtures=[{id:'a',h:'Universitatea Cluj',a:'FCSB'},{id:'b',h:'Dinamo',a:'UTA Arad'}];
   const parsed=parseLpfRoundHtml('<div>2 nov 2026, 20:30 FC Universitatea Cluj - FCSB</div>',fixtures,14);
   assert.match(parsed.warnings.join(' '),/incomplete fixture coverage: 1\/2/);
+});
+
+test('the next-match scheduler handles a winter fixture without an explicit kickoff timestamp', () => {
+  assert.equal(nextSuggestedDelayMs([{date:'2026-11-01',t:'20:30'}],{},Date.parse('2026-11-01T18:20:00Z')),5*60*1000);
 });

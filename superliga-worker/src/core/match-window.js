@@ -24,7 +24,7 @@ export function nextSuggestedDelayMs(fixtures, results = {}, now = Date.now()) {
   const active = interestingFixtures(fixtures, results, now);
   if (active.length) return SOURCE_POLICY.livePollMs;
   const next = fixtures
-    .map(kickoffMs)
+    .map(fixture => kickoffMs(fixture))
     .filter(t => t > now)
     .sort((a, b) => a - b)[0];
   if (!next) return SOURCE_POLICY.idlePollMs;
